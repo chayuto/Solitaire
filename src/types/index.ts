@@ -19,4 +19,10 @@ export interface GameState {
     spades: Card[];
   };
   tableau: Card[][];
+  selectedCard?: {
+    source: 'tableau' | 'discard';
+    columnIndex?: number; // for tableau
+    cardIndex?: number; // for tableau (index in column)
+    card: Card;
+  };
 }
