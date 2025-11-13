@@ -41,7 +41,7 @@ const FoundationPile: React.FC<FoundationPileProps> = ({ suit }) => {
       ) : (
         <div className={`w-20 h-28 border-2 border-dashed rounded-lg flex items-center justify-center bg-gray-100 transition-all cursor-pointer ${color} ${
           isValidDestination
-            ? 'border-green-500 bg-green-100 ring-2 ring-green-400'
+            ? 'border-cyan-500 bg-cyan-100 ring-4 ring-cyan-400 shadow-lg shadow-cyan-500/50'
             : 'border-gray-400 hover:border-gray-500'
         }`}>
           <span className="text-5xl">{suitSymbols[suit]}</span>
@@ -49,7 +49,7 @@ const FoundationPile: React.FC<FoundationPileProps> = ({ suit }) => {
       )}
       {/* Overlay for valid destination on non-empty foundation */}
       {foundation.length > 0 && isValidDestination && (
-        <div className="absolute inset-0 border-4 border-green-500 rounded-lg bg-green-200 bg-opacity-30 cursor-pointer z-10" />
+        <div className="absolute inset-0 ring-4 ring-cyan-400 rounded-lg bg-cyan-200 bg-opacity-40 cursor-pointer z-10 shadow-lg shadow-cyan-500/50" />
       )}
     </div>
   );
