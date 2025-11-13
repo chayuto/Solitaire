@@ -13,11 +13,11 @@ const GameBoard: React.FC = () => {
         
         {/* Top Row: Draw Pile, Discard Pile, and Foundation Piles */}
         <div className="flex justify-between mb-8">
-          <div className="flex gap-4">
+          <div className="flex gap-6">
             <DrawPile />
             <DiscardPile />
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-6">
             <FoundationPile suit="hearts" />
             <FoundationPile suit="diamonds" />
             <FoundationPile suit="clubs" />
@@ -26,7 +26,7 @@ const GameBoard: React.FC = () => {
         </div>
 
         {/* Tableau: 7 columns */}
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-12 justify-center">
           {[0, 1, 2, 3, 4, 5, 6].map((index) => (
             <div key={index} className="flex-shrink-0">
               <TableauColumn columnIndex={index} />
