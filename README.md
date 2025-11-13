@@ -1,73 +1,124 @@
-# React + TypeScript + Vite
+# Solitaire Card Game
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, interactive Solitaire (Klondike) card game built with React and TypeScript.
 
-Currently, two official plugins are available:
+## 🎮 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Classic Klondike Solitaire gameplay
+- Smooth drag-and-drop card interactions
+- Save/Load game state functionality
+- Export game history and board setup
+- Responsive green felt-style game board
+- Built with modern React 19
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend Framework**: React 19.2.0
+- **Language**: TypeScript 5.9
+- **Build Tool**: Vite 7.2
+- **State Management**: Zustand 5.0
+- **Styling**: Tailwind CSS 4.1
+- **Drag & Drop**: @dnd-kit/core 6.3
+- **Animations**: Framer Motion 12.23
+- **Testing**: Vitest 4.0 with React Testing Library
+- **Code Quality**: ESLint with TypeScript support
 
-## Expanding the ESLint configuration
+## 📦 Installation
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🚀 Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Start development server
+npm run dev
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
+
+## 🧪 Testing
+
+```bash
+# Run tests in watch mode
+npm test
+
+# Run tests once
+npm run test:run
+
+# Run tests with UI
+npm run test:ui
+
+# Generate coverage report
+npm run test:coverage
+```
+
+## 🔍 Code Quality
+
+```bash
+# Run ESLint
+npm run lint
+```
+
+## 📁 Project Structure
+
+```
+src/
+├── components/          # React components
+│   ├── Card.tsx        # Individual card component
+│   ├── DrawPile.tsx    # Draw pile component
+│   ├── DiscardPile.tsx # Discard pile component
+│   ├── FoundationPile.tsx # Foundation pile component
+│   ├── TableauColumn.tsx  # Tableau column component
+│   ├── ControlPanel.tsx   # Game controls
+│   └── GameBoard.tsx      # Main game board
+├── store/              # State management
+│   └── gameStore.ts    # Zustand game state store
+├── types/              # TypeScript type definitions
+│   └── index.ts        # Card, GameState, Move types
+├── test/               # Test setup
+│   └── setup.ts        # Vitest configuration
+├── App.tsx             # Main App component
+└── main.tsx           # Application entry point
+```
+
+## 🎯 Game Rules
+
+Classic Klondike Solitaire:
+- Move all cards to foundation piles (sorted by suit from Ace to King)
+- Tableau cards can be moved in descending order with alternating colors
+- Draw cards from the draw pile to the discard pile
+- Win by completing all four foundation piles
+
+## 💾 Save/Load System
+
+The game includes:
+- **Save State**: Export complete game state as JSON
+- **Load State**: Import previously saved game states
+- **Move History**: Track all moves made during the game
+- **Board Export**: Export initial board setup for replay
+
+## 📚 Documentation
+
+See `/docs/reports/` for:
+- Project state documentation
+- Improvement suggestions
+- Coding agent task breakdowns
+- Development guidelines
+
+## 🤝 Contributing
+
+This is a solo development project. For improvements and extensions, see the task files in `/docs/reports/`.
+
+## 📄 License
+
+Private project
+
+## 👤 Author
+
+Solo developer project
