@@ -63,7 +63,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
               <div
                 key={card.id}
                 className="absolute"
-                style={{ top: `${index * 24}px` }}
+                style={{ top: `${index * 32}px` }}
               >
                 <Card
                   card={card}
@@ -90,7 +90,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
         <div
           onClick={() => moveCardToTableau(columnIndex)}
           className="absolute inset-0 border-4 border-green-500 rounded-lg bg-green-200 bg-opacity-30 cursor-pointer pointer-events-auto z-10"
-          style={{ top: 0, height: `${column.length * 24 + 112}px` }}
+          style={{ top: 0, height: `${column.length * 32 + 112}px` }}
         />
       )}
     </div>
