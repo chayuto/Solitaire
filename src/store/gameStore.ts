@@ -9,6 +9,8 @@ interface GameStore extends GameState {
   moveCardToFoundation: (suit: Suit) => void;
   canMoveToTableau: (card: Card, targetColumn: number) => boolean;
   canMoveToFoundation: (card: Card, suit: Suit) => boolean;
+  exportGameState: () => string;
+  importGameState: (jsonString: string) => boolean;
 }
 
 // Helper function to create a card
@@ -257,6 +259,54 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newFoundations[suit] = [...newFoundations[suit], selected.card];
       
       set({ discardPile: newDiscardPile, foundations: newFoundations, selectedCard: undefined });
+    }
+  },
+  
+  exportGameState: () => {
+    const state = get();
+    const exportState: GameState = {
+      drawPile: state.drawPile,
+      discardPile: state.discardPile,
+      foundations: state.foundations,
+      tableau: state.tableau,
+    };
+    return JSON.stringify(exportState, null, 2);
+  },
+  
+  importGameState: (jsonString: string) => {
+    try {
+      const importedState = JSON.parse(jsonString) as GameState;
+      
+      // Validate the imported state
+      if (!importedState.drawPile || !importedState.discardPile || 
+          !importedState.foundations || !importedState.tableau) {
+        return false;
+      }
+      
+      // Validate foundations
+      if (!importedState.foundations.hearts || !importedState.foundations.diamonds ||
+          !importedState.foundations.clubs || !importedState.foundations.spades) {
+        return false;
+      }
+      
+      // Validate tableau has 7 columns
+      if (!Array.isArray(importedState.tableau) || importedState.tableau.length !== 7) {
+        return false;
+      }
+      
+      // Set the imported state
+      set({
+        drawPile: importedState.drawPile,
+        discardPile: importedState.discardPile,
+        foundations: importedState.foundations,
+        tableau: importedState.tableau,
+        selectedCard: undefined,
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error importing game state:', error);
+      return false;
     }
   },
 }));

@@ -4,3 +4,4 @@ export { default as DiscardPile } from './DiscardPile';
 export { default as FoundationPile } from './FoundationPile';
 export { default as TableauColumn } from './TableauColumn';
 export { default as GameBoard } from './GameBoard';
+export { default as ControlPanel } from './ControlPanel';
