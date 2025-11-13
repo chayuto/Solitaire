@@ -50,4 +50,6 @@ export interface GameState {
     card: Card;
   };
   moveHistory: Move[];
+  showValidMoves: boolean;
+  godMode: boolean;
 }

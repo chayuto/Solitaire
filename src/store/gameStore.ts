@@ -14,6 +14,8 @@ interface GameStore extends GameState {
   exportMoveHistory: () => string;
   exportBoardSetup: () => string;
   drawCard: () => void;
+  toggleValidMoves: () => void;
+  toggleGodMode: () => void;
 }
 
 // Helper function to create a card
@@ -80,6 +82,8 @@ const initializeGameState = (): GameState => {
     tableau,
     selectedCard: undefined,
     moveHistory: [],
+    showValidMoves: true,
+    godMode: false,
   };
 };
 
@@ -424,6 +428,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       foundations: state.foundations,
       tableau: state.tableau,
       moveHistory: state.moveHistory,
+      showValidMoves: state.showValidMoves,
+      godMode: state.godMode,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -449,7 +455,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return false;
       }
       
-      // Set the imported state (preserve move history if present)
+      // Set the imported state (preserve move history and toggles if present)
       set({
         drawPile: importedState.drawPile,
         discardPile: importedState.discardPile,
@@ -457,6 +463,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         tableau: importedState.tableau,
         selectedCard: undefined,
         moveHistory: importedState.moveHistory || [],
+        showValidMoves: importedState.showValidMoves ?? true,
+        godMode: importedState.godMode ?? false,
       });
       
       return true;
@@ -481,5 +489,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       tableau: state.tableau,
     };
     return JSON.stringify(boardSetup, null, 2);
+  },
+  
+  toggleValidMoves: () => {
+    set((state) => ({ showValidMoves: !state.showValidMoves }));
+  },
+  
+  toggleGodMode: () => {
+    set((state) => ({ godMode: !state.godMode }));
   },
 }));

@@ -5,9 +5,10 @@ interface CardProps {
   onClick?: () => void;
   isInteractable?: boolean;
   isSelected?: boolean;
+  godMode?: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSelected = false }) => {
+const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSelected = false, godMode = false }) => {
   const { suit, rank, faceUp } = card;
 
   // Determine if the card is red or black
@@ -34,6 +35,34 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
   };
 
   if (!faceUp) {
+    // God mode: show card with purple tint and semi-transparent overlay
+    if (godMode) {
+      return (
+        <div className="relative">
+          <div
+            onClick={onClick}
+            className={`w-20 h-28 bg-white border-2 border-purple-500 rounded-lg flex flex-col p-2 cursor-pointer shadow-md hover:shadow-lg transition-all ${color} ${getHighlightClass()}`}
+          >
+            <div className="flex justify-between items-start">
+              <div className="text-xl font-bold leading-none">{rank}</div>
+              <div className="text-2xl leading-none">{suitSymbols[suit]}</div>
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-4xl">{suitSymbols[suit]}</div>
+            </div>
+            <div className="flex justify-between items-end rotate-180">
+              <div className="text-xl font-bold leading-none">{rank}</div>
+              <div className="text-2xl leading-none">{suitSymbols[suit]}</div>
+            </div>
+          </div>
+          {/* Purple overlay to indicate god mode */}
+          <div className="absolute inset-0 bg-purple-600 bg-opacity-40 rounded-lg pointer-events-none flex items-center justify-center">
+            <span className="text-white text-xs font-bold bg-purple-900 bg-opacity-70 px-2 py-1 rounded">👁️</span>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div
         onClick={onClick}

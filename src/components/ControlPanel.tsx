@@ -2,7 +2,9 @@ import { useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
 const ControlPanel: React.FC = () => {
-  const { exportGameState, importGameState, initializeGame, exportMoveHistory, exportBoardSetup } = useGameStore();
+  const { exportGameState, importGameState, initializeGame, exportMoveHistory, exportBoardSetup, toggleValidMoves, toggleGodMode } = useGameStore();
+  const showValidMoves = useGameStore((state) => state.showValidMoves);
+  const godMode = useGameStore((state) => state.godMode);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -130,6 +132,30 @@ const ControlPanel: React.FC = () => {
           className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
           Export Board
+        </button>
+
+        <div className="border-t border-gray-300 my-2"></div>
+        
+        <button
+          onClick={toggleValidMoves}
+          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+            showValidMoves
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+          }`}
+        >
+          {showValidMoves ? '✓' : '✗'} Valid Moves
+        </button>
+        
+        <button
+          onClick={toggleGodMode}
+          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+            godMode
+              ? 'bg-purple-600 hover:bg-purple-700 text-white'
+              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+          }`}
+        >
+          {godMode ? '👁️' : '👁️‍🗨️'} God Mode
         </button>
       </div>
 

@@ -144,3 +144,85 @@ describe('GameStore - Movement Recording', () => {
     expect(newState.moveHistory).toEqual([]);
   });
 });
+
+describe('GameStore - UI Toggles', () => {
+  beforeEach(() => {
+    // Reset the store before each test
+    useGameStore.getState().initializeGame();
+  });
+
+  it('should initialize with showValidMoves enabled', () => {
+    const state = useGameStore.getState();
+    expect(state.showValidMoves).toBe(true);
+  });
+
+  it('should initialize with godMode disabled', () => {
+    const state = useGameStore.getState();
+    expect(state.godMode).toBe(false);
+  });
+
+  it('should toggle showValidMoves', () => {
+    const store = useGameStore.getState();
+    const initialValue = store.showValidMoves;
+    
+    store.toggleValidMoves();
+    expect(useGameStore.getState().showValidMoves).toBe(!initialValue);
+    
+    store.toggleValidMoves();
+    expect(useGameStore.getState().showValidMoves).toBe(initialValue);
+  });
+
+  it('should toggle godMode', () => {
+    const store = useGameStore.getState();
+    const initialValue = store.godMode;
+    
+    store.toggleGodMode();
+    expect(useGameStore.getState().godMode).toBe(!initialValue);
+    
+    store.toggleGodMode();
+    expect(useGameStore.getState().godMode).toBe(initialValue);
+  });
+
+  it('should preserve toggle states on export/import', () => {
+    const store = useGameStore.getState();
+    
+    // Set custom toggle states
+    store.toggleValidMoves(); // Disable valid moves
+    store.toggleGodMode(); // Enable god mode
+    
+    const exported = store.exportGameState();
+    
+    // Initialize new game (reset to defaults)
+    store.initializeGame();
+    expect(useGameStore.getState().showValidMoves).toBe(true);
+    expect(useGameStore.getState().godMode).toBe(false);
+    
+    // Import the saved game
+    const success = store.importGameState(exported);
+    expect(success).toBe(true);
+    
+    const newState = useGameStore.getState();
+    expect(newState.showValidMoves).toBe(false);
+    expect(newState.godMode).toBe(true);
+  });
+
+  it('should handle importing games without toggle states (backward compatibility)', () => {
+    const store = useGameStore.getState();
+    
+    // Create a state without toggle fields (simulating old saved game)
+    const exported = store.exportGameState();
+    const parsed = JSON.parse(exported);
+    delete parsed.showValidMoves;
+    delete parsed.godMode;
+    const oldFormat = JSON.stringify(parsed);
+    
+    // Import it
+    const success = store.importGameState(oldFormat);
+    expect(success).toBe(true);
+    
+    // Should use default values
+    const newState = useGameStore.getState();
+    expect(newState.showValidMoves).toBe(true);
+    expect(newState.godMode).toBe(false);
+  });
+});
