@@ -29,7 +29,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
       return 'ring-4 ring-yellow-400 scale-105';
     }
     if (isInteractable) {
-      return 'ring-2 ring-green-400 hover:ring-4 hover:ring-green-500';
+      return 'ring-2 ring-cyan-400 hover:ring-4 hover:ring-cyan-500';
     }
     return '';
   };

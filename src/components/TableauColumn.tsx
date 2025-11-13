@@ -83,7 +83,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
           onClick={handleEmptyColumnClick}
           className={`w-20 h-28 border-2 border-dashed rounded-lg bg-gray-100 cursor-pointer transition-all ${
             isValidDestination
-              ? 'border-green-500 bg-green-100 ring-2 ring-green-400'
+              ? 'border-cyan-500 bg-cyan-100 ring-4 ring-cyan-400 shadow-lg shadow-cyan-500/50'
               : 'border-gray-400 hover:border-gray-500'
           }`}
         ></div>
@@ -92,7 +92,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
       {column.length > 0 && isValidDestination && (
         <div
           onClick={() => moveCardToTableau(columnIndex)}
-          className="absolute inset-0 border-4 border-green-500 rounded-lg bg-green-200 bg-opacity-30 cursor-pointer pointer-events-auto z-10"
+          className="absolute inset-0 ring-4 ring-cyan-400 rounded-lg bg-cyan-200 bg-opacity-40 cursor-pointer pointer-events-auto z-10 shadow-lg shadow-cyan-500/50"
           style={{ top: 0, height: `${column.length * 32 + 112}px` }}
         />
       )}
