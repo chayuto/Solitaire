@@ -3,9 +3,13 @@ import Card from './Card';
 
 const DrawPile: React.FC = () => {
   const drawPile = useGameStore((state) => state.drawPile);
+  const drawCard = useGameStore((state) => state.drawCard);
 
   return (
-    <div className="relative w-20 h-28">
+    <div 
+      className="relative w-20 h-28 cursor-pointer"
+      onClick={drawCard}
+    >
       {drawPile.length > 0 ? (
         <div className="absolute inset-0">
           <Card card={{ ...drawPile[0], faceUp: false }} />

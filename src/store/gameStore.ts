@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState, Card, Suit, Rank } from '../types';
+import type { GameState, Card, Suit, Rank, Move } from '../types';
 
 interface GameStore extends GameState {
   initializeGame: () => void;
@@ -11,6 +11,9 @@ interface GameStore extends GameState {
   canMoveToFoundation: (card: Card, suit: Suit) => boolean;
   exportGameState: () => string;
   importGameState: (jsonString: string) => boolean;
+  exportMoveHistory: () => string;
+  exportBoardSetup: () => string;
+  drawCard: () => void;
 }
 
 // Helper function to create a card
@@ -76,6 +79,7 @@ const initializeGameState = (): GameState => {
     },
     tableau,
     selectedCard: undefined,
+    moveHistory: [],
   };
 };
 
@@ -91,6 +95,11 @@ const getRankValue = (rank: Rank): number => {
 // Helper function to check if card is red
 const isRed = (suit: Suit): boolean => {
   return suit === 'hearts' || suit === 'diamonds';
+};
+
+// Helper function to record a move
+const recordMove = (state: GameState, move: Move): Move[] => {
+  return [...state.moveHistory, move];
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -189,6 +198,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     
     const newTableau = [...state.tableau];
+    const newMoves: Move[] = [];
     
     if (selected.source === 'tableau' && selected.columnIndex !== undefined && selected.cardIndex !== undefined) {
       // Move from tableau to tableau (can move multiple cards)
@@ -196,24 +206,78 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const cardsToMove = sourceColumn.slice(selected.cardIndex);
       const remainingCards = sourceColumn.slice(0, selected.cardIndex);
       
+      // Record the move for each card moved
+      cardsToMove.forEach((card, index) => {
+        newMoves.push({
+          type: 'tableau_to_tableau',
+          timestamp: Date.now() + index,
+          card,
+          from: {
+            source: 'tableau',
+            columnIndex: selected.columnIndex,
+            cardIndex: selected.cardIndex! + index,
+          },
+          to: {
+            target: 'tableau',
+            columnIndex: targetColumn,
+          },
+        });
+      });
+      
       // Flip the last remaining card if it exists and is face down
       if (remainingCards.length > 0 && !remainingCards[remainingCards.length - 1].faceUp) {
-        remainingCards[remainingCards.length - 1] = {
+        const flippedCard = {
           ...remainingCards[remainingCards.length - 1],
           faceUp: true,
         };
+        remainingCards[remainingCards.length - 1] = flippedCard;
+        
+        // Record the flip
+        newMoves.push({
+          type: 'flip_card',
+          timestamp: Date.now() + cardsToMove.length,
+          card: flippedCard,
+          from: {
+            source: 'tableau',
+            columnIndex: selected.columnIndex,
+            cardIndex: remainingCards.length - 1,
+          },
+        });
       }
       
       newTableau[selected.columnIndex] = remainingCards;
       newTableau[targetColumn] = [...newTableau[targetColumn], ...cardsToMove];
       
-      set({ tableau: newTableau, selectedCard: undefined });
+      set({ 
+        tableau: newTableau, 
+        selectedCard: undefined,
+        moveHistory: [...state.moveHistory, ...newMoves],
+      });
     } else if (selected.source === 'discard') {
       // Move from discard to tableau
       const newDiscardPile = state.discardPile.slice(0, -1);
       newTableau[targetColumn] = [...newTableau[targetColumn], selected.card];
       
-      set({ discardPile: newDiscardPile, tableau: newTableau, selectedCard: undefined });
+      // Record the move
+      const move: Move = {
+        type: 'discard_to_tableau',
+        timestamp: Date.now(),
+        card: selected.card,
+        from: {
+          source: 'discard',
+        },
+        to: {
+          target: 'tableau',
+          columnIndex: targetColumn,
+        },
+      };
+      
+      set({ 
+        discardPile: newDiscardPile, 
+        tableau: newTableau, 
+        selectedCard: undefined,
+        moveHistory: recordMove(state, move),
+      });
     }
   },
   
@@ -228,6 +292,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     
+    const newMoves: Move[] = [];
+    
     // Only single cards can move to foundation
     if (selected.source === 'tableau' && selected.columnIndex !== undefined && selected.cardIndex !== undefined) {
       const sourceColumn = state.tableau[selected.columnIndex];
@@ -240,25 +306,113 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const newColumn = [...sourceColumn];
       newColumn.pop();
       
+      // Record the move
+      newMoves.push({
+        type: 'tableau_to_foundation',
+        timestamp: Date.now(),
+        card: selected.card,
+        from: {
+          source: 'tableau',
+          columnIndex: selected.columnIndex,
+          cardIndex: selected.cardIndex,
+        },
+        to: {
+          target: 'foundation',
+          suit,
+        },
+      });
+      
       // Flip the last remaining card if it exists and is face down
       if (newColumn.length > 0 && !newColumn[newColumn.length - 1].faceUp) {
-        newColumn[newColumn.length - 1] = {
+        const flippedCard = {
           ...newColumn[newColumn.length - 1],
           faceUp: true,
         };
+        newColumn[newColumn.length - 1] = flippedCard;
+        
+        // Record the flip
+        newMoves.push({
+          type: 'flip_card',
+          timestamp: Date.now() + 1,
+          card: flippedCard,
+          from: {
+            source: 'tableau',
+            columnIndex: selected.columnIndex,
+            cardIndex: newColumn.length - 1,
+          },
+        });
       }
       
       newTableau[selected.columnIndex] = newColumn;
       const newFoundations = { ...state.foundations };
       newFoundations[suit] = [...newFoundations[suit], selected.card];
       
-      set({ tableau: newTableau, foundations: newFoundations, selectedCard: undefined });
+      set({ 
+        tableau: newTableau, 
+        foundations: newFoundations, 
+        selectedCard: undefined,
+        moveHistory: [...state.moveHistory, ...newMoves],
+      });
     } else if (selected.source === 'discard') {
       const newDiscardPile = state.discardPile.slice(0, -1);
       const newFoundations = { ...state.foundations };
       newFoundations[suit] = [...newFoundations[suit], selected.card];
       
-      set({ discardPile: newDiscardPile, foundations: newFoundations, selectedCard: undefined });
+      // Record the move
+      const move: Move = {
+        type: 'discard_to_foundation',
+        timestamp: Date.now(),
+        card: selected.card,
+        from: {
+          source: 'discard',
+        },
+        to: {
+          target: 'foundation',
+          suit,
+        },
+      };
+      
+      set({ 
+        discardPile: newDiscardPile, 
+        foundations: newFoundations, 
+        selectedCard: undefined,
+        moveHistory: recordMove(state, move),
+      });
+    }
+  },
+  
+  drawCard: () => {
+    const state = get();
+    
+    if (state.drawPile.length === 0) {
+      // Reset draw pile from discard pile
+      const newDrawPile = [...state.discardPile].reverse().map(card => ({
+        ...card,
+        faceUp: false,
+      }));
+      set({ drawPile: newDrawPile, discardPile: [] });
+    } else {
+      // Draw a card from draw pile to discard pile
+      const card = state.drawPile[0];
+      const drawnCard = { ...card, faceUp: true };
+      const newDrawPile = state.drawPile.slice(1);
+      const newDiscardPile = [...state.discardPile, drawnCard];
+      
+      // Record the move
+      const move: Move = {
+        type: 'draw_card',
+        timestamp: Date.now(),
+        card: drawnCard,
+        from: {
+          source: 'draw',
+        },
+      };
+      
+      set({ 
+        drawPile: newDrawPile, 
+        discardPile: newDiscardPile,
+        moveHistory: recordMove(state, move),
+      });
     }
   },
   
@@ -269,6 +423,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       discardPile: state.discardPile,
       foundations: state.foundations,
       tableau: state.tableau,
+      moveHistory: state.moveHistory,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -294,13 +449,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return false;
       }
       
-      // Set the imported state
+      // Set the imported state (preserve move history if present)
       set({
         drawPile: importedState.drawPile,
         discardPile: importedState.discardPile,
         foundations: importedState.foundations,
         tableau: importedState.tableau,
         selectedCard: undefined,
+        moveHistory: importedState.moveHistory || [],
       });
       
       return true;
@@ -308,5 +464,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
       console.error('Error importing game state:', error);
       return false;
     }
+  },
+  
+  exportMoveHistory: () => {
+    const state = get();
+    return JSON.stringify(state.moveHistory, null, 2);
+  },
+  
+  exportBoardSetup: () => {
+    const state = get();
+    // Export current board state without selected card or move history
+    const boardSetup = {
+      drawPile: state.drawPile,
+      discardPile: state.discardPile,
+      foundations: state.foundations,
+      tableau: state.tableau,
+    };
+    return JSON.stringify(boardSetup, null, 2);
   },
 }));

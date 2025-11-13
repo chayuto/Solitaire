@@ -9,6 +9,30 @@ export interface Card {
   id: string;
 }
 
+export type MoveType = 
+  | 'draw_card'
+  | 'tableau_to_tableau'
+  | 'tableau_to_foundation'
+  | 'discard_to_tableau'
+  | 'discard_to_foundation'
+  | 'flip_card';
+
+export interface Move {
+  type: MoveType;
+  timestamp: number;
+  card: Card;
+  from?: {
+    source: 'tableau' | 'discard' | 'draw';
+    columnIndex?: number;
+    cardIndex?: number;
+  };
+  to?: {
+    target: 'tableau' | 'foundation';
+    columnIndex?: number;
+    suit?: Suit;
+  };
+}
+
 export interface GameState {
   drawPile: Card[];
   discardPile: Card[];
@@ -25,4 +49,5 @@ export interface GameState {
     cardIndex?: number; // for tableau (index in column)
     card: Card;
   };
+  moveHistory: Move[];
 }

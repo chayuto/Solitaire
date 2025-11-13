@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
 const ControlPanel: React.FC = () => {
-  const { exportGameState, importGameState, initializeGame } = useGameStore();
+  const { exportGameState, importGameState, initializeGame, exportMoveHistory, exportBoardSetup } = useGameStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -19,6 +19,38 @@ const ControlPanel: React.FC = () => {
     URL.revokeObjectURL(url);
     
     setMessage({ type: 'success', text: 'Game exported successfully!' });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleExportMoveHistory = () => {
+    const jsonHistory = exportMoveHistory();
+    const blob = new Blob([jsonHistory], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `solitaire-moves-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    setMessage({ type: 'success', text: 'Move history exported!' });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleExportBoardSetup = () => {
+    const jsonSetup = exportBoardSetup();
+    const blob = new Blob([jsonSetup], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `solitaire-board-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    setMessage({ type: 'success', text: 'Board setup exported!' });
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -59,29 +91,45 @@ const ControlPanel: React.FC = () => {
   };
 
   return (
-    <div className="fixed right-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-4 w-48">
+    <div className="fixed right-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-4 w-52">
       <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">Controls</h2>
       
       <div className="space-y-2">
         <button
           onClick={handleNewGame}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors"
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
           New Game
         </button>
         
         <button
           onClick={handleImport}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
           Load Game
         </button>
         
         <button
           onClick={handleExport}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition-colors"
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
           Save Game
+        </button>
+
+        <div className="border-t border-gray-300 my-2"></div>
+        
+        <button
+          onClick={handleExportMoveHistory}
+          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+        >
+          Export Moves
+        </button>
+        
+        <button
+          onClick={handleExportBoardSetup}
+          className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+        >
+          Export Board
         </button>
       </div>
 
