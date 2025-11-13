@@ -35,13 +35,13 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
   };
 
   if (!faceUp) {
-    // God mode: show card with purple tint and semi-transparent overlay
+    // God mode: show card with reduced opacity to reveal content
     if (godMode) {
       return (
         <div className="relative">
           <div
             onClick={onClick}
-            className={`w-20 h-28 bg-white border-2 border-purple-500 rounded-lg flex flex-col p-2 cursor-pointer shadow-md hover:shadow-lg transition-all ${color} ${getHighlightClass()}`}
+            className={`w-20 h-28 bg-white border-2 border-gray-300 rounded-lg flex flex-col p-2 cursor-pointer shadow-md hover:shadow-lg transition-all select-none ${color} ${getHighlightClass()} opacity-40`}
           >
             <div className="flex justify-between items-start">
               <div className="text-xl font-bold leading-none">{rank}</div>
@@ -55,9 +55,9 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
               <div className="text-2xl leading-none">{suitSymbols[suit]}</div>
             </div>
           </div>
-          {/* Purple overlay to indicate god mode */}
-          <div className="absolute inset-0 bg-purple-600 bg-opacity-40 rounded-lg pointer-events-none flex items-center justify-center">
-            <span className="text-white text-xs font-bold bg-purple-900 bg-opacity-70 px-2 py-1 rounded">👁️</span>
+          {/* Indicator badge for god mode */}
+          <div className="absolute top-1 right-1 text-xs pointer-events-none">
+            👁️
           </div>
         </div>
       );
@@ -66,7 +66,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
     return (
       <div
         onClick={onClick}
-        className={`w-20 h-28 bg-blue-900 border-2 border-blue-700 rounded-lg flex items-center justify-center cursor-pointer shadow-md hover:shadow-lg transition-all ${getHighlightClass()}`}
+        className={`w-20 h-28 bg-blue-900 border-2 border-blue-700 rounded-lg flex items-center justify-center cursor-pointer shadow-md hover:shadow-lg transition-all select-none ${getHighlightClass()}`}
       >
         <div className="text-blue-700 text-4xl font-bold">🂠</div>
       </div>
@@ -76,7 +76,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
   return (
     <div
       onClick={onClick}
-      className={`w-20 h-28 bg-white border-2 border-gray-300 rounded-lg flex flex-col p-2 cursor-pointer shadow-md hover:shadow-lg transition-all ${color} ${getHighlightClass()}`}
+      className={`w-20 h-28 bg-white border-2 border-gray-300 rounded-lg flex flex-col p-2 cursor-pointer shadow-md hover:shadow-lg transition-all select-none ${color} ${getHighlightClass()}`}
     >
       <div className="flex justify-between items-start">
         <div className="text-xl font-bold leading-none">{rank}</div>
