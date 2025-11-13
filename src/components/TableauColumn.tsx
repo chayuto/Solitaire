@@ -12,9 +12,11 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
   const deselectCard = useGameStore((state) => state.deselectCard);
   const moveCardToTableau = useGameStore((state) => state.moveCardToTableau);
   const canMoveToTableau = useGameStore((state) => state.canMoveToTableau);
+  const showValidMoves = useGameStore((state) => state.showValidMoves);
+  const godMode = useGameStore((state) => state.godMode);
 
   // Check if this column is a valid destination for the selected card
-  const isValidDestination = selectedCard && canMoveToTableau(selectedCard.card, columnIndex);
+  const isValidDestination = showValidMoves && selectedCard && canMoveToTableau(selectedCard.card, columnIndex);
 
   const handleCardClick = (cardIndex: number) => {
     const card = column[cardIndex];
@@ -70,6 +72,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
                   onClick={() => handleCardClick(index)}
                   isInteractable={isInteractable}
                   isSelected={isSelected}
+                  godMode={godMode}
                 />
               </div>
             );

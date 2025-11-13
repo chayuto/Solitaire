@@ -11,6 +11,7 @@ const FoundationPile: React.FC<FoundationPileProps> = ({ suit }) => {
   const selectedCard = useGameStore((state) => state.selectedCard);
   const moveCardToFoundation = useGameStore((state) => state.moveCardToFoundation);
   const canMoveToFoundation = useGameStore((state) => state.canMoveToFoundation);
+  const showValidMoves = useGameStore((state) => state.showValidMoves);
 
   const suitSymbols = {
     hearts: '♥',
@@ -23,7 +24,7 @@ const FoundationPile: React.FC<FoundationPileProps> = ({ suit }) => {
   const color = isRed ? 'text-red-300' : 'text-gray-400';
 
   // Check if this foundation is a valid destination for the selected card
-  const isValidDestination = selectedCard && canMoveToFoundation(selectedCard.card, suit);
+  const isValidDestination = showValidMoves && selectedCard && canMoveToFoundation(selectedCard.card, suit);
 
   const handleClick = () => {
     if (selectedCard && isValidDestination) {
