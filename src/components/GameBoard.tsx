@@ -2,10 +2,12 @@ import DrawPile from './DrawPile';
 import DiscardPile from './DiscardPile';
 import FoundationPile from './FoundationPile';
 import TableauColumn from './TableauColumn';
+import ControlPanel from './ControlPanel';
 
 const GameBoard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-700 via-green-600 to-green-800 p-8">
+      <ControlPanel />
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-white text-center mb-8">Solitaire</h1>
         
