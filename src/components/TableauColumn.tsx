@@ -50,7 +50,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
   };
 
   return (
-    <div className="relative min-h-32">
+    <div className="relative min-h-32 w-20">
       {column.length > 0 ? (
         <div className="relative">
           {column.map((card, index) => {
