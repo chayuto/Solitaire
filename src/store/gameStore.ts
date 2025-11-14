@@ -629,27 +629,106 @@ export const useGameStore = create<GameStore>((set, get) => ({
       targetSuit?: Suit;
     }
 
+    // Helper to get face-down card at a specific position in tableau
+    const getFaceDownCard = (colIndex: number, cardIndex: number): Card | null => {
+      if (colIndex < 0 || colIndex >= state.tableau.length) return null;
+      const column = state.tableau[colIndex];
+      if (cardIndex < 0 || cardIndex >= column.length) return null;
+      const card = column[cardIndex];
+      return !card.faceUp ? card : null;
+    };
+
+    // Helper to count face-down cards in a column
+    const countFaceDownCards = (colIndex: number): number => {
+      if (colIndex < 0 || colIndex >= state.tableau.length) return 0;
+      return state.tableau[colIndex].filter(card => !card.faceUp).length;
+    };
+
+    // Helper to check if revealing a card would be valuable
+    const evaluateRevealValue = (colIndex: number, cardIndex: number): number => {
+      const revealedCard = getFaceDownCard(colIndex, cardIndex);
+      if (!revealedCard) return 0;
+      
+      let value = 50; // Base value for revealing any card
+      
+      // Higher value for revealing high-value cards (Kings, Queens, Jacks)
+      if (revealedCard.rank === 'K') value += 30; // Kings can start new columns
+      if (revealedCard.rank === 'Q') value += 20;
+      if (revealedCard.rank === 'J') value += 15;
+      
+      // Higher value for revealing Aces (can go directly to foundation)
+      if (revealedCard.rank === 'A') value += 40;
+      
+      // Bonus for revealing cards that could fit on current tableau
+      const cardValue = getRankValue(revealedCard.rank);
+      for (let col = 0; col < state.tableau.length; col++) {
+        if (col === colIndex) continue;
+        const column = state.tableau[col];
+        if (column.length > 0) {
+          const topCard = column[column.length - 1];
+          if (topCard.faceUp) {
+            const topValue = getRankValue(topCard.rank);
+            // Check if revealed card could be played on this column
+            if (cardValue === topValue - 1 && isRed(revealedCard.suit) !== isRed(topCard.suit)) {
+              value += 25; // Card has immediate playability
+            }
+          }
+        }
+      }
+      
+      // Bonus if this is the last face-down card in the column
+      if (countFaceDownCards(colIndex) === 1) {
+        value += 30;
+      }
+      
+      return value;
+    };
+
     // Helper to score a move (higher is better)
     const scoreMove = (move: PossibleMove): number => {
       let score = move.score;
       const { source, sourceColumn, sourceCardIndex, targetType, targetColumn } = move;
 
-      // Bonus for moves to foundation (always good)
+      // Bonus for moves to foundation (always good, but consider strategic timing)
       if (targetType === 'foundation') {
         score += 100;
         // Extra bonus for Aces and 2s (start building foundations early)
         if (move.card.rank === 'A') score += 50;
         if (move.card.rank === '2') score += 30;
+        
+        // Strategic consideration: Don't rush to move small cards to foundation too early
+        // if they might be useful for building tableau sequences
+        const cardValue = getRankValue(move.card.rank);
+        if (cardValue <= 3 && state.drawPile.length > 15) {
+          // Slight penalty for moving very small cards early unless needed
+          // Check if this card could be useful for tableau moves
+          let hasTableauUse = false;
+          for (let col = 0; col < state.tableau.length; col++) {
+            const column = state.tableau[col];
+            if (column.length > 0) {
+              const topCard = column[column.length - 1];
+              // If there's a 4 or 5 on tableau, we might want to keep 2/3
+              if (topCard.faceUp && getRankValue(topCard.rank) === cardValue + 1) {
+                hasTableauUse = true;
+                break;
+              }
+            }
+          }
+          if (!hasTableauUse) score += 20; // Safe to move if no tableau use
+        }
+        
         return score;
       }
 
-      // For tableau moves, apply smart heuristics
+      // For tableau moves, apply smart heuristics with face-down card knowledge
       if (targetType === 'tableau' && targetColumn !== undefined) {
         // Check if this move reveals a face-down card
         if (source === 'tableau' && sourceColumn !== undefined && sourceCardIndex !== undefined) {
           const sourceCol = state.tableau[sourceColumn];
           if (sourceCardIndex > 0 && !sourceCol[sourceCardIndex - 1].faceUp) {
-            score += 80; // High bonus for revealing cards
+            // Use face-down card knowledge to evaluate reveal value
+            const revealValue = evaluateRevealValue(sourceColumn, sourceCardIndex - 1);
+            score += revealValue; // Strategic bonus based on what's underneath
           }
           
           // Check if we're emptying a column
@@ -659,6 +738,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
               score -= 50; // Penalty for moving King to non-empty (waste of empty space)
             } else {
               score += 60; // Good to empty column for future King placement
+              
+              // Extra consideration: check if there's a useful King in face-down cards
+              // that we might want this space for
+              let hasHiddenKing = false;
+              for (let col = 0; col < state.tableau.length; col++) {
+                for (let cardIdx = 0; cardIdx < state.tableau[col].length; cardIdx++) {
+                  const hiddenCard = getFaceDownCard(col, cardIdx);
+                  if (hiddenCard && hiddenCard.rank === 'K') {
+                    hasHiddenKing = true;
+                    break;
+                  }
+                }
+                if (hasHiddenKing) break;
+              }
+              if (hasHiddenKing) {
+                score += 20; // Extra bonus if there's a hidden King that might need this space
+              }
             }
           }
         }
@@ -670,14 +766,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
           if (move.card.rank !== 'K') {
             score -= 100; // Heavy penalty for non-King to empty column
           } else {
-            // Moving King to empty column
+            // Moving King to empty column - evaluate based on what's underneath source
             score += 40;
             // Extra bonus if this reveals a card
             if (source === 'tableau' && sourceColumn !== undefined && sourceCardIndex !== undefined) {
               const sourceCol = state.tableau[sourceColumn];
               if (sourceCardIndex > 0 && !sourceCol[sourceCardIndex - 1].faceUp) {
-                score += 40; // Even better if it reveals a card
+                const revealValue = evaluateRevealValue(sourceColumn, sourceCardIndex - 1);
+                score += revealValue; // Strategic reveal bonus
               }
+            }
+            
+            // Consider which King to move if multiple Kings are available
+            // Prefer to move Kings from columns with fewer face-down cards
+            if (source === 'tableau' && sourceColumn !== undefined) {
+              const faceDownCount = countFaceDownCards(sourceColumn);
+              score -= faceDownCount * 5; // Slight penalty per face-down card
             }
           }
         } else {
@@ -689,6 +793,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ? state.tableau[sourceColumn].length - sourceCardIndex
             : 1;
           score += numCardsToMove * 5;
+          
+          // Strategic consideration: Check if target column has many face-down cards
+          // Prefer to build on columns with fewer face-down cards to maintain flexibility
+          const targetFaceDownCount = countFaceDownCards(targetColumn);
+          if (targetFaceDownCount > 3) {
+            score -= 10; // Slight penalty for building on columns with many hidden cards
+          }
         }
 
         // Penalty for moving from discard to tableau if we haven't cycled through draw pile
@@ -697,7 +808,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
 
         // Check if this move might block future moves
-        // Penalty for burying lower rank cards under higher rank cards of same color
+        // Enhanced blocking detection with face-down card knowledge
         if (source === 'discard' && targetCol.length > 0) {
           const targetCard = targetCol[targetCol.length - 1];
           const cardValue = getRankValue(move.card.rank);
@@ -706,6 +817,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
           // Check if we're potentially blocking
           if (cardValue > targetValue - 1 && isRed(move.card.suit) === isRed(targetCard.suit)) {
             score -= 15;
+          }
+          
+          // Check if this card might block access to important face-down cards
+          // Look for cards in tableau that need this card's rank
+          for (let col = 0; col < state.tableau.length; col++) {
+            if (col === targetColumn) continue;
+            for (let cardIdx = 0; cardIdx < state.tableau[col].length; cardIdx++) {
+              const hiddenCard = getFaceDownCard(col, cardIdx);
+              if (hiddenCard) {
+                const hiddenValue = getRankValue(hiddenCard.rank);
+                // If we're placing a card that the hidden card needs to stack on
+                if (hiddenValue === cardValue - 1 && isRed(hiddenCard.suit) !== isRed(move.card.suit)) {
+                  score -= 25; // Penalty for potentially blocking a needed card
+                }
+              }
+            }
+          }
+        }
+        
+        // Strategic consideration for tableau-to-tableau moves
+        if (source === 'tableau' && sourceColumn !== undefined && targetCol.length > 0) {
+          // Check if this move helps or hinders accessing face-down cards
+          const sourceFaceDownCount = countFaceDownCards(sourceColumn);
+          const targetFaceDownCount = countFaceDownCards(targetColumn);
+          
+          // Prefer moves that help reveal cards from columns with more face-down cards
+          if (sourceFaceDownCount > targetFaceDownCount) {
+            score += 15; // Bonus for moving from a column that needs more reveals
           }
         }
       }
