@@ -80,6 +80,16 @@ All use `useGameStore()` hook. @dnd-kit for drag-and-drop.
 **Naming:** PascalCase.tsx (components), camelCase.ts (utils), .test.ts/.test.tsx (tests)
 **Imports:** `import type { Card } from '../types'` for types, relative paths, named exports (except React components)
 
+## Agent Workflow Guidelines
+
+**Analysis & Research:**
+- Spend as much time as needed to analyze and understand the context before making changes
+- ALWAYS check online references/documentation if applicable to ensure accuracy and best practices
+
+**Documentation:**
+- Put new documentation or reports in `/docs/internal/` with `YYYYMMDD_<filename>.md` format
+- Towards the end of the task, ALWAYS create new summary documents that capture the work done, decisions made, and outcomes
+
 ## Validation Checklist
 
 **Required:** `npm run lint && npm run test:run && npm run build` (all must pass, verify dist/ created)
