@@ -94,7 +94,7 @@ const ControlPanel: React.FC = () => {
   };
 
   return (
-    <div className="fixed right-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-4 w-52">
+    <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-4 w-full lg:w-52">
       <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">Controls</h2>
       
       <div className="space-y-2">
