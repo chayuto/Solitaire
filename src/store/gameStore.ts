@@ -22,6 +22,7 @@ interface GameStore extends GameState {
   toggleGodMode: () => void;
   toggleAutoPlay: () => void;
   performAutoPlayMove: () => void;
+  checkAndTriggerAutoComplete: () => void;
 }
 
 // Helper function to create a card
@@ -137,6 +138,7 @@ const initializeGameState = (difficulty: Difficulty = 3): GameState => {
     autoPlayInProgress: false,
     autoPlayStateHistory: [],
     difficulty,
+    gameWon: false,
   };
 };
 
@@ -265,6 +267,72 @@ const hasAnyValidMoves = (state: GameState): boolean => {
   // Check if we can reset the draw pile
   if (state.drawPile.length === 0 && state.discardPile.length > 0) {
     return true;
+  }
+  
+  return false;
+};
+
+// Helper function to check if game is won (all 52 cards in foundations)
+const isGameWon = (state: GameState): boolean => {
+  const totalCardsInFoundations = 
+    state.foundations.hearts.length +
+    state.foundations.diamonds.length +
+    state.foundations.clubs.length +
+    state.foundations.spades.length;
+  return totalCardsInFoundations === 52;
+};
+
+// Helper function to check if tableau cards are sorted (all face up and in proper sequence)
+// and draw pile is empty, triggering auto-complete
+const canAutoComplete = (state: GameState): boolean => {
+  // Draw pile must be empty
+  if (state.drawPile.length > 0) {
+    return false;
+  }
+  
+  // All tableau cards must be face up
+  for (const column of state.tableau) {
+    for (const card of column) {
+      if (!card.faceUp) {
+        return false;
+      }
+    }
+  }
+  
+  // Check if there's at least one card that can be moved to foundation
+  // This ensures we have something to auto-complete
+  for (const column of state.tableau) {
+    if (column.length > 0) {
+      const card = column[column.length - 1];
+      const foundation = state.foundations[card.suit];
+      
+      // Can this card go to foundation?
+      if (foundation.length === 0 && card.rank === 'A') {
+        return true;
+      }
+      if (foundation.length > 0) {
+        const topCard = foundation[foundation.length - 1];
+        if (getRankValue(card.rank) === getRankValue(topCard.rank) + 1) {
+          return true;
+        }
+      }
+    }
+  }
+  
+  // Also check discard pile
+  if (state.discardPile.length > 0) {
+    const card = state.discardPile[state.discardPile.length - 1];
+    const foundation = state.foundations[card.suit];
+    
+    if (foundation.length === 0 && card.rank === 'A') {
+      return true;
+    }
+    if (foundation.length > 0) {
+      const topCard = foundation[foundation.length - 1];
+      if (getRankValue(card.rank) === getRankValue(topCard.rank) + 1) {
+        return true;
+      }
+    }
   }
   
   return false;
@@ -581,12 +649,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const newFoundations = { ...state.foundations };
       newFoundations[suit] = [...newFoundations[suit], selected.card];
       
-      set({ 
+      const updatedState = {
         tableau: newTableau, 
         foundations: newFoundations, 
         selectedCard: undefined,
         moveHistory: [...state.moveHistory, ...newMoves],
-      });
+      };
+      set(updatedState);
+      
+      // Check for win condition
+      const newState = get();
+      if (isGameWon(newState)) {
+        set({ gameWon: true, autoPlayEnabled: false, autoPlayInProgress: false });
+      } else {
+        // Check if auto-complete should be triggered
+        get().checkAndTriggerAutoComplete();
+      }
     } else if (selected.source === 'discard') {
       const newDiscardPile = state.discardPile.slice(0, -1);
       const newFoundations = { ...state.foundations };
@@ -606,12 +684,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
       };
       
-      set({ 
+      const updatedState = {
         discardPile: newDiscardPile, 
         foundations: newFoundations, 
         selectedCard: undefined,
         moveHistory: recordMove(state, move),
-      });
+      };
+      set(updatedState);
+      
+      // Check for win condition
+      const newState = get();
+      if (isGameWon(newState)) {
+        set({ gameWon: true, autoPlayEnabled: false, autoPlayInProgress: false });
+      } else {
+        // Check if auto-complete should be triggered
+        get().checkAndTriggerAutoComplete();
+      }
     }
   },
   
@@ -663,6 +751,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       autoPlayEnabled: state.autoPlayEnabled,
       autoPlayInProgress: state.autoPlayInProgress,
       difficulty: state.difficulty,
+      gameWon: state.gameWon,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -701,6 +790,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         autoPlayEnabled: importedState.autoPlayEnabled ?? false,
         autoPlayInProgress: false,
         difficulty: importedState.difficulty ?? 3,
+        gameWon: importedState.gameWon ?? false,
       });
       
       return true;
@@ -993,6 +1083,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Sort by score (highest first)
     possibleMoves.sort((a, b) => b.score - a.score);
 
+    // Check if we're in fast auto-complete mode (all tableau cards face up and no draw pile)
+    const isAutoCompleteMode = state.drawPile.length === 0 && 
+      state.tableau.every(col => col.every(card => card.faceUp));
+    const moveDelay = isAutoCompleteMode ? 100 : 1000;
+    const selectDelay = isAutoCompleteMode ? 50 : 200;
+
     // Execute the best move
     if (possibleMoves.length > 0) {
       const bestMove = possibleMoves[0];
@@ -1000,7 +1096,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // Select the card
       get().selectCard(bestMove.source, bestMove.sourceColumn, bestMove.sourceCardIndex);
       
-      // Wait 200ms then execute the move
+      // Wait before executing the move
       setTimeout(() => {
         if (bestMove.targetType === 'foundation' && bestMove.targetSuit) {
           get().moveCardToFoundation(bestMove.targetSuit);
@@ -1008,14 +1104,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
           get().moveCardToTableau(bestMove.targetColumn);
         }
         
-        // Wait 1 second before next move
+        // Wait before next move
         setTimeout(() => {
           set({ autoPlayInProgress: false });
           if (get().autoPlayEnabled) {
             get().performAutoPlayMove();
           }
-        }, 1000);
-      }, 200);
+        }, moveDelay);
+      }, selectDelay);
       
       return;
     }
@@ -1024,13 +1120,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.drawPile.length > 0 || state.discardPile.length > 0) {
       get().drawCard();
       
-      // Wait 1 second before next move
+      // Wait before next move
       setTimeout(() => {
         set({ autoPlayInProgress: false });
         if (get().autoPlayEnabled) {
           get().performAutoPlayMove();
         }
-      }, 1000);
+      }, moveDelay);
       return;
     }
 
@@ -1053,5 +1149,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // No moves available - stop auto-play (shouldn't reach here, but safety net)
     set({ autoPlayEnabled: false, autoPlayInProgress: false, autoPlayStateHistory: [] });
+  },
+
+  checkAndTriggerAutoComplete: () => {
+    const state = get();
+    
+    // Don't trigger if already won or if auto-play is already active
+    if (state.gameWon || state.autoPlayEnabled) {
+      return;
+    }
+    
+    // Check if auto-complete conditions are met
+    if (canAutoComplete(state)) {
+      // Enable auto-play with fast mode (0.1s delay)
+      set({ autoPlayEnabled: true, autoPlayStateHistory: [] });
+      
+      // Start the first move after a short delay
+      setTimeout(() => {
+        if (get().autoPlayEnabled) {
+          get().performAutoPlayMove();
+        }
+      }, 100);
+    }
   },
 }));

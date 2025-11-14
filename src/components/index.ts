@@ -6,3 +6,4 @@ export { default as TableauColumn } from './TableauColumn';
 export { default as GameBoard } from './GameBoard';
 export { default as ControlPanel } from './ControlPanel';
 export { default as ActivityLog } from './ActivityLog';
+export { default as WinModal } from './WinModal';
