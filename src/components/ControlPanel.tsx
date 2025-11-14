@@ -6,6 +6,7 @@ const ControlPanel: React.FC = () => {
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
   const autoPlayEnabled = useGameStore((state) => state.autoPlayEnabled);
+  const moveCount = useGameStore((state) => state.moveHistory.length);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -96,6 +97,12 @@ const ControlPanel: React.FC = () => {
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-4 w-full lg:w-52">
       <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">Controls</h2>
+      
+      {/* Move Counter */}
+      <div className="bg-green-600 text-white font-bold py-2 px-4 rounded text-center mb-4">
+        <div className="text-sm">Moves</div>
+        <div className="text-2xl">{moveCount}</div>
+      </div>
       
       <div className="space-y-2">
         <button
