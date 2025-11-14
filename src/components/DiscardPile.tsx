@@ -6,6 +6,8 @@ const DiscardPile: React.FC = () => {
   const selectedCard = useGameStore((state) => state.selectedCard);
   const selectCard = useGameStore((state) => state.selectCard);
   const deselectCard = useGameStore((state) => state.deselectCard);
+  const showValidMoves = useGameStore((state) => state.showValidMoves);
+  const hasAnyValidDestination = useGameStore((state) => state.hasAnyValidDestination);
 
   const handleCardClick = () => {
     if (discardPile.length === 0) return;
@@ -21,6 +23,10 @@ const DiscardPile: React.FC = () => {
 
   const isSelected = selectedCard?.source === 'discard';
   const isInteractable = discardPile.length > 0 && !selectedCard;
+  
+  const topCard = discardPile.length > 0 ? discardPile[discardPile.length - 1] : null;
+  const hasValidMoves = showValidMoves && !selectedCard && topCard !== null && 
+    hasAnyValidDestination(topCard, 'discard');
 
   return (
     <div className="relative w-20 h-28">
@@ -31,6 +37,7 @@ const DiscardPile: React.FC = () => {
             onClick={handleCardClick}
             isInteractable={isInteractable}
             isSelected={isSelected}
+            hasValidMoves={hasValidMoves}
           />
         </div>
       ) : (

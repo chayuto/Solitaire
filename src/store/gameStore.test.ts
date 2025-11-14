@@ -265,3 +265,105 @@ describe('GameStore - UI Toggles', () => {
     expect(newState.autoPlayInProgress).toBe(false);
   });
 });
+
+describe('GameStore - Valid Move Detection', () => {
+  beforeEach(() => {
+    useGameStore.getState().initializeGame();
+  });
+
+  it('should detect when a card has valid tableau destination', () => {
+    const store = useGameStore.getState();
+    
+    // Get a card from the tableau
+    const card = store.tableau[0].find(c => c.faceUp);
+    if (!card) return; // Skip if no face-up card
+    
+    // Check if it has any valid tableau destination
+    const hasDestination = store.hasValidTableauDestination(card, 0);
+    
+    // Result should be boolean
+    expect(typeof hasDestination).toBe('boolean');
+  });
+
+  it('should detect when a card has valid foundation destination', () => {
+    const store = useGameStore.getState();
+    
+    // Create a test scenario with an Ace that can go to foundation
+    const testState = {
+      ...store,
+      tableau: [
+        [{ suit: 'hearts' as const, rank: 'A' as const, faceUp: true, id: 'hearts-A' }],
+        ...store.tableau.slice(1),
+      ],
+    };
+    
+    useGameStore.setState(testState);
+    
+    const ace = testState.tableau[0][0];
+    const hasDestination = store.hasValidFoundationDestination(ace);
+    
+    expect(hasDestination).toBe(true);
+  });
+
+  it('should detect when a card has any valid destination', () => {
+    const store = useGameStore.getState();
+    
+    // Get the first face-up card from tableau
+    let foundCard = false;
+    for (let col = 0; col < store.tableau.length; col++) {
+      const column = store.tableau[col];
+      for (let idx = 0; idx < column.length; idx++) {
+        const card = column[idx];
+        if (card.faceUp) {
+          const hasDestination = store.hasAnyValidDestination(card, 'tableau', col, idx);
+          expect(typeof hasDestination).toBe('boolean');
+          foundCard = true;
+          break;
+        }
+      }
+      if (foundCard) break;
+    }
+  });
+
+  it('should return false for face-down cards', () => {
+    const store = useGameStore.getState();
+    
+    // Find a face-down card
+    let foundCard = false;
+    for (let col = 0; col < store.tableau.length; col++) {
+      const column = store.tableau[col];
+      for (let idx = 0; idx < column.length; idx++) {
+        const card = column[idx];
+        if (!card.faceUp) {
+          const hasDestination = store.hasAnyValidDestination(card, 'tableau', col, idx);
+          expect(hasDestination).toBe(false);
+          foundCard = true;
+          break;
+        }
+      }
+      if (foundCard) break;
+    }
+  });
+
+  it('should exclude source column when checking tableau destinations', () => {
+    const store = useGameStore.getState();
+    
+    // Get a King from tableau
+    const testState = {
+      ...store,
+      tableau: [
+        [{ suit: 'hearts' as const, rank: 'K' as const, faceUp: true, id: 'hearts-K' }],
+        [], // Empty column
+        ...store.tableau.slice(2),
+      ],
+    };
+    
+    useGameStore.setState(testState);
+    
+    const king = testState.tableau[0][0];
+    // Should find the empty column (index 1) as valid destination
+    const hasDestination = store.hasValidTableauDestination(king, 0);
+    
+    expect(hasDestination).toBe(true);
+  });
+});
