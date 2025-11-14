@@ -55,6 +55,18 @@ const ActivityLog: React.FC = () => {
       case 'flip_card':
         return `${time} - Flipped ${cardStr} face up in column ${(move.from?.columnIndex ?? 0) + 1}`;
       
+      case 'autoplay_start':
+        return `${time} - ▶️ Auto-play started`;
+      
+      case 'autoplay_stop':
+        return `${time} - ⏸️ Auto-play stopped`;
+      
+      case 'autoplay_deadend':
+        return `${time} - 🚫 Auto-play stopped - No valid moves available (deadend)`;
+      
+      case 'autoplay_loop_detected':
+        return `${time} - 🔄 Auto-play stopped - Loop detected`;
+      
       default:
         return `${time} - Unknown move`;
     }
@@ -119,14 +131,24 @@ const ActivityLog: React.FC = () => {
               <p className="text-gray-500 text-center text-sm mt-8">No activities yet</p>
             ) : (
               <div className="space-y-1">
-                {visibleLogs.map((move, index) => (
-                  <div
-                    key={`${move.timestamp}-${index}`}
-                    className="text-xs bg-white p-2 rounded shadow-sm border border-gray-200 hover:bg-gray-100 transition-colors"
-                  >
-                    {formatMove(move)}
-                  </div>
-                ))}
+                {visibleLogs.map((move, index) => {
+                  const isAutoPlayEvent = move.type.startsWith('autoplay_');
+                  const isDeadendOrLoop = move.type === 'autoplay_deadend' || move.type === 'autoplay_loop_detected';
+                  return (
+                    <div
+                      key={`${move.timestamp}-${index}`}
+                      className={`text-xs p-2 rounded shadow-sm border transition-colors ${
+                        isDeadendOrLoop
+                          ? 'bg-red-50 border-red-300 text-red-900 font-semibold'
+                          : isAutoPlayEvent
+                          ? 'bg-amber-50 border-amber-300 text-amber-900 font-semibold'
+                          : 'bg-white border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {formatMove(move)}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

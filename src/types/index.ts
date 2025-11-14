@@ -15,7 +15,11 @@ export type MoveType =
   | 'tableau_to_foundation'
   | 'discard_to_tableau'
   | 'discard_to_foundation'
-  | 'flip_card';
+  | 'flip_card'
+  | 'autoplay_start'
+  | 'autoplay_stop'
+  | 'autoplay_deadend'
+  | 'autoplay_loop_detected';
 
 export interface Move {
   type: MoveType;
@@ -54,4 +58,5 @@ export interface GameState {
   godMode: boolean;
   autoPlayEnabled: boolean;
   autoPlayInProgress: boolean;
+  autoPlayStateHistory?: string[]; // Track recent game states for loop detection
 }
