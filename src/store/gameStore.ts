@@ -91,7 +91,25 @@ const initializeGameState = (): GameState => {
     godMode: false,
     autoPlayEnabled: false,
     autoPlayInProgress: false,
+    autoPlayStateHistory: [],
   };
+};
+
+// Helper function to generate a hash of the current game state
+const getGameStateHash = (state: GameState): string => {
+  // Create a simplified representation of the game state
+  const stateSnapshot = {
+    drawPile: state.drawPile.map(c => c.id),
+    discardPile: state.discardPile.map(c => c.id),
+    foundations: {
+      hearts: state.foundations.hearts.map(c => c.id),
+      diamonds: state.foundations.diamonds.map(c => c.id),
+      clubs: state.foundations.clubs.map(c => c.id),
+      spades: state.foundations.spades.map(c => c.id),
+    },
+    tableau: state.tableau.map(col => col.map(c => ({ id: c.id, faceUp: c.faceUp }))),
+  };
+  return JSON.stringify(stateSnapshot);
 };
 
 // Helper function to get rank value (for validation)
@@ -111,6 +129,100 @@ const isRed = (suit: Suit): boolean => {
 // Helper function to record a move
 const recordMove = (state: GameState, move: Move): Move[] => {
   return [...state.moveHistory, move];
+};
+
+// Helper function to check if any valid moves exist
+const hasAnyValidMoves = (state: GameState): boolean => {
+  // Check if discard pile has any valid moves
+  if (state.discardPile.length > 0) {
+    const discardCard = state.discardPile[state.discardPile.length - 1];
+    
+    // Check foundation
+    const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
+    for (const suit of suits) {
+      const foundation = state.foundations[suit];
+      if (discardCard.suit === suit) {
+        if (foundation.length === 0 && discardCard.rank === 'A') {
+          return true;
+        }
+        if (foundation.length > 0) {
+          const topCard = foundation[foundation.length - 1];
+          if (getRankValue(discardCard.rank) === getRankValue(topCard.rank) + 1) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    // Check tableau
+    for (let col = 0; col < state.tableau.length; col++) {
+      const column = state.tableau[col];
+      if (column.length === 0 && discardCard.rank === 'K') {
+        return true;
+      }
+      if (column.length > 0) {
+        const targetCard = column[column.length - 1];
+        if (targetCard.faceUp && 
+            isRed(discardCard.suit) !== isRed(targetCard.suit) &&
+            getRankValue(discardCard.rank) === getRankValue(targetCard.rank) - 1) {
+          return true;
+        }
+      }
+    }
+  }
+  
+  // Check tableau cards
+  for (let col = 0; col < state.tableau.length; col++) {
+    const column = state.tableau[col];
+    for (let cardIndex = 0; cardIndex < column.length; cardIndex++) {
+      const card = column[cardIndex];
+      if (!card.faceUp) continue;
+      
+      // Check if can move to foundation (only last card)
+      if (cardIndex === column.length - 1) {
+        const foundation = state.foundations[card.suit];
+        if (foundation.length === 0 && card.rank === 'A') {
+          return true;
+        }
+        if (foundation.length > 0) {
+          const topCard = foundation[foundation.length - 1];
+          if (getRankValue(card.rank) === getRankValue(topCard.rank) + 1) {
+            return true;
+          }
+        }
+      }
+      
+      // Check if can move to another tableau column
+      for (let targetCol = 0; targetCol < state.tableau.length; targetCol++) {
+        if (targetCol === col) continue;
+        const targetColumn = state.tableau[targetCol];
+        
+        if (targetColumn.length === 0 && card.rank === 'K') {
+          return true;
+        }
+        if (targetColumn.length > 0) {
+          const targetCard = targetColumn[targetColumn.length - 1];
+          if (targetCard.faceUp && 
+              isRed(card.suit) !== isRed(targetCard.suit) &&
+              getRankValue(card.rank) === getRankValue(targetCard.rank) - 1) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  
+  // Check if we can draw more cards
+  if (state.drawPile.length > 0) {
+    return true;
+  }
+  
+  // Check if we can reset the draw pile
+  if (state.drawPile.length === 0 && state.discardPile.length > 0) {
+    return true;
+  }
+  
+  return false;
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -575,15 +687,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleAutoPlay: () => {
     const state = get();
     const newAutoPlayEnabled = !state.autoPlayEnabled;
-    set({ autoPlayEnabled: newAutoPlayEnabled });
     
-    // If enabling auto-play, start the first move after a short delay
-    if (newAutoPlayEnabled && !state.autoPlayInProgress) {
-      setTimeout(() => {
-        if (get().autoPlayEnabled) {
-          get().performAutoPlayMove();
-        }
-      }, 500);
+    if (newAutoPlayEnabled) {
+      // Log auto-play start event
+      const move: Move = {
+        type: 'autoplay_start',
+        timestamp: Date.now(),
+        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
+      };
+      set({ 
+        autoPlayEnabled: newAutoPlayEnabled,
+        autoPlayStateHistory: [],
+        moveHistory: recordMove(state, move),
+      });
+      
+      // Start the first move after a short delay
+      if (!state.autoPlayInProgress) {
+        setTimeout(() => {
+          if (get().autoPlayEnabled) {
+            get().performAutoPlayMove();
+          }
+        }, 500);
+      }
+    } else {
+      // Log auto-play stop event
+      const move: Move = {
+        type: 'autoplay_stop',
+        timestamp: Date.now(),
+        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
+      };
+      set({ 
+        autoPlayEnabled: newAutoPlayEnabled,
+        autoPlayStateHistory: [],
+        moveHistory: recordMove(state, move),
+      });
     }
   },
 
@@ -596,6 +733,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     set({ autoPlayInProgress: true });
+    
+    // Check for loop detection - track the current game state
+    const currentStateHash = getGameStateHash(state);
+    const stateHistory = state.autoPlayStateHistory || [];
+    
+    // Check if we've seen this state before (loop detection)
+    // We'll track the last 10 states and if we see the same state twice, it's a loop
+    if (stateHistory.includes(currentStateHash)) {
+      // Loop detected
+      const move: Move = {
+        type: 'autoplay_loop_detected',
+        timestamp: Date.now(),
+        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
+      };
+      set({ 
+        autoPlayEnabled: false, 
+        autoPlayInProgress: false,
+        autoPlayStateHistory: [],
+        moveHistory: recordMove(state, move),
+      });
+      return;
+    }
+    
+    // Update state history (keep last 10 states)
+    const updatedStateHistory = [...stateHistory, currentStateHash].slice(-10);
+    set({ autoPlayStateHistory: updatedStateHistory });
 
     // Helper to check if a card can move to any foundation
     const tryMoveToFoundation = (card: Card, source: 'tableau' | 'discard', colIndex?: number, cardIndex?: number): boolean => {
@@ -707,7 +870,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // No moves available - stop auto-play
-    set({ autoPlayEnabled: false, autoPlayInProgress: false });
+    // Check for deadend - no valid moves available
+    const currentState = get();
+    if (!hasAnyValidMoves(currentState)) {
+      const move: Move = {
+        type: 'autoplay_deadend',
+        timestamp: Date.now(),
+        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
+      };
+      set({ 
+        autoPlayEnabled: false, 
+        autoPlayInProgress: false,
+        autoPlayStateHistory: [],
+        moveHistory: recordMove(currentState, move),
+      });
+      return;
+    }
+
+    // No moves available - stop auto-play (shouldn't reach here, but safety net)
+    set({ autoPlayEnabled: false, autoPlayInProgress: false, autoPlayStateHistory: [] });
   },
 }));

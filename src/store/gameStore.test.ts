@@ -266,6 +266,106 @@ describe('GameStore - UI Toggles', () => {
   });
 });
 
+describe('GameStore - Auto-Play Loop and Deadend Detection', () => {
+  beforeEach(() => {
+    useGameStore.getState().initializeGame();
+  });
+
+  it('should log autoplay_start event when auto-play is enabled', () => {
+    const store = useGameStore.getState();
+    const initialHistoryLength = store.moveHistory.length;
+    
+    store.toggleAutoPlay();
+    
+    const state = useGameStore.getState();
+    expect(state.autoPlayEnabled).toBe(true);
+    expect(state.moveHistory.length).toBe(initialHistoryLength + 1);
+    expect(state.moveHistory[state.moveHistory.length - 1].type).toBe('autoplay_start');
+  });
+
+  it('should log autoplay_stop event when auto-play is disabled', () => {
+    const store = useGameStore.getState();
+    
+    // Enable auto-play first
+    store.toggleAutoPlay();
+    const afterStartLength = useGameStore.getState().moveHistory.length;
+    
+    // Disable auto-play
+    store.toggleAutoPlay();
+    
+    const state = useGameStore.getState();
+    expect(state.autoPlayEnabled).toBe(false);
+    expect(state.moveHistory.length).toBe(afterStartLength + 1);
+    expect(state.moveHistory[state.moveHistory.length - 1].type).toBe('autoplay_stop');
+  });
+
+  it('should initialize autoPlayStateHistory as empty array', () => {
+    const state = useGameStore.getState();
+    expect(state.autoPlayStateHistory).toEqual([]);
+  });
+
+  it('should clear autoPlayStateHistory when auto-play is toggled off', () => {
+    const store = useGameStore.getState();
+    
+    // Enable auto-play
+    store.toggleAutoPlay();
+    
+    // Manually set some state history to simulate game states
+    useGameStore.setState({ autoPlayStateHistory: ['state1', 'state2', 'state3'] });
+    
+    // Disable auto-play
+    store.toggleAutoPlay();
+    
+    const state = useGameStore.getState();
+    expect(state.autoPlayStateHistory).toEqual([]);
+  });
+
+  it('should detect deadend when no valid moves are available', () => {
+    const store = useGameStore.getState();
+    
+    // Create a deadend scenario: empty draw pile, empty discard pile, no valid moves
+    const deadendState = {
+      drawPile: [],
+      discardPile: [],
+      foundations: {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        [{ suit: 'hearts' as const, rank: '2' as const, faceUp: true, id: 'hearts-2' }],
+        [{ suit: 'diamonds' as const, rank: '3' as const, faceUp: true, id: 'diamonds-3' }],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+      selectedCard: undefined,
+      moveHistory: [],
+      showValidMoves: true,
+      godMode: false,
+      autoPlayEnabled: true,
+      autoPlayInProgress: false,
+      autoPlayStateHistory: [],
+    };
+    
+    useGameStore.setState(deadendState);
+    
+    // Trigger auto-play move
+    store.performAutoPlayMove();
+    
+    // Wait a bit for async operations
+    const state = useGameStore.getState();
+    
+    // Should have logged a deadend event
+    const deadendMove = state.moveHistory.find(m => m.type === 'autoplay_deadend');
+    expect(deadendMove).toBeDefined();
+    expect(state.autoPlayEnabled).toBe(false);
+  });
+});
+
 describe('GameStore - Valid Move Detection', () => {
   beforeEach(() => {
     useGameStore.getState().initializeGame();
