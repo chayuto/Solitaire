@@ -739,7 +739,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const stateHistory = state.autoPlayStateHistory || [];
     
     // Check if we've seen this state before (loop detection)
-    // We'll track the last 10 states and if we see the same state twice, it's a loop
+    // We'll track the last 20 states for better loop detection
     if (stateHistory.includes(currentStateHash)) {
       // Loop detected
       const move: Move = {
@@ -756,107 +756,220 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     
-    // Update state history (keep last 10 states)
-    const updatedStateHistory = [...stateHistory, currentStateHash].slice(-10);
+    // Update state history (keep last 20 states for better loop detection)
+    const updatedStateHistory = [...stateHistory, currentStateHash].slice(-20);
     set({ autoPlayStateHistory: updatedStateHistory });
 
-    // Helper to check if a card can move to any foundation
-    const tryMoveToFoundation = (card: Card, source: 'tableau' | 'discard', colIndex?: number, cardIndex?: number): boolean => {
+    // Type for possible moves
+    interface PossibleMove {
+      score: number;
+      card: Card;
+      source: 'tableau' | 'discard';
+      sourceColumn?: number;
+      sourceCardIndex?: number;
+      targetType: 'foundation' | 'tableau';
+      targetColumn?: number;
+      targetSuit?: Suit;
+    }
+
+    // Helper to score a move (higher is better)
+    const scoreMove = (move: PossibleMove): number => {
+      let score = move.score;
+      const { source, sourceColumn, sourceCardIndex, targetType, targetColumn } = move;
+
+      // Bonus for moves to foundation (always good)
+      if (targetType === 'foundation') {
+        score += 100;
+        // Extra bonus for Aces and 2s (start building foundations early)
+        if (move.card.rank === 'A') score += 50;
+        if (move.card.rank === '2') score += 30;
+        return score;
+      }
+
+      // For tableau moves, apply smart heuristics
+      if (targetType === 'tableau' && targetColumn !== undefined) {
+        // Check if this move reveals a face-down card
+        if (source === 'tableau' && sourceColumn !== undefined && sourceCardIndex !== undefined) {
+          const sourceCol = state.tableau[sourceColumn];
+          if (sourceCardIndex > 0 && !sourceCol[sourceCardIndex - 1].faceUp) {
+            score += 80; // High bonus for revealing cards
+          }
+          
+          // Check if we're emptying a column
+          if (sourceCardIndex === 0) {
+            // Emptying a column is good only if we're moving a King
+            if (move.card.rank === 'K') {
+              score -= 50; // Penalty for moving King to non-empty (waste of empty space)
+            } else {
+              score += 60; // Good to empty column for future King placement
+            }
+          }
+        }
+
+        const targetCol = state.tableau[targetColumn];
+        
+        // Penalty for moving to empty column (unless it's a King or reveals a card)
+        if (targetCol.length === 0) {
+          if (move.card.rank !== 'K') {
+            score -= 100; // Heavy penalty for non-King to empty column
+          } else {
+            // Moving King to empty column
+            score += 40;
+            // Extra bonus if this reveals a card
+            if (source === 'tableau' && sourceColumn !== undefined && sourceCardIndex !== undefined) {
+              const sourceCol = state.tableau[sourceColumn];
+              if (sourceCardIndex > 0 && !sourceCol[sourceCardIndex - 1].faceUp) {
+                score += 40; // Even better if it reveals a card
+              }
+            }
+          }
+        } else {
+          // Moving to non-empty column
+          score += 30;
+          
+          // Bonus for building longer sequences
+          const numCardsToMove = source === 'tableau' && sourceColumn !== undefined && sourceCardIndex !== undefined
+            ? state.tableau[sourceColumn].length - sourceCardIndex
+            : 1;
+          score += numCardsToMove * 5;
+        }
+
+        // Penalty for moving from discard to tableau if we haven't cycled through draw pile
+        if (source === 'discard' && state.drawPile.length > 10) {
+          score -= 20; // Prefer to see more cards first
+        }
+
+        // Check if this move might block future moves
+        // Penalty for burying lower rank cards under higher rank cards of same color
+        if (source === 'discard' && targetCol.length > 0) {
+          const targetCard = targetCol[targetCol.length - 1];
+          const cardValue = getRankValue(move.card.rank);
+          const targetValue = getRankValue(targetCard.rank);
+          
+          // Check if we're potentially blocking
+          if (cardValue > targetValue - 1 && isRed(move.card.suit) === isRed(targetCard.suit)) {
+            score -= 15;
+          }
+        }
+      }
+
+      return score;
+    };
+
+    // Collect all possible moves
+    const possibleMoves: PossibleMove[] = [];
+
+    // Check discard pile moves
+    if (state.discardPile.length > 0) {
+      const card = state.discardPile[state.discardPile.length - 1];
+      
+      // Check foundation moves
       const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
       for (const suit of suits) {
         if (get().canMoveToFoundation(card, suit)) {
-          // Select the card
-          get().selectCard(source, colIndex, cardIndex);
-          
-          // Wait 200ms then move to foundation
-          setTimeout(() => {
-            get().moveCardToFoundation(suit);
-            
-            // Wait 1 second before next move
-            setTimeout(() => {
-              set({ autoPlayInProgress: false });
-              if (get().autoPlayEnabled) {
-                get().performAutoPlayMove();
-              }
-            }, 1000);
-          }, 200);
-          
-          return true;
+          possibleMoves.push({
+            score: 0, // Will be calculated by scoreMove
+            card,
+            source: 'discard',
+            targetType: 'foundation',
+            targetSuit: suit,
+          });
         }
       }
-      return false;
-    };
-
-    // Helper to check if a card can move to any tableau column
-    const tryMoveToTableau = (card: Card, source: 'tableau' | 'discard', colIndex?: number, cardIndex?: number): boolean => {
+      
+      // Check tableau moves
       for (let targetCol = 0; targetCol < 7; targetCol++) {
-        if (source === 'tableau' && colIndex === targetCol) {
-          continue; // Skip same column
-        }
-        
         if (get().canMoveToTableau(card, targetCol)) {
-          // Select the card
-          get().selectCard(source, colIndex, cardIndex);
-          
-          // Wait 200ms then move to tableau
-          setTimeout(() => {
-            get().moveCardToTableau(targetCol);
-            
-            // Wait 1 second before next move
-            setTimeout(() => {
-              set({ autoPlayInProgress: false });
-              if (get().autoPlayEnabled) {
-                get().performAutoPlayMove();
-              }
-            }, 1000);
-          }, 200);
-          
-          return true;
-        }
-      }
-      return false;
-    };
-
-    // Priority 1: Try to move discard pile card to foundation
-    if (state.discardPile.length > 0) {
-      const card = state.discardPile[state.discardPile.length - 1];
-      if (tryMoveToFoundation(card, 'discard')) {
-        return;
-      }
-    }
-
-    // Priority 2: Try to move tableau cards to foundation
-    for (let col = 0; col < state.tableau.length; col++) {
-      const column = state.tableau[col];
-      if (column.length > 0) {
-        const card = column[column.length - 1];
-        if (card.faceUp && tryMoveToFoundation(card, 'tableau', col, column.length - 1)) {
-          return;
+          possibleMoves.push({
+            score: 0,
+            card,
+            source: 'discard',
+            targetType: 'tableau',
+            targetColumn: targetCol,
+          });
         }
       }
     }
 
-    // Priority 3: Try to move discard pile card to tableau
-    if (state.discardPile.length > 0) {
-      const card = state.discardPile[state.discardPile.length - 1];
-      if (tryMoveToTableau(card, 'discard')) {
-        return;
-      }
-    }
-
-    // Priority 4: Try to move tableau cards to other tableau columns
+    // Check tableau moves
     for (let col = 0; col < state.tableau.length; col++) {
       const column = state.tableau[col];
-      // Try to move stacks of cards (starting from the bottom face-up card)
       for (let cardIndex = 0; cardIndex < column.length; cardIndex++) {
         const card = column[cardIndex];
-        if (card.faceUp && tryMoveToTableau(card, 'tableau', col, cardIndex)) {
-          return;
+        if (!card.faceUp) continue;
+
+        // Check foundation moves (only for last card in column)
+        if (cardIndex === column.length - 1) {
+          const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
+          for (const suit of suits) {
+            if (get().canMoveToFoundation(card, suit)) {
+              possibleMoves.push({
+                score: 0,
+                card,
+                source: 'tableau',
+                sourceColumn: col,
+                sourceCardIndex: cardIndex,
+                targetType: 'foundation',
+                targetSuit: suit,
+              });
+            }
+          }
+        }
+
+        // Check tableau moves
+        for (let targetCol = 0; targetCol < 7; targetCol++) {
+          if (targetCol === col) continue;
+          if (get().canMoveToTableau(card, targetCol)) {
+            possibleMoves.push({
+              score: 0,
+              card,
+              source: 'tableau',
+              sourceColumn: col,
+              sourceCardIndex: cardIndex,
+              targetType: 'tableau',
+              targetColumn: targetCol,
+            });
+          }
         }
       }
     }
 
-    // Priority 5: If no moves available, draw a card
+    // Score all moves
+    possibleMoves.forEach(move => {
+      move.score = scoreMove(move);
+    });
+
+    // Sort by score (highest first)
+    possibleMoves.sort((a, b) => b.score - a.score);
+
+    // Execute the best move
+    if (possibleMoves.length > 0) {
+      const bestMove = possibleMoves[0];
+      
+      // Select the card
+      get().selectCard(bestMove.source, bestMove.sourceColumn, bestMove.sourceCardIndex);
+      
+      // Wait 200ms then execute the move
+      setTimeout(() => {
+        if (bestMove.targetType === 'foundation' && bestMove.targetSuit) {
+          get().moveCardToFoundation(bestMove.targetSuit);
+        } else if (bestMove.targetType === 'tableau' && bestMove.targetColumn !== undefined) {
+          get().moveCardToTableau(bestMove.targetColumn);
+        }
+        
+        // Wait 1 second before next move
+        setTimeout(() => {
+          set({ autoPlayInProgress: false });
+          if (get().autoPlayEnabled) {
+            get().performAutoPlayMove();
+          }
+        }, 1000);
+      }, 200);
+      
+      return;
+    }
+
+    // If no moves available, draw a card
     if (state.drawPile.length > 0 || state.discardPile.length > 0) {
       get().drawCard();
       
