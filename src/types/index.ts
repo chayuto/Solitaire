@@ -2,6 +2,8 @@ export type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades';
 
 export type Rank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
 
+export type Difficulty = 1 | 2 | 3 | 4 | 5;
+
 export interface Card {
   suit: Suit;
   rank: Rank;
@@ -59,4 +61,5 @@ export interface GameState {
   autoPlayEnabled: boolean;
   autoPlayInProgress: boolean;
   autoPlayStateHistory?: string[]; // Track recent game states for loop detection
+  difficulty: Difficulty; // Game difficulty level (1=Very Easy, 2=Easy, 3=Normal, 4=Hard, 5=Very Hard)
 }

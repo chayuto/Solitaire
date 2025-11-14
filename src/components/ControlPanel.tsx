@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
+import type { Difficulty } from '../types';
 
 const ControlPanel: React.FC = () => {
-  const { exportGameState, importGameState, initializeGame, exportMoveHistory, exportBoardSetup, toggleValidMoves, toggleGodMode, toggleAutoPlay } = useGameStore();
+  const { exportGameState, importGameState, initializeGame, exportMoveHistory, exportBoardSetup, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty } = useGameStore();
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
   const autoPlayEnabled = useGameStore((state) => state.autoPlayEnabled);
   const moveCount = useGameStore((state) => state.moveHistory.length);
+  const difficulty = useGameStore((state) => state.difficulty);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -94,6 +96,24 @@ const ControlPanel: React.FC = () => {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const handleDifficultyChange = (newDifficulty: Difficulty) => {
+    setDifficulty(newDifficulty);
+    initializeGame(newDifficulty);
+    const difficultyNames = ['', 'Very Easy', 'Easy', 'Normal', 'Hard', 'Very Hard'];
+    setMessage({ type: 'success', text: `Difficulty: ${difficultyNames[newDifficulty]}` });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const getDifficultyLabel = (level: Difficulty): string => {
+    const labels = ['', '⭐', '⭐⭐', '⭐⭐⭐', '⭐⭐⭐⭐', '⭐⭐⭐⭐⭐'];
+    return labels[level];
+  };
+
+  const getDifficultyName = (level: Difficulty): string => {
+    const names = ['', 'Very Easy', 'Easy', 'Normal', 'Hard', 'Very Hard'];
+    return names[level];
+  };
+
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-4 w-full lg:w-52">
       <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">Controls</h2>
@@ -102,6 +122,29 @@ const ControlPanel: React.FC = () => {
       <div className="bg-green-600 text-white font-bold py-2 px-4 rounded text-center mb-4">
         <div className="text-sm">Moves</div>
         <div className="text-2xl">{moveCount}</div>
+      </div>
+
+      {/* Difficulty Selector */}
+      <div className="mb-4">
+        <label className="block text-sm font-semibold text-gray-700 mb-2 text-center">
+          Difficulty: {getDifficultyName(difficulty)}
+        </label>
+        <div className="flex justify-between gap-1">
+          {([1, 2, 3, 4, 5] as Difficulty[]).map((level) => (
+            <button
+              key={level}
+              onClick={() => handleDifficultyChange(level)}
+              className={`flex-1 py-2 px-1 rounded text-xs font-semibold transition-colors ${
+                difficulty === level
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+              title={getDifficultyName(level)}
+            >
+              {getDifficultyLabel(level)}
+            </button>
+          ))}
+        </div>
       </div>
       
       <div className="space-y-2">

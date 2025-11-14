@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import type { GameState, Card, Suit, Rank, Move } from '../types';
+import type { GameState, Card, Suit, Rank, Move, Difficulty } from '../types';
 
 interface GameStore extends GameState {
-  initializeGame: () => void;
+  initializeGame: (difficulty?: Difficulty) => void;
+  setDifficulty: (difficulty: Difficulty) => void;
   selectCard: (source: 'tableau' | 'discard', columnIndex?: number, cardIndex?: number) => void;
   deselectCard: () => void;
   moveCardToTableau: (targetColumn: number) => void;
@@ -46,7 +47,7 @@ const createDeck = (): Card[] => {
   return deck;
 };
 
-// Helper function to shuffle array
+// Helper function to shuffle array (full random shuffle)
 const shuffle = <T,>(array: T[]): T[] => {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -56,9 +57,52 @@ const shuffle = <T,>(array: T[]): T[] => {
   return shuffled;
 };
 
+// Helper function to partially shuffle array based on difficulty
+// Lower difficulty = less shuffling (easier), higher difficulty = more challenging positions
+const partialShuffle = <T,>(array: T[], shufflePercentage: number): T[] => {
+  const result = [...array];
+  const numSwaps = Math.floor((array.length * shufflePercentage) / 100);
+  
+  for (let i = 0; i < numSwaps; i++) {
+    const idx1 = Math.floor(Math.random() * array.length);
+    const idx2 = Math.floor(Math.random() * array.length);
+    [result[idx1], result[idx2]] = [result[idx2], result[idx1]];
+  }
+  
+  return result;
+};
+
+// Helper function to arrange deck based on difficulty
+const arrangeDeckByDifficulty = (difficulty: Difficulty): Card[] => {
+  const deck = createDeck();
+  
+  switch (difficulty) {
+    case 1: // Very Easy - minimal shuffle with favorable arrangement
+      // Start with ordered deck then apply 20% shuffle
+      return partialShuffle(deck, 20);
+    
+    case 2: // Easy - partial shuffle (50%)
+      return partialShuffle(deck, 50);
+    
+    case 3: // Normal - full random shuffle (default)
+      return shuffle(deck);
+    
+    case 4: // Hard - shuffle then bias towards blocking positions
+      // Full shuffle with 30% additional swaps to create challenging positions
+      return partialShuffle(shuffle(deck), 30);
+    
+    case 5: // Very Hard - heavy shuffle to create difficult scenarios
+      // Double shuffle for maximum randomization and difficulty
+      return shuffle(shuffle(deck));
+    
+    default:
+      return shuffle(deck);
+  }
+};
+
 // Initialize the game state
-const initializeGameState = (): GameState => {
-  const deck = shuffle(createDeck());
+const initializeGameState = (difficulty: Difficulty = 3): GameState => {
+  const deck = arrangeDeckByDifficulty(difficulty);
   const tableau: Card[][] = [[], [], [], [], [], [], []];
   
   // Deal cards to tableau
@@ -92,6 +136,7 @@ const initializeGameState = (): GameState => {
     autoPlayEnabled: false,
     autoPlayInProgress: false,
     autoPlayStateHistory: [],
+    difficulty,
   };
 };
 
@@ -227,7 +272,11 @@ const hasAnyValidMoves = (state: GameState): boolean => {
 
 export const useGameStore = create<GameStore>((set, get) => ({
   ...initializeGameState(),
-  initializeGame: () => set(initializeGameState()),
+  initializeGame: (difficulty?: Difficulty) => {
+    const currentDifficulty = difficulty ?? get().difficulty ?? 3;
+    set(initializeGameState(currentDifficulty));
+  },
+  setDifficulty: (difficulty: Difficulty) => set({ difficulty }),
   
   selectCard: (source, columnIndex, cardIndex) => {
     const state = get();
@@ -613,6 +662,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       godMode: state.godMode,
       autoPlayEnabled: state.autoPlayEnabled,
       autoPlayInProgress: state.autoPlayInProgress,
+      difficulty: state.difficulty,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -650,6 +700,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         godMode: importedState.godMode ?? false,
         autoPlayEnabled: importedState.autoPlayEnabled ?? false,
         autoPlayInProgress: false,
+        difficulty: importedState.difficulty ?? 3,
       });
       
       return true;
