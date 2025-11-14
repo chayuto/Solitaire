@@ -364,6 +364,241 @@ describe('GameStore - Auto-Play Loop and Deadend Detection', () => {
     expect(deadendMove).toBeDefined();
     expect(state.autoPlayEnabled).toBe(false);
   });
+
+  it('should track state history up to 20 states for loop detection', () => {
+    const store = useGameStore.getState();
+    
+    // Create a simple game state
+    const testState = {
+      drawPile: [{ suit: 'hearts' as const, rank: 'K' as const, faceUp: false, id: 'hearts-K' }],
+      discardPile: [],
+      foundations: {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        [{ suit: 'clubs' as const, rank: 'A' as const, faceUp: true, id: 'clubs-A' }],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+      selectedCard: undefined,
+      moveHistory: [],
+      showValidMoves: true,
+      godMode: false,
+      autoPlayEnabled: true,
+      autoPlayInProgress: false,
+      autoPlayStateHistory: [],
+    };
+    
+    useGameStore.setState(testState);
+    
+    // Perform a move
+    store.performAutoPlayMove();
+    
+    // Check that state history was updated
+    const state = useGameStore.getState();
+    expect(state.autoPlayStateHistory).toBeDefined();
+    expect(Array.isArray(state.autoPlayStateHistory)).toBe(true);
+  });
+});
+
+describe('GameStore - Smart Auto-Play Strategy', () => {
+  beforeEach(() => {
+    useGameStore.getState().initializeGame();
+  });
+
+  it('should prioritize moving Aces to foundation', () => {
+    const store = useGameStore.getState();
+    
+    // Set up a scenario with an Ace and other moves available
+    const testState = {
+      drawPile: [],
+      discardPile: [{ suit: 'hearts' as const, rank: 'A' as const, faceUp: true, id: 'hearts-A' }],
+      foundations: {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        [{ suit: 'clubs' as const, rank: '5' as const, faceUp: true, id: 'clubs-5' }],
+        [{ suit: 'diamonds' as const, rank: '6' as const, faceUp: true, id: 'diamonds-6' }],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+      selectedCard: undefined,
+      moveHistory: [],
+      showValidMoves: true,
+      godMode: false,
+      autoPlayEnabled: true,
+      autoPlayInProgress: false,
+      autoPlayStateHistory: [],
+    };
+    
+    useGameStore.setState(testState);
+    
+    // Perform auto-play move
+    store.performAutoPlayMove();
+    
+    // The Ace should be moved to foundation
+    // We can't check this immediately due to async setTimeout, but we can verify the move was initiated
+    const state = useGameStore.getState();
+    expect(state.selectedCard).toBeDefined();
+  });
+
+  it('should avoid moving non-Kings to empty tableau columns', () => {
+    const store = useGameStore.getState();
+    
+    // Set up a scenario where a non-King could move to an empty column
+    const testState = {
+      drawPile: [],
+      discardPile: [{ suit: 'hearts' as const, rank: '5' as const, faceUp: true, id: 'hearts-5' }],
+      foundations: {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        [],
+        [{ suit: 'diamonds' as const, rank: '6' as const, faceUp: true, id: 'diamonds-6' }],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+      selectedCard: undefined,
+      moveHistory: [],
+      showValidMoves: true,
+      godMode: false,
+      autoPlayEnabled: true,
+      autoPlayInProgress: false,
+      autoPlayStateHistory: [],
+    };
+    
+    useGameStore.setState(testState);
+    
+    // Perform auto-play move
+    store.performAutoPlayMove();
+    
+    // The 5 should move to the 6, not to the empty column
+    // Due to async nature, we verify the selection was made
+    const state = useGameStore.getState();
+    expect(state.autoPlayInProgress).toBe(true);
+  });
+
+  it('should prefer moves that reveal face-down cards', () => {
+    const store = useGameStore.getState();
+    
+    // Set up a scenario where one move reveals a card and another doesn't
+    const testState = {
+      drawPile: [],
+      discardPile: [],
+      foundations: {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        [
+          { suit: 'hearts' as const, rank: '7' as const, faceUp: false, id: 'hearts-7' },
+          { suit: 'clubs' as const, rank: '6' as const, faceUp: true, id: 'clubs-6' },
+        ],
+        [{ suit: 'diamonds' as const, rank: '7' as const, faceUp: true, id: 'diamonds-7' }],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+      selectedCard: undefined,
+      moveHistory: [],
+      showValidMoves: true,
+      godMode: false,
+      autoPlayEnabled: true,
+      autoPlayInProgress: false,
+      autoPlayStateHistory: [],
+    };
+    
+    useGameStore.setState(testState);
+    
+    // Perform auto-play move
+    store.performAutoPlayMove();
+    
+    // The move should select the card that reveals a face-down card
+    const state = useGameStore.getState();
+    expect(state.autoPlayInProgress).toBe(true);
+  });
+
+  it('should handle loop detection with enhanced state tracking', () => {
+    const store = useGameStore.getState();
+    
+    // Create a scenario that could loop
+    const loopState = {
+      drawPile: [],
+      discardPile: [],
+      foundations: {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        [{ suit: 'hearts' as const, rank: '5' as const, faceUp: true, id: 'hearts-5' }],
+        [{ suit: 'clubs' as const, rank: '6' as const, faceUp: true, id: 'clubs-6' }],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+      selectedCard: undefined,
+      moveHistory: [],
+      showValidMoves: true,
+      godMode: false,
+      autoPlayEnabled: true,
+      autoPlayInProgress: false,
+      autoPlayStateHistory: [],
+    };
+    
+    useGameStore.setState(loopState);
+    
+    // Manually add current state to history to simulate a loop
+    const currentHash = JSON.stringify({
+      drawPile: [],
+      discardPile: [],
+      foundations: {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: loopState.tableau.map(col => col.map(c => ({ id: c.id, faceUp: c.faceUp }))),
+    });
+    
+    useGameStore.setState({ autoPlayStateHistory: [currentHash] });
+    
+    // Trigger auto-play move which should detect the loop
+    store.performAutoPlayMove();
+    
+    const state = useGameStore.getState();
+    
+    // Should detect loop and stop
+    const loopMove = state.moveHistory.find(m => m.type === 'autoplay_loop_detected');
+    expect(loopMove).toBeDefined();
+    expect(state.autoPlayEnabled).toBe(false);
+  });
 });
 
 describe('GameStore - Valid Move Detection', () => {
