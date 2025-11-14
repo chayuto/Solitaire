@@ -91,7 +91,7 @@ const ActivityLog: React.FC = () => {
   };
 
   return (
-    <div className="fixed left-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-xl w-80 overflow-hidden">
+    <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl w-full overflow-hidden">
       {/* Header */}
       <div className="bg-blue-600 text-white px-4 py-2 flex items-center justify-between">
         <h3 className="text-lg font-bold">Activity Log</h3>
@@ -126,7 +126,7 @@ const ActivityLog: React.FC = () => {
           </div>
 
           {/* Log Display */}
-          <div className="h-96 overflow-y-auto p-3 bg-gray-50">
+          <div className="h-48 lg:h-96 overflow-y-auto p-3 bg-gray-50">
             {visibleLogs.length === 0 ? (
               <p className="text-gray-500 text-center text-sm mt-8">No activities yet</p>
             ) : (
