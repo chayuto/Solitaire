@@ -570,6 +570,82 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     expect(loopMove).toBeDefined();
     expect(state.autoPlayEnabled).toBe(false);
   });
+
+  it('should avoid moves that would result in loop states (predictive loop detection)', () => {
+    const store = useGameStore.getState();
+    
+    // Create a scenario with multiple possible moves where one would cause a loop
+    const testState = {
+      drawPile: [],
+      discardPile: [],
+      foundations: {
+        hearts: [{ suit: 'hearts' as const, rank: 'A' as const, faceUp: true, id: 'hearts-A' }],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        [{ suit: 'spades' as const, rank: '7' as const, faceUp: true, id: 'spades-7' }],
+        [{ suit: 'hearts' as const, rank: '8' as const, faceUp: true, id: 'hearts-8' }],
+        [{ suit: 'clubs' as const, rank: '9' as const, faceUp: true, id: 'clubs-9' }],
+        [],
+        [],
+        [],
+        [],
+      ],
+      selectedCard: undefined,
+      moveHistory: [],
+      showValidMoves: true,
+      godMode: false,
+      autoPlayEnabled: true,
+      autoPlayInProgress: false,
+      autoPlayStateHistory: [],
+      difficulty: 3 as const,
+      gameWon: false,
+      completionProgress: 0,
+    };
+    
+    useGameStore.setState(testState);
+    
+    // Simulate a state hash that would result from moving spades-7 to hearts-8
+    const loopingStateHash = JSON.stringify({
+      drawPile: [],
+      discardPile: [],
+      foundations: {
+        hearts: ['hearts-A'],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        [],
+        [
+          { id: 'hearts-8', faceUp: true },
+          { id: 'spades-7', faceUp: true },
+        ],
+        [{ id: 'clubs-9', faceUp: true }],
+        [],
+        [],
+        [],
+        [],
+      ],
+    });
+    
+    // Add this state to history to mark it as already visited
+    useGameStore.setState({ autoPlayStateHistory: [loopingStateHash] });
+    
+    // Trigger auto-play move
+    store.performAutoPlayMove();
+    
+    const state = useGameStore.getState();
+    
+    // Should NOT have triggered loop detection immediately since it should avoid the looping move
+    const loopMove = state.moveHistory.find(m => m.type === 'autoplay_loop_detected');
+    expect(loopMove).toBeUndefined();
+    
+    // Should have selected a move (autoPlayInProgress should be true after selecting move)
+    expect(state.autoPlayInProgress).toBe(true);
+  });
 });
 
 describe('GameStore - Valid Move Detection', () => {

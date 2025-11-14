@@ -13,6 +13,7 @@ import {
   calculatePerceivedDifficulty,
   calculateCompletionProgress,
   getGameStateHash,
+  getStateHashAfterMove,
   getRankValue,
   isRed,
 } from './helpers';
@@ -795,8 +796,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       move.score = scoreMove(move);
     });
 
+    // Filter out moves that would result in loop states (predictive loop detection)
+    const nonLoopingMoves = possibleMoves.filter(move => {
+      const futureStateHash = getStateHashAfterMove(state, move);
+      return !stateHistory.includes(futureStateHash);
+    });
+
+    // Use non-looping moves if available, otherwise try all moves
+    // (in case all moves lead to loops, we still need to make a move or detect deadend)
+    const movesToConsider = nonLoopingMoves.length > 0 ? nonLoopingMoves : possibleMoves;
+
     // Sort by score (highest first)
-    possibleMoves.sort((a, b) => b.score - a.score);
+    movesToConsider.sort((a, b) => b.score - a.score);
 
     // Check if we're in fast auto-complete mode (all tableau cards face up and no draw pile)
     const isAutoCompleteMode = state.drawPile.length === 0 && 
@@ -805,8 +816,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const selectDelay = isAutoCompleteMode ? 50 : 200;
 
     // Execute the best move
-    if (possibleMoves.length > 0) {
-      const bestMove = possibleMoves[0];
+    if (movesToConsider.length > 0) {
+      const bestMove = movesToConsider[0];
       
       // Select the card
       get().selectCard(bestMove.source, bestMove.sourceColumn, bestMove.sourceCardIndex);
