@@ -702,3 +702,67 @@ describe('GameStore - Valid Move Detection', () => {
     expect(hasDestination).toBe(true);
   });
 });
+
+describe('GameStore - Difficulty System', () => {
+  it('should initialize with default difficulty 3 (Normal)', () => {
+    useGameStore.getState().initializeGame();
+    const state = useGameStore.getState();
+    expect(state.difficulty).toBe(3);
+  });
+
+  it('should initialize with specified difficulty', () => {
+    useGameStore.getState().initializeGame(1);
+    expect(useGameStore.getState().difficulty).toBe(1);
+
+    useGameStore.getState().initializeGame(5);
+    expect(useGameStore.getState().difficulty).toBe(5);
+  });
+
+  it('should set difficulty and preserve it in new games', () => {
+    const store = useGameStore.getState();
+    store.setDifficulty(2);
+    expect(useGameStore.getState().difficulty).toBe(2);
+    
+    // Initialize a new game without specifying difficulty
+    store.initializeGame();
+    expect(useGameStore.getState().difficulty).toBe(2);
+  });
+
+  it('should export and import difficulty in game state', () => {
+    const store = useGameStore.getState();
+    store.initializeGame(4);
+    
+    const exportedState = store.exportGameState();
+    const parsed = JSON.parse(exportedState);
+    expect(parsed.difficulty).toBe(4);
+    
+    // Import back
+    store.initializeGame(1); // Change difficulty first
+    const success = store.importGameState(exportedState);
+    expect(success).toBe(true);
+    expect(useGameStore.getState().difficulty).toBe(4);
+  });
+
+  it('should create game with 52 cards regardless of difficulty', () => {
+    [1, 2, 3, 4, 5].forEach((difficulty) => {
+      useGameStore.getState().initializeGame(difficulty as 1 | 2 | 3 | 4 | 5);
+      const state = useGameStore.getState();
+      
+      const tableauCards = state.tableau.flat().length;
+      const drawPileCards = state.drawPile.length;
+      const totalCards = tableauCards + drawPileCards;
+      
+      expect(totalCards).toBe(52);
+    });
+  });
+
+  it('should have 28 cards in tableau (1+2+3+4+5+6+7) for all difficulties', () => {
+    [1, 2, 3, 4, 5].forEach((difficulty) => {
+      useGameStore.getState().initializeGame(difficulty as 1 | 2 | 3 | 4 | 5);
+      const state = useGameStore.getState();
+      
+      const tableauCards = state.tableau.flat().length;
+      expect(tableauCards).toBe(28);
+    });
+  });
+});
