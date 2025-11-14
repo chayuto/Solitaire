@@ -42,6 +42,26 @@ npm run build
 npm run preview
 ```
 
+## 🌐 Deployment
+
+The app is automatically deployed to GitHub Pages on every push to the `main` branch.
+
+**Live URL**: <https://chayuto.github.io/Solitaire/>
+
+**Cost**: FREE - GitHub Pages is completely free for public repositories with unlimited bandwidth.
+
+The deployment workflow:
+
+1. Runs linting, tests, and builds the app
+2. Only deploys if all checks pass
+3. Updates the live site within 1-2 minutes
+
+To enable GitHub Pages after pushing:
+
+1. Go to your repository settings → Pages
+2. Set Source to "GitHub Actions"
+3. The site will deploy automatically on the next push to main
+
 ## 🧪 Testing
 
 ```bash
