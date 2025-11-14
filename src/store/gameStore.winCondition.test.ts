@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useGameStore } from './gameStore';
-import type { GameState, Card, Rank, Suit } from '../types';
+import type { GameState, Rank, Suit } from '../types';
 
 describe('GameStore - Win Condition Detection', () => {
   beforeEach(() => {
@@ -17,7 +17,6 @@ describe('GameStore - Win Condition Detection', () => {
     const store = useGameStore.getState();
     
     // Create a winning state by manually setting all cards in foundations
-    const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
     const ranks: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
     
     const winningState: Partial<GameState> = {
@@ -34,7 +33,7 @@ describe('GameStore - Win Condition Detection', () => {
     
     // Import the winning state
     const importString = JSON.stringify({
-      ...store.exportGameState(),
+      ...JSON.parse(store.exportGameState()),
       ...winningState,
     });
     
@@ -55,7 +54,7 @@ describe('GameStore - Win Condition Detection', () => {
     };
     
     const almostWinString = JSON.stringify({
-      ...store.exportGameState(),
+      ...JSON.parse(store.exportGameState()),
       ...almostWinState,
       gameWon: false,
     });
@@ -122,7 +121,7 @@ describe('GameStore - Win Condition Detection', () => {
     };
     
     const importString = JSON.stringify({
-      ...store.exportGameState(),
+      ...JSON.parse(store.exportGameState()),
       ...almostWinState,
     });
     
@@ -173,7 +172,7 @@ describe('GameStore - Auto-Complete Trigger', () => {
     };
     
     const importString = JSON.stringify({
-      ...store.exportGameState(),
+      ...JSON.parse(store.exportGameState()),
       ...autoCompleteState,
     });
     
@@ -213,7 +212,7 @@ describe('GameStore - Auto-Complete Trigger', () => {
     };
     
     const importString = JSON.stringify({
-      ...store.exportGameState(),
+      ...JSON.parse(store.exportGameState()),
       ...state,
     });
     
@@ -256,7 +255,7 @@ describe('GameStore - Auto-Complete Trigger', () => {
     };
     
     const importString = JSON.stringify({
-      ...store.exportGameState(),
+      ...JSON.parse(store.exportGameState()),
       ...state,
     });
     
