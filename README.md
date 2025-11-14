@@ -89,23 +89,45 @@ npm run lint
 
 ```
 src/
-├── components/          # React components
+├── constants/          # Game configuration
+│   ├── game.ts         # Card and game constants
+│   ├── difficulty.ts   # Difficulty system config
+│   └── index.ts        # Barrel export
+├── components/         # React components
 │   ├── Card.tsx        # Individual card component
 │   ├── DrawPile.tsx    # Draw pile component
 │   ├── DiscardPile.tsx # Discard pile component
 │   ├── FoundationPile.tsx # Foundation pile component
 │   ├── TableauColumn.tsx  # Tableau column component
 │   ├── ControlPanel.tsx   # Game controls
+│   ├── ActivityLog.tsx    # Move history log
+│   ├── WinModal.tsx       # Win condition modal
 │   └── GameBoard.tsx      # Main game board
 ├── store/              # State management
-│   └── gameStore.ts    # Zustand game state store
+│   ├── helpers/        # Pure helper functions
+│   │   ├── deckHelpers.ts       # Deck operations
+│   │   ├── cardHelpers.ts       # Card utilities
+│   │   ├── validationHelpers.ts # Move validation
+│   │   ├── metricsHelpers.ts    # Metrics calculation
+│   │   ├── gameStateHelpers.ts  # State utilities
+│   │   └── index.ts             # Barrel export
+│   ├── gameStore.ts    # Zustand game state store
+│   └── *.test.ts       # Store tests
 ├── types/              # TypeScript type definitions
 │   └── index.ts        # Card, GameState, Move types
+├── utils/              # Utility functions
+│   └── motion.ts       # Motion detection utility
 ├── test/               # Test setup
 │   └── setup.ts        # Vitest configuration
 ├── App.tsx             # Main App component
 └── main.tsx           # Application entry point
 ```
+
+**Recent Refactoring (Nov 2025):** The codebase was refactored for improved maintainability:
+- Extracted helpers and constants from monolithic gameStore
+- Reduced gameStore.ts from 1,324 → 890 lines (33% reduction)
+- Added comprehensive JSDoc documentation
+- See `/docs/internal/20251114_deep_refactor_summary.md` for details
 
 ## 🎯 Game Rules
 
@@ -125,6 +147,12 @@ The game includes:
 
 ## 📚 Documentation
 
+### Development Documentation
+- `/docs/internal/architecture.md` - Architecture overview and design patterns
+- `/docs/internal/20251114_deep_refactor_summary.md` - Refactoring details
+- `/docs/difficulty-system.md` - Difficulty system documentation
+
+### Task Reports
 See `/docs/reports/` for:
 - Project state documentation
 - Improvement suggestions

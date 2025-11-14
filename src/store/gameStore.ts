@@ -1,6 +1,27 @@
 import { create } from 'zustand';
-import type { GameState, Card, Suit, Rank, Move, Difficulty } from '../types';
+import type { GameState, Card, Suit, Move, Difficulty } from '../types';
+import { 
+  arrangeDeckByDifficulty,
+  canMoveToTableau as canMoveToTableauHelper,
+  canMoveToFoundation as canMoveToFoundationHelper,
+  hasValidTableauDestination as hasValidTableauDestinationHelper,
+  hasValidFoundationDestination as hasValidFoundationDestinationHelper,
+  hasAnyValidDestination as hasAnyValidDestinationHelper,
+  hasAnyValidMoves,
+  isGameWon,
+  canAutoComplete,
+  calculatePerceivedDifficulty,
+  calculateCompletionProgress,
+  getGameStateHash,
+  getRankValue,
+  isRed,
+} from './helpers';
+import { DEFAULT_DIFFICULTY, TABLEAU_COLUMNS } from '../constants';
 
+/**
+ * GameStore interface extending GameState with action methods
+ * Manages all game logic and state mutations for Solitaire
+ */
 interface GameStore extends GameState {
   initializeGame: (difficulty?: Difficulty) => void;
   setDifficulty: (difficulty: Difficulty) => void;
@@ -23,90 +44,19 @@ interface GameStore extends GameState {
   checkAndTriggerAutoComplete: () => void;
 }
 
-// Helper function to create a card
-const createCard = (suit: Suit, rank: Rank, faceUp: boolean = false): Card => ({
-  suit,
-  rank,
-  faceUp,
-  id: `${suit}-${rank}`,
-});
-
-// Helper function to create a full deck
-const createDeck = (): Card[] => {
-  const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
-  const ranks: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-  const deck: Card[] = [];
-
-  suits.forEach(suit => {
-    ranks.forEach(rank => {
-      deck.push(createCard(suit, rank));
-    });
-  });
-
-  return deck;
-};
-
-// Helper function to shuffle array (full random shuffle)
-const shuffle = <T,>(array: T[]): T[] => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-};
-
-// Helper function to partially shuffle array based on difficulty
-// Lower difficulty = less shuffling (easier), higher difficulty = more challenging positions
-const partialShuffle = <T,>(array: T[], shufflePercentage: number): T[] => {
-  const result = [...array];
-  const numSwaps = Math.floor((array.length * shufflePercentage) / 100);
-  
-  for (let i = 0; i < numSwaps; i++) {
-    const idx1 = Math.floor(Math.random() * array.length);
-    const idx2 = Math.floor(Math.random() * array.length);
-    [result[idx1], result[idx2]] = [result[idx2], result[idx1]];
-  }
-  
-  return result;
-};
-
-// Helper function to arrange deck based on difficulty
-const arrangeDeckByDifficulty = (difficulty: Difficulty): Card[] => {
-  const deck = createDeck();
-  
-  switch (difficulty) {
-    case 1: // Very Easy - minimal shuffle with favorable arrangement
-      // Start with ordered deck then apply 20% shuffle
-      return partialShuffle(deck, 20);
-    
-    case 2: // Easy - partial shuffle (50%)
-      return partialShuffle(deck, 50);
-    
-    case 3: // Normal - full random shuffle (default)
-      return shuffle(deck);
-    
-    case 4: // Hard - shuffle then bias towards blocking positions
-      // Full shuffle with 30% additional swaps to create challenging positions
-      return partialShuffle(shuffle(deck), 30);
-    
-    case 5: // Very Hard - heavy shuffle to create difficult scenarios
-      // Double shuffle for maximum randomization and difficulty
-      return shuffle(shuffle(deck));
-    
-    default:
-      return shuffle(deck);
-  }
-};
-
-// Initialize the game state
-const initializeGameState = (difficulty: Difficulty = 3): GameState => {
+/**
+ * Initializes a new game state with the specified difficulty
+ * Deals cards to tableau and sets up initial game conditions
+ * @param difficulty - Game difficulty level (default: 3 = Normal)
+ * @returns Complete initial game state
+ */
+const initializeGameState = (difficulty: Difficulty = DEFAULT_DIFFICULTY): GameState => {
   const deck = arrangeDeckByDifficulty(difficulty);
-  const tableau: Card[][] = [[], [], [], [], [], [], []];
+  const tableau: Card[][] = Array(TABLEAU_COLUMNS).fill(null).map(() => []);
   
-  // Deal cards to tableau
+  // Deal cards to tableau (1 card to first column, 2 to second, etc.)
   let deckIndex = 0;
-  for (let col = 0; col < 7; col++) {
+  for (let col = 0; col < TABLEAU_COLUMNS; col++) {
     for (let row = 0; row <= col; row++) {
       const card = deck[deckIndex];
       card.faceUp = row === col; // Last card in each column is face up
@@ -118,7 +68,7 @@ const initializeGameState = (difficulty: Difficulty = 3): GameState => {
   // Remaining cards go to draw pile
   const drawPile = deck.slice(deckIndex);
 
-  // Create a deep copy of the initial board setup
+  // Create a deep copy of the initial board setup for metrics
   const initialBoardSetup = {
     drawPile: JSON.parse(JSON.stringify(drawPile)),
     discardPile: [],
@@ -158,309 +108,7 @@ const initializeGameState = (difficulty: Difficulty = 3): GameState => {
   return initialState;
 };
 
-// Helper function to generate a hash of the current game state
-const getGameStateHash = (state: GameState): string => {
-  // Create a simplified representation of the game state
-  const stateSnapshot = {
-    drawPile: state.drawPile.map(c => c.id),
-    discardPile: state.discardPile.map(c => c.id),
-    foundations: {
-      hearts: state.foundations.hearts.map(c => c.id),
-      diamonds: state.foundations.diamonds.map(c => c.id),
-      clubs: state.foundations.clubs.map(c => c.id),
-      spades: state.foundations.spades.map(c => c.id),
-    },
-    tableau: state.tableau.map(col => col.map(c => ({ id: c.id, faceUp: c.faceUp }))),
-  };
-  return JSON.stringify(stateSnapshot);
-};
 
-// Helper function to get rank value (for validation)
-const getRankValue = (rank: Rank): number => {
-  const rankValues: Record<Rank, number> = {
-    'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-    '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13,
-  };
-  return rankValues[rank];
-};
-
-// Helper function to check if card is red
-const isRed = (suit: Suit): boolean => {
-  return suit === 'hearts' || suit === 'diamonds';
-};
-
-// Helper function to record a move
-const recordMove = (state: GameState, move: Move): Move[] => {
-  return [...state.moveHistory, move];
-};
-
-// Helper function to check if any valid moves exist
-const hasAnyValidMoves = (state: GameState): boolean => {
-  // Check if discard pile has any valid moves
-  if (state.discardPile.length > 0) {
-    const discardCard = state.discardPile[state.discardPile.length - 1];
-    
-    // Check foundation
-    const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
-    for (const suit of suits) {
-      const foundation = state.foundations[suit];
-      if (discardCard.suit === suit) {
-        if (foundation.length === 0 && discardCard.rank === 'A') {
-          return true;
-        }
-        if (foundation.length > 0) {
-          const topCard = foundation[foundation.length - 1];
-          if (getRankValue(discardCard.rank) === getRankValue(topCard.rank) + 1) {
-            return true;
-          }
-        }
-      }
-    }
-    
-    // Check tableau
-    for (let col = 0; col < state.tableau.length; col++) {
-      const column = state.tableau[col];
-      if (column.length === 0 && discardCard.rank === 'K') {
-        return true;
-      }
-      if (column.length > 0) {
-        const targetCard = column[column.length - 1];
-        if (targetCard.faceUp && 
-            isRed(discardCard.suit) !== isRed(targetCard.suit) &&
-            getRankValue(discardCard.rank) === getRankValue(targetCard.rank) - 1) {
-          return true;
-        }
-      }
-    }
-  }
-  
-  // Check tableau cards
-  for (let col = 0; col < state.tableau.length; col++) {
-    const column = state.tableau[col];
-    for (let cardIndex = 0; cardIndex < column.length; cardIndex++) {
-      const card = column[cardIndex];
-      if (!card.faceUp) continue;
-      
-      // Check if can move to foundation (only last card)
-      if (cardIndex === column.length - 1) {
-        const foundation = state.foundations[card.suit];
-        if (foundation.length === 0 && card.rank === 'A') {
-          return true;
-        }
-        if (foundation.length > 0) {
-          const topCard = foundation[foundation.length - 1];
-          if (getRankValue(card.rank) === getRankValue(topCard.rank) + 1) {
-            return true;
-          }
-        }
-      }
-      
-      // Check if can move to another tableau column
-      for (let targetCol = 0; targetCol < state.tableau.length; targetCol++) {
-        if (targetCol === col) continue;
-        const targetColumn = state.tableau[targetCol];
-        
-        if (targetColumn.length === 0 && card.rank === 'K') {
-          return true;
-        }
-        if (targetColumn.length > 0) {
-          const targetCard = targetColumn[targetColumn.length - 1];
-          if (targetCard.faceUp && 
-              isRed(card.suit) !== isRed(targetCard.suit) &&
-              getRankValue(card.rank) === getRankValue(targetCard.rank) - 1) {
-            return true;
-          }
-        }
-      }
-    }
-  }
-  
-  // Check if we can draw more cards
-  if (state.drawPile.length > 0) {
-    return true;
-  }
-  
-  // Check if we can reset the draw pile
-  if (state.drawPile.length === 0 && state.discardPile.length > 0) {
-    return true;
-  }
-  
-  return false;
-};
-
-// Helper function to check if game is won (all 52 cards in foundations)
-const isGameWon = (state: GameState): boolean => {
-  const totalCardsInFoundations = 
-    state.foundations.hearts.length +
-    state.foundations.diamonds.length +
-    state.foundations.clubs.length +
-    state.foundations.spades.length;
-  return totalCardsInFoundations === 52;
-};
-
-// Helper function to check if tableau cards are sorted (all face up and in proper sequence)
-// and draw pile is empty, triggering auto-complete
-const canAutoComplete = (state: GameState): boolean => {
-  // Draw pile must be empty
-  if (state.drawPile.length > 0) {
-    return false;
-  }
-  
-  // All tableau cards must be face up
-  for (const column of state.tableau) {
-    for (const card of column) {
-      if (!card.faceUp) {
-        return false;
-      }
-    }
-  }
-  
-  // Check if there's at least one card that can be moved to foundation
-  // This ensures we have something to auto-complete
-  for (const column of state.tableau) {
-    if (column.length > 0) {
-      const card = column[column.length - 1];
-      const foundation = state.foundations[card.suit];
-      
-      // Can this card go to foundation?
-      if (foundation.length === 0 && card.rank === 'A') {
-        return true;
-      }
-      if (foundation.length > 0) {
-        const topCard = foundation[foundation.length - 1];
-        if (getRankValue(card.rank) === getRankValue(topCard.rank) + 1) {
-          return true;
-        }
-      }
-    }
-  }
-  
-  // Also check discard pile
-  if (state.discardPile.length > 0) {
-    const card = state.discardPile[state.discardPile.length - 1];
-    const foundation = state.foundations[card.suit];
-    
-    if (foundation.length === 0 && card.rank === 'A') {
-      return true;
-    }
-    if (foundation.length > 0) {
-      const topCard = foundation[foundation.length - 1];
-      if (getRankValue(card.rank) === getRankValue(topCard.rank) + 1) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-};
-
-// Calculate perceived difficulty based on initial board setup
-// Returns a score from 0-100 (higher = more difficult)
-// Returns undefined if no initial board setup is available
-const calculatePerceivedDifficulty = (initialBoardSetup?: GameState['initialBoardSetup']): number | undefined => {
-  if (!initialBoardSetup) {
-    return undefined;
-  }
-
-  let difficultyScore = 0;
-  const { tableau, drawPile } = initialBoardSetup;
-
-  // Factor 1: Buried aces and low cards (0-30 points)
-  // Aces and 2s buried deep in tableau columns are harder to access
-  let buriedLowCardsScore = 0;
-  tableau.forEach(column => {
-    column.forEach((card, index) => {
-      if (!card.faceUp) {
-        const rankValue = getRankValue(card.rank);
-        // Aces and 2s are critical for starting foundations
-        if (rankValue <= 2) {
-          // Deeper burial = higher score (more difficult)
-          const depthFactor = (column.length - index) / column.length;
-          buriedLowCardsScore += depthFactor * 5; // Max 5 points per buried low card
-        }
-      }
-    });
-  });
-  difficultyScore += Math.min(buriedLowCardsScore, 30);
-
-  // Factor 2: Face-down card distribution (0-25 points)
-  // More face-down cards = harder game
-  let totalFaceDown = 0;
-  tableau.forEach(column => {
-    totalFaceDown += column.filter(card => !card.faceUp).length;
-  });
-  // There are 21 face-down cards in standard deal (0+1+2+3+4+5+6)
-  const faceDownRatio = totalFaceDown / 21;
-  difficultyScore += faceDownRatio * 25;
-
-  // Factor 3: Empty columns (0-15 points)
-  // Starting with empty columns is unusual and can be either easier or harder
-  // We'll count it as slightly negative since it gives flexibility
-  const emptyColumns = tableau.filter(col => col.length === 0).length;
-  difficultyScore -= emptyColumns * 5; // Each empty column reduces difficulty
-
-  // Factor 4: Card sequence potential (0-20 points)
-  // Check how many cards in tableau can immediately form sequences
-  let sequencePotential = 0;
-  const faceUpCards = tableau.flatMap(col => col.filter(card => card.faceUp));
-  faceUpCards.forEach(card => {
-    const canFormSequence = faceUpCards.some(otherCard => 
-      card !== otherCard &&
-      isRed(card.suit) !== isRed(otherCard.suit) &&
-      getRankValue(card.rank) === getRankValue(otherCard.rank) - 1
-    );
-    if (canFormSequence) {
-      sequencePotential += 1;
-    }
-  });
-  // More immediate sequences = easier game
-  const maxPossibleSequences = 7; // Rough estimate
-  difficultyScore -= (sequencePotential / maxPossibleSequences) * 20;
-
-  // Factor 5: Draw pile size (0-10 points)
-  // More cards in draw pile = more options but also more to work through
-  const drawPileRatio = drawPile.length / 24; // 24 is standard draw pile size
-  difficultyScore += drawPileRatio * 10;
-
-  // Normalize to 0-100 range
-  difficultyScore = Math.max(0, Math.min(100, difficultyScore));
-  
-  return Math.round(difficultyScore);
-};
-
-// Calculate game completion progress (0-100%)
-const calculateCompletionProgress = (state: GameState): number => {
-  // Count cards in foundations (winning condition)
-  const foundationCards = 
-    state.foundations.hearts.length +
-    state.foundations.diamonds.length +
-    state.foundations.clubs.length +
-    state.foundations.spades.length;
-  
-  // Total cards in a standard deck
-  const totalCards = 52;
-  
-  // Basic progress: cards in foundation / total cards
-  const basicProgress = (foundationCards / totalCards) * 100;
-  
-  // Bonus progress for face-up cards in tableau (showing progress even when not in foundation)
-  const tableauFaceUpCards = state.tableau.reduce((count, column) => 
-    count + column.filter(card => card.faceUp).length, 0
-  );
-  
-  // Initial face-up cards in standard deal is 7 (one per column)
-  // Additional face-up cards show progress in revealing the board
-  const additionalFaceUp = Math.max(0, tableauFaceUpCards - 7);
-  
-  // Give 0.5% bonus for each additional face-up card (max ~7 points for fully revealed board)
-  const faceUpBonus = Math.min(additionalFaceUp * 0.5, 7);
-  
-  // Combine the scores
-  const totalProgress = basicProgress + faceUpBonus;
-  
-  // Cap at 100%
-  return Math.min(100, Math.round(totalProgress * 10) / 10); // Round to 1 decimal place
-};
 
 export const useGameStore = create<GameStore>((set, get) => ({
   ...initializeGameState(),
@@ -507,109 +155,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   canMoveToTableau: (card, targetColumn) => {
     const state = get();
-    const column = state.tableau[targetColumn];
-    
-    // Empty column can only accept Kings
-    if (column.length === 0) {
-      return card.rank === 'K';
-    }
-    
-    // Get the last card in the target column
-    const targetCard = column[column.length - 1];
-    
-    // Must be face up
-    if (!targetCard.faceUp) {
-      return false;
-    }
-    
-    // Must be opposite color
-    if (isRed(card.suit) === isRed(targetCard.suit)) {
-      return false;
-    }
-    
-    // Must be one rank lower
-    return getRankValue(card.rank) === getRankValue(targetCard.rank) - 1;
+    return canMoveToTableauHelper(card, targetColumn, state.tableau);
   },
   
   canMoveToFoundation: (card, suit) => {
     const state = get();
-    const foundation = state.foundations[suit];
-    
-    // Must match suit
-    if (card.suit !== suit) {
-      return false;
-    }
-    
-    // Empty foundation can only accept Aces
-    if (foundation.length === 0) {
-      return card.rank === 'A';
-    }
-    
-    // Must be one rank higher than current top card
-    const topCard = foundation[foundation.length - 1];
-    return getRankValue(card.rank) === getRankValue(topCard.rank) + 1;
+    return canMoveToFoundationHelper(card, suit, state.foundations);
   },
   
   hasValidTableauDestination: (card, sourceColumn) => {
     const state = get();
-    
-    // Check all tableau columns for valid destinations
-    for (let col = 0; col < state.tableau.length; col++) {
-      // Skip the source column if provided
-      if (sourceColumn !== undefined && col === sourceColumn) {
-        continue;
-      }
-      
-      if (get().canMoveToTableau(card, col)) {
-        return true;
-      }
-    }
-    
-    return false;
+    return hasValidTableauDestinationHelper(card, state.tableau, sourceColumn);
   },
   
   hasValidFoundationDestination: (card) => {
-    const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
-    
-    // Check all foundations for valid destinations
-    for (const suit of suits) {
-      if (get().canMoveToFoundation(card, suit)) {
-        return true;
-      }
-    }
-    
-    return false;
+    const state = get();
+    return hasValidFoundationDestinationHelper(card, state.foundations);
   },
   
   hasAnyValidDestination: (card, source, columnIndex, cardIndex) => {
     const state = get();
-    
-    // For tableau cards, only check if it's the bottom-most card of a sequence
-    // (we can move multiple cards but only check the first one in the sequence)
-    if (source === 'tableau' && columnIndex !== undefined && cardIndex !== undefined) {
-      const column = state.tableau[columnIndex];
-      
-      // Only allow checking cards that can actually be moved
-      // (must be face up, and if not last card, all cards below must be in valid sequence)
-      if (!card.faceUp) {
-        return false;
-      }
-      
-      // Check if this is the last card (can go to foundation or tableau)
-      if (cardIndex === column.length - 1) {
-        return get().hasValidFoundationDestination(card) || get().hasValidTableauDestination(card, columnIndex);
-      }
-      
-      // If not the last card, can only move to tableau (not foundation)
-      return get().hasValidTableauDestination(card, columnIndex);
-    }
-    
-    // For discard pile, check both foundation and tableau
-    if (source === 'discard') {
-      return get().hasValidFoundationDestination(card) || get().hasValidTableauDestination(card);
-    }
-    
-    return false;
+    return hasAnyValidDestinationHelper(card, source, state, columnIndex, cardIndex);
   },
   
   moveCardToTableau: (targetColumn) => {
@@ -709,14 +275,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...state,
         discardPile: newDiscardPile,
         tableau: newTableau,
-        moveHistory: recordMove(state, move),
+        moveHistory: [...state.moveHistory, move],
       };
       
       set({ 
         discardPile: newDiscardPile, 
         tableau: newTableau, 
         selectedCard: undefined,
-        moveHistory: recordMove(state, move),
+        moveHistory: [...state.moveHistory, move],
         completionProgress: calculateCompletionProgress(updatedState),
       });
     }
@@ -834,7 +400,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         discardPile: newDiscardPile, 
         foundations: newFoundations, 
         selectedCard: undefined,
-        moveHistory: recordMove(state, move),
+        moveHistory: [...state.moveHistory, move],
       };
       
       set({
@@ -884,7 +450,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ 
         drawPile: newDrawPile, 
         discardPile: newDiscardPile,
-        moveHistory: recordMove(state, move),
+        moveHistory: [...state.moveHistory, move],
       });
     }
   },
@@ -988,7 +554,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ 
         autoPlayEnabled: newAutoPlayEnabled,
         autoPlayStateHistory: [],
-        moveHistory: recordMove(state, move),
+        moveHistory: [...state.moveHistory, move],
       });
       
       // Start the first move after a short delay
@@ -1009,7 +575,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ 
         autoPlayEnabled: newAutoPlayEnabled,
         autoPlayStateHistory: [],
-        moveHistory: recordMove(state, move),
+        moveHistory: [...state.moveHistory, move],
       });
     }
   },
@@ -1041,7 +607,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         autoPlayEnabled: false, 
         autoPlayInProgress: false,
         autoPlayStateHistory: [],
-        moveHistory: recordMove(state, move),
+        moveHistory: [...state.moveHistory, move],
       });
       return;
     }
@@ -1291,7 +857,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         autoPlayEnabled: false, 
         autoPlayInProgress: false,
         autoPlayStateHistory: [],
-        moveHistory: recordMove(currentState, move),
+        moveHistory: [...currentState.moveHistory, move],
       });
       return;
     }

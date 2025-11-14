@@ -3,15 +3,28 @@ import { useMemo } from 'react';
 import type { Card as CardType } from '../types';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 
+/**
+ * Props for the Card component
+ */
 interface CardProps {
+  /** The card data to display */
   card: CardType;
+  /** Optional click handler for card interaction */
   onClick?: () => void;
+  /** Whether the card can be interacted with (shows cyan ring) */
   isInteractable?: boolean;
+  /** Whether the card is currently selected (shows yellow ring) */
   isSelected?: boolean;
+  /** Whether the card has valid moves available (shows green ring) */
   hasValidMoves?: boolean;
+  /** God mode reveals face-down cards with reduced opacity */
   godMode?: boolean;
 }
 
+/**
+ * Card component - Displays a playing card with animations and visual states
+ * Handles both face-up and face-down card rendering, with special god mode visualization
+ */
 const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSelected = false, hasValidMoves = false, godMode = false }) => {
   const { suit, rank, faceUp } = card;
 
