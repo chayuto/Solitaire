@@ -63,4 +63,15 @@ export interface GameState {
   autoPlayStateHistory?: string[]; // Track recent game states for loop detection
   difficulty: Difficulty; // Game difficulty level (1=Very Easy, 2=Easy, 3=Normal, 4=Hard, 5=Very Hard)
   gameWon: boolean; // True when all cards are in foundations
+  initialBoardSetup?: {
+    drawPile: Card[];
+    discardPile: Card[];
+    foundations: {
+      hearts: Card[];
+      diamonds: Card[];
+      clubs: Card[];
+      spades: Card[];
+    };
+    tableau: Card[][];
+  };
 }

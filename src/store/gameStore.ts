@@ -15,8 +15,6 @@ interface GameStore extends GameState {
   hasAnyValidDestination: (card: Card, source: 'tableau' | 'discard', columnIndex?: number, cardIndex?: number) => boolean;
   exportGameState: () => string;
   importGameState: (jsonString: string) => boolean;
-  exportMoveHistory: () => string;
-  exportBoardSetup: () => string;
   drawCard: () => void;
   toggleValidMoves: () => void;
   toggleGodMode: () => void;
@@ -120,6 +118,19 @@ const initializeGameState = (difficulty: Difficulty = 3): GameState => {
   // Remaining cards go to draw pile
   const drawPile = deck.slice(deckIndex);
 
+  // Create a deep copy of the initial board setup
+  const initialBoardSetup = {
+    drawPile: JSON.parse(JSON.stringify(drawPile)),
+    discardPile: [],
+    foundations: {
+      hearts: [],
+      diamonds: [],
+      clubs: [],
+      spades: [],
+    },
+    tableau: JSON.parse(JSON.stringify(tableau)),
+  };
+
   return {
     drawPile,
     discardPile: [],
@@ -139,6 +150,7 @@ const initializeGameState = (difficulty: Difficulty = 3): GameState => {
     autoPlayStateHistory: [],
     difficulty,
     gameWon: false,
+    initialBoardSetup,
   };
 };
 
@@ -752,6 +764,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       autoPlayInProgress: state.autoPlayInProgress,
       difficulty: state.difficulty,
       gameWon: state.gameWon,
+      initialBoardSetup: state.initialBoardSetup,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -777,20 +790,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return false;
       }
       
-      // Set the imported state (preserve move history and toggles if present)
+      // Set the imported state
       set({
         drawPile: importedState.drawPile,
         discardPile: importedState.discardPile,
         foundations: importedState.foundations,
         tableau: importedState.tableau,
         selectedCard: undefined,
-        moveHistory: importedState.moveHistory || [],
-        showValidMoves: importedState.showValidMoves ?? true,
-        godMode: importedState.godMode ?? false,
-        autoPlayEnabled: importedState.autoPlayEnabled ?? false,
+        moveHistory: importedState.moveHistory,
+        showValidMoves: importedState.showValidMoves,
+        godMode: importedState.godMode,
+        autoPlayEnabled: importedState.autoPlayEnabled,
         autoPlayInProgress: false,
-        difficulty: importedState.difficulty ?? 3,
-        gameWon: importedState.gameWon ?? false,
+        difficulty: importedState.difficulty,
+        gameWon: importedState.gameWon,
+        initialBoardSetup: importedState.initialBoardSetup,
       });
       
       return true;
@@ -798,23 +812,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       console.error('Error importing game state:', error);
       return false;
     }
-  },
-  
-  exportMoveHistory: () => {
-    const state = get();
-    return JSON.stringify(state.moveHistory, null, 2);
-  },
-  
-  exportBoardSetup: () => {
-    const state = get();
-    // Export current board state without selected card or move history
-    const boardSetup = {
-      drawPile: state.drawPile,
-      discardPile: state.discardPile,
-      foundations: state.foundations,
-      tableau: state.tableau,
-    };
-    return JSON.stringify(boardSetup, null, 2);
   },
   
   toggleValidMoves: () => {
