@@ -49,8 +49,12 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
     }
   };
 
+  // Calculate the height needed for the column based on number of cards
+  // Each card adds 32px vertical offset, plus we need full card height (112px) for the last card
+  const columnHeight = column.length > 0 ? column.length * 32 + 80 : 128;
+
   return (
-    <div className="relative min-h-32 w-20">
+    <div className="relative w-20" style={{ minHeight: `${columnHeight}px` }}>
       {column.length > 0 ? (
         <div className="relative">
           {column.map((card, index) => {
