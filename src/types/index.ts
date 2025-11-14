@@ -52,4 +52,6 @@ export interface GameState {
   moveHistory: Move[];
   showValidMoves: boolean;
   godMode: boolean;
+  autoPlayEnabled: boolean;
+  autoPlayInProgress: boolean;
 }

@@ -225,4 +225,43 @@ describe('GameStore - UI Toggles', () => {
     expect(newState.showValidMoves).toBe(true);
     expect(newState.godMode).toBe(false);
   });
+
+  it('should initialize with autoPlayEnabled disabled', () => {
+    const state = useGameStore.getState();
+    expect(state.autoPlayEnabled).toBe(false);
+    expect(state.autoPlayInProgress).toBe(false);
+  });
+
+  it('should toggle autoPlayEnabled', () => {
+    const store = useGameStore.getState();
+    expect(store.autoPlayEnabled).toBe(false);
+    
+    store.toggleAutoPlay();
+    expect(useGameStore.getState().autoPlayEnabled).toBe(true);
+    
+    store.toggleAutoPlay();
+    expect(useGameStore.getState().autoPlayEnabled).toBe(false);
+  });
+
+  it('should preserve autoPlayEnabled state on export/import', () => {
+    const store = useGameStore.getState();
+    
+    // Enable auto-play
+    store.toggleAutoPlay();
+    
+    const exported = store.exportGameState();
+    
+    // Initialize new game (reset to defaults)
+    store.initializeGame();
+    expect(useGameStore.getState().autoPlayEnabled).toBe(false);
+    
+    // Import the saved game
+    const success = store.importGameState(exported);
+    expect(success).toBe(true);
+    
+    const newState = useGameStore.getState();
+    expect(newState.autoPlayEnabled).toBe(true);
+    // autoPlayInProgress should always be false after import
+    expect(newState.autoPlayInProgress).toBe(false);
+  });
 });

@@ -2,9 +2,10 @@ import { useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
 const ControlPanel: React.FC = () => {
-  const { exportGameState, importGameState, initializeGame, exportMoveHistory, exportBoardSetup, toggleValidMoves, toggleGodMode } = useGameStore();
+  const { exportGameState, importGameState, initializeGame, exportMoveHistory, exportBoardSetup, toggleValidMoves, toggleGodMode, toggleAutoPlay } = useGameStore();
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
+  const autoPlayEnabled = useGameStore((state) => state.autoPlayEnabled);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -156,6 +157,17 @@ const ControlPanel: React.FC = () => {
           }`}
         >
           {godMode ? '👁️' : '👁️‍🗨️'} God Mode
+        </button>
+        
+        <button
+          onClick={toggleAutoPlay}
+          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+            autoPlayEnabled
+              ? 'bg-amber-600 hover:bg-amber-700 text-white'
+              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+          }`}
+        >
+          {autoPlayEnabled ? '⏸️' : '▶️'} Auto Play
         </button>
       </div>
 
