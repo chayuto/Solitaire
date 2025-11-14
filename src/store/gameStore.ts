@@ -16,6 +16,8 @@ interface GameStore extends GameState {
   drawCard: () => void;
   toggleValidMoves: () => void;
   toggleGodMode: () => void;
+  toggleAutoPlay: () => void;
+  performAutoPlayMove: () => void;
 }
 
 // Helper function to create a card
@@ -84,6 +86,8 @@ const initializeGameState = (): GameState => {
     moveHistory: [],
     showValidMoves: true,
     godMode: false,
+    autoPlayEnabled: false,
+    autoPlayInProgress: false,
   };
 };
 
@@ -430,6 +434,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       moveHistory: state.moveHistory,
       showValidMoves: state.showValidMoves,
       godMode: state.godMode,
+      autoPlayEnabled: state.autoPlayEnabled,
+      autoPlayInProgress: state.autoPlayInProgress,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -465,6 +471,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         moveHistory: importedState.moveHistory || [],
         showValidMoves: importedState.showValidMoves ?? true,
         godMode: importedState.godMode ?? false,
+        autoPlayEnabled: importedState.autoPlayEnabled ?? false,
+        autoPlayInProgress: false,
       });
       
       return true;
@@ -497,5 +505,144 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   toggleGodMode: () => {
     set((state) => ({ godMode: !state.godMode }));
+  },
+
+  toggleAutoPlay: () => {
+    const state = get();
+    const newAutoPlayEnabled = !state.autoPlayEnabled;
+    set({ autoPlayEnabled: newAutoPlayEnabled });
+    
+    // If enabling auto-play, start the first move after a short delay
+    if (newAutoPlayEnabled && !state.autoPlayInProgress) {
+      setTimeout(() => {
+        if (get().autoPlayEnabled) {
+          get().performAutoPlayMove();
+        }
+      }, 500);
+    }
+  },
+
+  performAutoPlayMove: () => {
+    const state = get();
+    
+    // Don't proceed if auto-play is disabled or already in progress
+    if (!state.autoPlayEnabled || state.autoPlayInProgress) {
+      return;
+    }
+
+    set({ autoPlayInProgress: true });
+
+    // Helper to check if a card can move to any foundation
+    const tryMoveToFoundation = (card: Card, source: 'tableau' | 'discard', colIndex?: number, cardIndex?: number): boolean => {
+      const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
+      for (const suit of suits) {
+        if (get().canMoveToFoundation(card, suit)) {
+          // Select the card
+          get().selectCard(source, colIndex, cardIndex);
+          
+          // Wait 200ms then move to foundation
+          setTimeout(() => {
+            get().moveCardToFoundation(suit);
+            
+            // Wait 1 second before next move
+            setTimeout(() => {
+              set({ autoPlayInProgress: false });
+              if (get().autoPlayEnabled) {
+                get().performAutoPlayMove();
+              }
+            }, 1000);
+          }, 200);
+          
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Helper to check if a card can move to any tableau column
+    const tryMoveToTableau = (card: Card, source: 'tableau' | 'discard', colIndex?: number, cardIndex?: number): boolean => {
+      for (let targetCol = 0; targetCol < 7; targetCol++) {
+        if (source === 'tableau' && colIndex === targetCol) {
+          continue; // Skip same column
+        }
+        
+        if (get().canMoveToTableau(card, targetCol)) {
+          // Select the card
+          get().selectCard(source, colIndex, cardIndex);
+          
+          // Wait 200ms then move to tableau
+          setTimeout(() => {
+            get().moveCardToTableau(targetCol);
+            
+            // Wait 1 second before next move
+            setTimeout(() => {
+              set({ autoPlayInProgress: false });
+              if (get().autoPlayEnabled) {
+                get().performAutoPlayMove();
+              }
+            }, 1000);
+          }, 200);
+          
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Priority 1: Try to move discard pile card to foundation
+    if (state.discardPile.length > 0) {
+      const card = state.discardPile[state.discardPile.length - 1];
+      if (tryMoveToFoundation(card, 'discard')) {
+        return;
+      }
+    }
+
+    // Priority 2: Try to move tableau cards to foundation
+    for (let col = 0; col < state.tableau.length; col++) {
+      const column = state.tableau[col];
+      if (column.length > 0) {
+        const card = column[column.length - 1];
+        if (card.faceUp && tryMoveToFoundation(card, 'tableau', col, column.length - 1)) {
+          return;
+        }
+      }
+    }
+
+    // Priority 3: Try to move discard pile card to tableau
+    if (state.discardPile.length > 0) {
+      const card = state.discardPile[state.discardPile.length - 1];
+      if (tryMoveToTableau(card, 'discard')) {
+        return;
+      }
+    }
+
+    // Priority 4: Try to move tableau cards to other tableau columns
+    for (let col = 0; col < state.tableau.length; col++) {
+      const column = state.tableau[col];
+      // Try to move stacks of cards (starting from the bottom face-up card)
+      for (let cardIndex = 0; cardIndex < column.length; cardIndex++) {
+        const card = column[cardIndex];
+        if (card.faceUp && tryMoveToTableau(card, 'tableau', col, cardIndex)) {
+          return;
+        }
+      }
+    }
+
+    // Priority 5: If no moves available, draw a card
+    if (state.drawPile.length > 0 || state.discardPile.length > 0) {
+      get().drawCard();
+      
+      // Wait 1 second before next move
+      setTimeout(() => {
+        set({ autoPlayInProgress: false });
+        if (get().autoPlayEnabled) {
+          get().performAutoPlayMove();
+        }
+      }, 1000);
+      return;
+    }
+
+    // No moves available - stop auto-play
+    set({ autoPlayEnabled: false, autoPlayInProgress: false });
   },
 }));
