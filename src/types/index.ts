@@ -74,4 +74,6 @@ export interface GameState {
     };
     tableau: Card[][];
   };
+  perceivedDifficulty?: number; // Calculated difficulty score based on initial board setup (0-100, undefined if no initial setup)
+  completionProgress: number; // Game completion percentage (0-100)
 }

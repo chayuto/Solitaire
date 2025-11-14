@@ -9,6 +9,8 @@ const ControlPanel: React.FC = () => {
   const autoPlayEnabled = useGameStore((state) => state.autoPlayEnabled);
   const moveCount = useGameStore((state) => state.moveHistory.length);
   const difficulty = useGameStore((state) => state.difficulty);
+  const perceivedDifficulty = useGameStore((state) => state.perceivedDifficulty);
+  const completionProgress = useGameStore((state) => state.completionProgress);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -90,6 +92,43 @@ const ControlPanel: React.FC = () => {
       <div className="bg-green-600 text-white font-bold py-2 px-4 rounded text-center mb-4">
         <div className="text-sm">Moves</div>
         <div className="text-2xl">{moveCount}</div>
+      </div>
+
+      {/* Metrics Display */}
+      <div className="space-y-2 mb-4">
+        {/* Completion Progress */}
+        <div className="bg-blue-50 rounded p-3">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs font-semibold text-gray-700">Completion</span>
+            <span className="text-xs font-bold text-blue-700">{completionProgress.toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${completionProgress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Perceived Difficulty */}
+        {perceivedDifficulty !== undefined && (
+          <div className="bg-orange-50 rounded p-3">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-semibold text-gray-700">Board Difficulty</span>
+              <span className="text-xs font-bold text-orange-700">{perceivedDifficulty}/100</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+              <div 
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  perceivedDifficulty < 30 ? 'bg-green-500' :
+                  perceivedDifficulty < 60 ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}
+                style={{ width: `${perceivedDifficulty}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Difficulty Selector */}

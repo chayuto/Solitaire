@@ -131,7 +131,7 @@ const initializeGameState = (difficulty: Difficulty = 3): GameState => {
     tableau: JSON.parse(JSON.stringify(tableau)),
   };
 
-  return {
+  const initialState: GameState = {
     drawPile,
     discardPile: [],
     foundations: {
@@ -151,7 +151,11 @@ const initializeGameState = (difficulty: Difficulty = 3): GameState => {
     difficulty,
     gameWon: false,
     initialBoardSetup,
+    perceivedDifficulty: calculatePerceivedDifficulty(initialBoardSetup),
+    completionProgress: 0, // Start at 0% completion
   };
+
+  return initialState;
 };
 
 // Helper function to generate a hash of the current game state
@@ -348,6 +352,114 @@ const canAutoComplete = (state: GameState): boolean => {
   }
   
   return false;
+};
+
+// Calculate perceived difficulty based on initial board setup
+// Returns a score from 0-100 (higher = more difficult)
+// Returns undefined if no initial board setup is available
+const calculatePerceivedDifficulty = (initialBoardSetup?: GameState['initialBoardSetup']): number | undefined => {
+  if (!initialBoardSetup) {
+    return undefined;
+  }
+
+  let difficultyScore = 0;
+  const { tableau, drawPile } = initialBoardSetup;
+
+  // Factor 1: Buried aces and low cards (0-30 points)
+  // Aces and 2s buried deep in tableau columns are harder to access
+  let buriedLowCardsScore = 0;
+  tableau.forEach(column => {
+    column.forEach((card, index) => {
+      if (!card.faceUp) {
+        const rankValue = getRankValue(card.rank);
+        // Aces and 2s are critical for starting foundations
+        if (rankValue <= 2) {
+          // Deeper burial = higher score (more difficult)
+          const depthFactor = (column.length - index) / column.length;
+          buriedLowCardsScore += depthFactor * 5; // Max 5 points per buried low card
+        }
+      }
+    });
+  });
+  difficultyScore += Math.min(buriedLowCardsScore, 30);
+
+  // Factor 2: Face-down card distribution (0-25 points)
+  // More face-down cards = harder game
+  let totalFaceDown = 0;
+  tableau.forEach(column => {
+    totalFaceDown += column.filter(card => !card.faceUp).length;
+  });
+  // There are 21 face-down cards in standard deal (0+1+2+3+4+5+6)
+  const faceDownRatio = totalFaceDown / 21;
+  difficultyScore += faceDownRatio * 25;
+
+  // Factor 3: Empty columns (0-15 points)
+  // Starting with empty columns is unusual and can be either easier or harder
+  // We'll count it as slightly negative since it gives flexibility
+  const emptyColumns = tableau.filter(col => col.length === 0).length;
+  difficultyScore -= emptyColumns * 5; // Each empty column reduces difficulty
+
+  // Factor 4: Card sequence potential (0-20 points)
+  // Check how many cards in tableau can immediately form sequences
+  let sequencePotential = 0;
+  const faceUpCards = tableau.flatMap(col => col.filter(card => card.faceUp));
+  faceUpCards.forEach(card => {
+    const canFormSequence = faceUpCards.some(otherCard => 
+      card !== otherCard &&
+      isRed(card.suit) !== isRed(otherCard.suit) &&
+      getRankValue(card.rank) === getRankValue(otherCard.rank) - 1
+    );
+    if (canFormSequence) {
+      sequencePotential += 1;
+    }
+  });
+  // More immediate sequences = easier game
+  const maxPossibleSequences = 7; // Rough estimate
+  difficultyScore -= (sequencePotential / maxPossibleSequences) * 20;
+
+  // Factor 5: Draw pile size (0-10 points)
+  // More cards in draw pile = more options but also more to work through
+  const drawPileRatio = drawPile.length / 24; // 24 is standard draw pile size
+  difficultyScore += drawPileRatio * 10;
+
+  // Normalize to 0-100 range
+  difficultyScore = Math.max(0, Math.min(100, difficultyScore));
+  
+  return Math.round(difficultyScore);
+};
+
+// Calculate game completion progress (0-100%)
+const calculateCompletionProgress = (state: GameState): number => {
+  // Count cards in foundations (winning condition)
+  const foundationCards = 
+    state.foundations.hearts.length +
+    state.foundations.diamonds.length +
+    state.foundations.clubs.length +
+    state.foundations.spades.length;
+  
+  // Total cards in a standard deck
+  const totalCards = 52;
+  
+  // Basic progress: cards in foundation / total cards
+  const basicProgress = (foundationCards / totalCards) * 100;
+  
+  // Bonus progress for face-up cards in tableau (showing progress even when not in foundation)
+  const tableauFaceUpCards = state.tableau.reduce((count, column) => 
+    count + column.filter(card => card.faceUp).length, 0
+  );
+  
+  // Initial face-up cards in standard deal is 7 (one per column)
+  // Additional face-up cards show progress in revealing the board
+  const additionalFaceUp = Math.max(0, tableauFaceUpCards - 7);
+  
+  // Give 0.5% bonus for each additional face-up card (max ~7 points for fully revealed board)
+  const faceUpBonus = Math.min(additionalFaceUp * 0.5, 7);
+  
+  // Combine the scores
+  const totalProgress = basicProgress + faceUpBonus;
+  
+  // Cap at 100%
+  return Math.min(100, Math.round(totalProgress * 10) / 10); // Round to 1 decimal place
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -562,10 +674,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newTableau[selected.columnIndex] = remainingCards;
       newTableau[targetColumn] = [...newTableau[targetColumn], ...cardsToMove];
       
+      const updatedState = {
+        ...state,
+        tableau: newTableau,
+        moveHistory: [...state.moveHistory, ...newMoves],
+      };
+      
       set({ 
         tableau: newTableau, 
         selectedCard: undefined,
         moveHistory: [...state.moveHistory, ...newMoves],
+        completionProgress: calculateCompletionProgress(updatedState),
       });
     } else if (selected.source === 'discard') {
       // Move from discard to tableau
@@ -586,11 +705,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
       };
       
+      const updatedState = {
+        ...state,
+        discardPile: newDiscardPile,
+        tableau: newTableau,
+        moveHistory: recordMove(state, move),
+      };
+      
       set({ 
         discardPile: newDiscardPile, 
         tableau: newTableau, 
         selectedCard: undefined,
         moveHistory: recordMove(state, move),
+        completionProgress: calculateCompletionProgress(updatedState),
       });
     }
   },
@@ -662,12 +789,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newFoundations[suit] = [...newFoundations[suit], selected.card];
       
       const updatedState = {
+        ...state,
         tableau: newTableau, 
         foundations: newFoundations, 
         selectedCard: undefined,
         moveHistory: [...state.moveHistory, ...newMoves],
       };
-      set(updatedState);
+      
+      set({
+        ...updatedState,
+        selectedCard: undefined,
+        completionProgress: calculateCompletionProgress(updatedState),
+      });
       
       // Check for win condition
       const newState = get();
@@ -697,12 +830,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
       
       const updatedState = {
+        ...state,
         discardPile: newDiscardPile, 
         foundations: newFoundations, 
         selectedCard: undefined,
         moveHistory: recordMove(state, move),
       };
-      set(updatedState);
+      
+      set({
+        ...updatedState,
+        selectedCard: undefined,
+        completionProgress: calculateCompletionProgress(updatedState),
+      });
       
       // Check for win condition
       const newState = get();
@@ -765,6 +904,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       difficulty: state.difficulty,
       gameWon: state.gameWon,
       initialBoardSetup: state.initialBoardSetup,
+      perceivedDifficulty: state.perceivedDifficulty,
+      completionProgress: state.completionProgress,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -790,6 +931,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return false;
       }
       
+      // Calculate metrics for imported state
+      const importedStateForCalc: GameState = {
+        ...importedState,
+        selectedCard: undefined,
+        autoPlayInProgress: false,
+      };
+      const completionProgress = calculateCompletionProgress(importedStateForCalc);
+      const perceivedDifficulty = importedState.perceivedDifficulty ?? calculatePerceivedDifficulty(importedState.initialBoardSetup);
+      
       // Set the imported state
       set({
         drawPile: importedState.drawPile,
@@ -805,6 +955,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         difficulty: importedState.difficulty,
         gameWon: importedState.gameWon,
         initialBoardSetup: importedState.initialBoardSetup,
+        perceivedDifficulty,
+        completionProgress,
       });
       
       return true;
