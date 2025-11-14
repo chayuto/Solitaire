@@ -30,9 +30,10 @@ describe('ControlPanel - Move Counter', () => {
       useGameStore.getState().drawCard();
     });
     
-    // Verify counter updated to 1
+    // Verify counter updated to 1 - need to be specific since difficulty buttons also show numbers
     await waitFor(() => {
-      expect(screen.getByText('1')).toBeInTheDocument();
+      const moveCounter = screen.getByText('Moves').nextElementSibling;
+      expect(moveCounter).toHaveTextContent('1');
     });
   });
 
@@ -47,9 +48,10 @@ describe('ControlPanel - Move Counter', () => {
       store.drawCard();
     });
     
-    // Verify counter shows 3
+    // Verify counter shows 3 - need to be specific since difficulty buttons also show numbers
     await waitFor(() => {
-      expect(screen.getByText('3')).toBeInTheDocument();
+      const moveCounter = screen.getByText('Moves').nextElementSibling;
+      expect(moveCounter).toHaveTextContent('3');
     });
   });
 
@@ -63,9 +65,10 @@ describe('ControlPanel - Move Counter', () => {
       store.drawCard();
     });
     
-    // Verify counter is not 0
+    // Verify counter is not 0 - need to be specific since difficulty buttons also show numbers
     await waitFor(() => {
-      expect(screen.getByText('2')).toBeInTheDocument();
+      const moveCounter = screen.getByText('Moves').nextElementSibling;
+      expect(moveCounter).toHaveTextContent('2');
     });
     
     // Start new game
@@ -90,9 +93,10 @@ describe('ControlPanel - Move Counter', () => {
       store.drawCard();
     });
     
-    // Verify counter shows 3
+    // Verify counter shows 3 - need to be specific since difficulty buttons also show numbers
     await waitFor(() => {
-      expect(screen.getByText('3')).toBeInTheDocument();
+      const moveCounter = screen.getByText('Moves').nextElementSibling;
+      expect(moveCounter).toHaveTextContent('3');
     });
     
     // Export and import game state
@@ -113,7 +117,8 @@ describe('ControlPanel - Move Counter', () => {
     
     // Verify counter restored to 3
     await waitFor(() => {
-      expect(screen.getByText('3')).toBeInTheDocument();
+      const moveCounter = screen.getByText('Moves').nextElementSibling;
+      expect(moveCounter).toHaveTextContent('3');
     });
   });
 });

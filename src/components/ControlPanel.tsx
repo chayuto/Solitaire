@@ -84,8 +84,7 @@ const ControlPanel: React.FC = () => {
   };
 
   const getDifficultyLabel = (level: Difficulty): string => {
-    const labels = ['', '⭐', '⭐⭐', '⭐⭐⭐', '⭐⭐⭐⭐', '⭐⭐⭐⭐⭐'];
-    return labels[level];
+    return level.toString();
   };
 
   const getDifficultyName = (level: Difficulty): string => {

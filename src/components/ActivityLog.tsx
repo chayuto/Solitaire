@@ -131,7 +131,7 @@ const ActivityLog: React.FC = () => {
               <p className="text-gray-500 text-center text-sm mt-8">No activities yet</p>
             ) : (
               <div className="space-y-1">
-                {visibleLogs.map((move, index) => {
+                {[...visibleLogs].reverse().map((move, index) => {
                   const isAutoPlayEvent = move.type.startsWith('autoplay_');
                   const isDeadendOrLoop = move.type === 'autoplay_deadend' || move.type === 'autoplay_loop_detected';
                   return (
