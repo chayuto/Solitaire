@@ -2,6 +2,15 @@ import { useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { Difficulty } from '../types';
 
+/**
+ * ControlPanel component - Main game controls and settings
+ * Provides UI for:
+ * - Move counter display
+ * - Game metrics (perceived difficulty, completion progress)
+ * - Difficulty selector
+ * - New game, save/load game state
+ * - Toggle features (valid moves, god mode, auto-play)
+ */
 const ControlPanel: React.FC = () => {
   const { exportGameState, importGameState, initializeGame, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty } = useGameStore();
   const showValidMoves = useGameStore((state) => state.showValidMoves);
