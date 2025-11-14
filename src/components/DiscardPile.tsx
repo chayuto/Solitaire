@@ -1,5 +1,8 @@
+import { motion, AnimatePresence } from 'framer-motion';
+import { useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
 import Card from './Card';
+import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 
 const DiscardPile: React.FC = () => {
   const discardPile = useGameStore((state) => state.discardPile);
@@ -8,6 +11,9 @@ const DiscardPile: React.FC = () => {
   const deselectCard = useGameStore((state) => state.deselectCard);
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const hasAnyValidDestination = useGameStore((state) => state.hasAnyValidDestination);
+
+  // Check for reduced motion preference
+  const shouldReduceMotion = useMemo(() => checkReducedMotion(), []);
 
   const handleCardClick = () => {
     if (discardPile.length === 0) return;
@@ -28,21 +34,59 @@ const DiscardPile: React.FC = () => {
   const hasValidMoves = showValidMoves && !selectedCard && topCard !== null && 
     hasAnyValidDestination(topCard, 'discard');
 
+  // Animation variants for cards entering discard pile
+  const discardVariants = shouldReduceMotion ? undefined : {
+    initial: { 
+      x: -100,
+      opacity: 0,
+      rotateY: 180
+    },
+    animate: { 
+      x: 0,
+      opacity: 1,
+      rotateY: 0,
+      transition: {
+        duration: 0.3,
+        ease: "easeOut" as const
+      }
+    },
+    exit: { 
+      scale: 0.8,
+      opacity: 0,
+      transition: { duration: 0.2 }
+    }
+  };
+
   return (
     <div className="relative w-20 h-28">
-      {discardPile.length > 0 ? (
-        <div className="absolute inset-0">
-          <Card
-            card={{ ...discardPile[discardPile.length - 1], faceUp: true }}
-            onClick={handleCardClick}
-            isInteractable={isInteractable}
-            isSelected={isSelected}
-            hasValidMoves={hasValidMoves}
+      <AnimatePresence mode="wait">
+        {discardPile.length > 0 ? (
+          <motion.div 
+            key={`discard-${discardPile[discardPile.length - 1].id}`}
+            className="absolute inset-0"
+            variants={discardVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <Card
+              card={{ ...discardPile[discardPile.length - 1], faceUp: true }}
+              onClick={handleCardClick}
+              isInteractable={isInteractable}
+              isSelected={isSelected}
+              hasValidMoves={hasValidMoves}
+            />
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="discard-empty"
+            className="w-20 h-28 border-2 border-dashed border-gray-400 rounded-lg bg-gray-100"
+            initial={shouldReduceMotion ? {} : { opacity: 0 }}
+            animate={shouldReduceMotion ? {} : { opacity: 1 }}
+            transition={{ duration: 0.2 }}
           />
-        </div>
-      ) : (
-        <div className="w-20 h-28 border-2 border-dashed border-gray-400 rounded-lg bg-gray-100"></div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 };
