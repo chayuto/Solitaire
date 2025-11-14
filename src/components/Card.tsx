@@ -1,4 +1,7 @@
+import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import type { Card as CardType } from '../types';
+import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 
 interface CardProps {
   card: CardType;
@@ -11,6 +14,9 @@ interface CardProps {
 
 const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSelected = false, hasValidMoves = false, godMode = false }) => {
   const { suit, rank, faceUp } = card;
+
+  // Check for reduced motion preference
+  const shouldReduceMotion = useMemo(() => checkReducedMotion(), []);
 
   // Determine if the card is red or black
   const isRed = suit === 'hearts' || suit === 'diamonds';
@@ -38,14 +44,42 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
     return '';
   };
 
+  // Animation variants for flip
+  const flipVariants = shouldReduceMotion ? undefined : {
+    faceDown: { rotateY: 180 },
+    faceUp: { rotateY: 0 }
+  };
+
+  // Animation variants for hover and selection
+  const hoverVariants = shouldReduceMotion ? undefined : {
+    hover: { 
+      scale: 1.05,
+      y: -4,
+      transition: { duration: 0.2 }
+    }
+  };
+
+  const transition = shouldReduceMotion 
+    ? { duration: 0 }
+    : { duration: 0.3 };
+
   if (!faceUp) {
     // God mode: show card with reduced opacity to reveal content
     if (godMode) {
       return (
-        <div className="relative">
-          <div
+        <motion.div 
+          className="relative"
+          initial={shouldReduceMotion ? undefined : "faceDown"}
+          animate={shouldReduceMotion ? undefined : "faceDown"}
+          variants={flipVariants}
+          transition={transition}
+          style={shouldReduceMotion ? undefined : { transformStyle: 'preserve-3d' }}
+        >
+          <motion.div
             onClick={onClick}
-            className={`w-20 h-28 bg-white border-2 border-gray-300 rounded-lg flex flex-col p-2 cursor-pointer shadow-md hover:shadow-lg transition-all select-none ${color} ${getHighlightClass()} opacity-40`}
+            className={`w-20 h-28 bg-white border-2 border-gray-300 rounded-lg flex flex-col p-2 cursor-pointer shadow-md select-none ${color} ${getHighlightClass()} opacity-40`}
+            whileHover={isInteractable && !shouldReduceMotion ? "hover" : undefined}
+            variants={hoverVariants}
           >
             <div className="flex justify-between items-start">
               <div className="text-xl font-bold leading-none">{rank}</div>
@@ -58,29 +92,41 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
               <div className="text-xl font-bold leading-none">{rank}</div>
               <div className="text-2xl leading-none">{suitSymbols[suit]}</div>
             </div>
-          </div>
+          </motion.div>
           {/* Indicator badge for god mode */}
           <div className="absolute top-1 right-1 text-xs pointer-events-none">
             👁️
           </div>
-        </div>
+        </motion.div>
       );
     }
     
     return (
-      <div
+      <motion.div
         onClick={onClick}
-        className={`w-20 h-28 bg-blue-900 border-2 border-blue-700 rounded-lg flex items-center justify-center cursor-pointer shadow-md hover:shadow-lg transition-all select-none ${getHighlightClass()}`}
+        className={`w-20 h-28 bg-blue-900 border-2 border-blue-700 rounded-lg flex items-center justify-center cursor-pointer shadow-md select-none ${getHighlightClass()}`}
+        initial={shouldReduceMotion ? undefined : "faceDown"}
+        animate={shouldReduceMotion ? undefined : "faceDown"}
+        variants={flipVariants}
+        transition={transition}
+        style={shouldReduceMotion ? undefined : { transformStyle: 'preserve-3d' }}
+        whileHover={isInteractable && !shouldReduceMotion ? "hover" : undefined}
       >
         <div className="text-blue-700 text-4xl font-bold">🂠</div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div
+    <motion.div
       onClick={onClick}
-      className={`w-20 h-28 bg-white border-2 border-gray-300 rounded-lg flex flex-col p-2 cursor-pointer shadow-md hover:shadow-lg transition-all select-none ${color} ${getHighlightClass()}`}
+      className={`w-20 h-28 bg-white border-2 border-gray-300 rounded-lg flex flex-col p-2 cursor-pointer shadow-md select-none ${color} ${getHighlightClass()}`}
+      initial={shouldReduceMotion ? undefined : "faceUp"}
+      animate={shouldReduceMotion ? undefined : (isSelected ? { scale: 1.05 } : "faceUp")}
+      variants={flipVariants}
+      transition={transition}
+      style={shouldReduceMotion ? undefined : { transformStyle: 'preserve-3d' }}
+      whileHover={isInteractable && !shouldReduceMotion ? "hover" : undefined}
     >
       <div className="flex justify-between items-start">
         <div className="text-xl font-bold leading-none">{rank}</div>
@@ -93,7 +139,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
         <div className="text-xl font-bold leading-none">{rank}</div>
         <div className="text-2xl leading-none">{suitSymbols[suit]}</div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
