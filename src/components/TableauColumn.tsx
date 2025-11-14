@@ -14,6 +14,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
   const canMoveToTableau = useGameStore((state) => state.canMoveToTableau);
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
+  const hasAnyValidDestination = useGameStore((state) => state.hasAnyValidDestination);
 
   // Check if this column is a valid destination for the selected card
   const isValidDestination = showValidMoves && selectedCard && canMoveToTableau(selectedCard.card, columnIndex);
@@ -61,6 +62,10 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
             // A card is interactable if it's face up and no card is currently selected
             const isInteractable = card.faceUp && !selectedCard;
             
+            // Check if this card has valid destinations (only if showValidMoves is enabled and no card selected)
+            const hasValidMoves = showValidMoves && !selectedCard && card.faceUp && 
+              hasAnyValidDestination(card, 'tableau', columnIndex, index);
+            
             return (
               <div
                 key={card.id}
@@ -72,6 +77,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
                   onClick={() => handleCardClick(index)}
                   isInteractable={isInteractable}
                   isSelected={isSelected}
+                  hasValidMoves={hasValidMoves}
                   godMode={godMode}
                 />
               </div>

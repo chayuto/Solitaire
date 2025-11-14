@@ -5,10 +5,11 @@ interface CardProps {
   onClick?: () => void;
   isInteractable?: boolean;
   isSelected?: boolean;
+  hasValidMoves?: boolean;
   godMode?: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSelected = false, godMode = false }) => {
+const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSelected = false, hasValidMoves = false, godMode = false }) => {
   const { suit, rank, faceUp } = card;
 
   // Determine if the card is red or black
@@ -27,6 +28,9 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
   const getHighlightClass = () => {
     if (isSelected) {
       return 'ring-4 ring-yellow-400 scale-105';
+    }
+    if (hasValidMoves) {
+      return 'ring-2 ring-green-400 hover:ring-4 hover:ring-green-500';
     }
     if (isInteractable) {
       return 'ring-2 ring-cyan-400 hover:ring-4 hover:ring-cyan-500';

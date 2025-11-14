@@ -9,6 +9,9 @@ interface GameStore extends GameState {
   moveCardToFoundation: (suit: Suit) => void;
   canMoveToTableau: (card: Card, targetColumn: number) => boolean;
   canMoveToFoundation: (card: Card, suit: Suit) => boolean;
+  hasValidTableauDestination: (card: Card, sourceColumn?: number) => boolean;
+  hasValidFoundationDestination: (card: Card) => boolean;
+  hasAnyValidDestination: (card: Card, source: 'tableau' | 'discard', columnIndex?: number, cardIndex?: number) => boolean;
   exportGameState: () => string;
   importGameState: (jsonString: string) => boolean;
   exportMoveHistory: () => string;
@@ -192,6 +195,68 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Must be one rank higher than current top card
     const topCard = foundation[foundation.length - 1];
     return getRankValue(card.rank) === getRankValue(topCard.rank) + 1;
+  },
+  
+  hasValidTableauDestination: (card, sourceColumn) => {
+    const state = get();
+    
+    // Check all tableau columns for valid destinations
+    for (let col = 0; col < state.tableau.length; col++) {
+      // Skip the source column if provided
+      if (sourceColumn !== undefined && col === sourceColumn) {
+        continue;
+      }
+      
+      if (get().canMoveToTableau(card, col)) {
+        return true;
+      }
+    }
+    
+    return false;
+  },
+  
+  hasValidFoundationDestination: (card) => {
+    const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
+    
+    // Check all foundations for valid destinations
+    for (const suit of suits) {
+      if (get().canMoveToFoundation(card, suit)) {
+        return true;
+      }
+    }
+    
+    return false;
+  },
+  
+  hasAnyValidDestination: (card, source, columnIndex, cardIndex) => {
+    const state = get();
+    
+    // For tableau cards, only check if it's the bottom-most card of a sequence
+    // (we can move multiple cards but only check the first one in the sequence)
+    if (source === 'tableau' && columnIndex !== undefined && cardIndex !== undefined) {
+      const column = state.tableau[columnIndex];
+      
+      // Only allow checking cards that can actually be moved
+      // (must be face up, and if not last card, all cards below must be in valid sequence)
+      if (!card.faceUp) {
+        return false;
+      }
+      
+      // Check if this is the last card (can go to foundation or tableau)
+      if (cardIndex === column.length - 1) {
+        return get().hasValidFoundationDestination(card) || get().hasValidTableauDestination(card, columnIndex);
+      }
+      
+      // If not the last card, can only move to tableau (not foundation)
+      return get().hasValidTableauDestination(card, columnIndex);
+    }
+    
+    // For discard pile, check both foundation and tableau
+    if (source === 'discard') {
+      return get().hasValidFoundationDestination(card) || get().hasValidTableauDestination(card);
+    }
+    
+    return false;
   },
   
   moveCardToTableau: (targetColumn) => {
