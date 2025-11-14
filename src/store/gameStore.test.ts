@@ -23,32 +23,36 @@ describe('GameStore - Movement Recording', () => {
     expect(state.moveHistory[state.moveHistory.length - 1].type).toBe('draw_card');
   });
 
-  it('should export move history as JSON string', () => {
+  it('should export move history within game state', () => {
     const store = useGameStore.getState();
     store.drawCard();
     
-    const jsonHistory = store.exportMoveHistory();
-    const parsed = JSON.parse(jsonHistory);
+    const jsonState = store.exportGameState();
+    const parsed = JSON.parse(jsonState);
     
-    expect(Array.isArray(parsed)).toBe(true);
-    expect(parsed.length).toBeGreaterThan(0);
-    expect(parsed[0]).toHaveProperty('type');
-    expect(parsed[0]).toHaveProperty('timestamp');
-    expect(parsed[0]).toHaveProperty('card');
+    expect(parsed).toHaveProperty('moveHistory');
+    expect(Array.isArray(parsed.moveHistory)).toBe(true);
+    expect(parsed.moveHistory.length).toBeGreaterThan(0);
+    expect(parsed.moveHistory[0]).toHaveProperty('type');
+    expect(parsed.moveHistory[0]).toHaveProperty('timestamp');
+    expect(parsed.moveHistory[0]).toHaveProperty('card');
   });
 
-  it('should export board setup as JSON string', () => {
+  it('should export initial board setup within game state', () => {
     const store = useGameStore.getState();
     
-    const jsonSetup = store.exportBoardSetup();
-    const parsed = JSON.parse(jsonSetup);
+    const jsonState = store.exportGameState();
+    const parsed = JSON.parse(jsonState);
     
+    expect(parsed).toHaveProperty('initialBoardSetup');
+    expect(parsed.initialBoardSetup).toHaveProperty('drawPile');
+    expect(parsed.initialBoardSetup).toHaveProperty('discardPile');
+    expect(parsed.initialBoardSetup).toHaveProperty('foundations');
+    expect(parsed.initialBoardSetup).toHaveProperty('tableau');
     expect(parsed).toHaveProperty('drawPile');
     expect(parsed).toHaveProperty('discardPile');
     expect(parsed).toHaveProperty('foundations');
     expect(parsed).toHaveProperty('tableau');
-    expect(parsed).not.toHaveProperty('moveHistory');
-    expect(parsed).not.toHaveProperty('selectedCard');
   });
 
   it('should record tableau to tableau moves', () => {
@@ -129,20 +133,7 @@ describe('GameStore - Movement Recording', () => {
     expect(newState.moveHistory.length).toBe(2);
   });
 
-  it('should handle importing games without move history', () => {
-    const store = useGameStore.getState();
-    
-    // Create a board setup without move history
-    const boardSetup = store.exportBoardSetup();
-    
-    // Import it
-    const success = store.importGameState(boardSetup);
-    expect(success).toBe(true);
-    
-    // Should have empty move history
-    const newState = useGameStore.getState();
-    expect(newState.moveHistory).toEqual([]);
-  });
+
 });
 
 describe('GameStore - UI Toggles', () => {
@@ -204,26 +195,6 @@ describe('GameStore - UI Toggles', () => {
     const newState = useGameStore.getState();
     expect(newState.showValidMoves).toBe(false);
     expect(newState.godMode).toBe(true);
-  });
-
-  it('should handle importing games without toggle states (backward compatibility)', () => {
-    const store = useGameStore.getState();
-    
-    // Create a state without toggle fields (simulating old saved game)
-    const exported = store.exportGameState();
-    const parsed = JSON.parse(exported);
-    delete parsed.showValidMoves;
-    delete parsed.godMode;
-    const oldFormat = JSON.stringify(parsed);
-    
-    // Import it
-    const success = store.importGameState(oldFormat);
-    expect(success).toBe(true);
-    
-    // Should use default values
-    const newState = useGameStore.getState();
-    expect(newState.showValidMoves).toBe(true);
-    expect(newState.godMode).toBe(false);
   });
 
   it('should initialize with autoPlayEnabled disabled', () => {

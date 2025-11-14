@@ -3,7 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import type { Difficulty } from '../types';
 
 const ControlPanel: React.FC = () => {
-  const { exportGameState, importGameState, initializeGame, exportMoveHistory, exportBoardSetup, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty } = useGameStore();
+  const { exportGameState, importGameState, initializeGame, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty } = useGameStore();
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
   const autoPlayEnabled = useGameStore((state) => state.autoPlayEnabled);
@@ -18,45 +18,13 @@ const ControlPanel: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `solitaire-save-${Date.now()}.json`;
+    link.download = `solitaire-game-${Date.now()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
     setMessage({ type: 'success', text: 'Game exported successfully!' });
-    setTimeout(() => setMessage(null), 3000);
-  };
-
-  const handleExportMoveHistory = () => {
-    const jsonHistory = exportMoveHistory();
-    const blob = new Blob([jsonHistory], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `solitaire-moves-${Date.now()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    setMessage({ type: 'success', text: 'Move history exported!' });
-    setTimeout(() => setMessage(null), 3000);
-  };
-
-  const handleExportBoardSetup = () => {
-    const jsonSetup = exportBoardSetup();
-    const blob = new Blob([jsonSetup], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `solitaire-board-${Date.now()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    setMessage({ type: 'success', text: 'Board setup exported!' });
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -166,23 +134,7 @@ const ControlPanel: React.FC = () => {
           onClick={handleExport}
           className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
-          Save Game
-        </button>
-
-        <div className="border-t border-gray-300 my-2"></div>
-        
-        <button
-          onClick={handleExportMoveHistory}
-          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
-        >
-          Export Moves
-        </button>
-        
-        <button
-          onClick={handleExportBoardSetup}
-          className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
-        >
-          Export Board
+          Export Game
         </button>
 
         <div className="border-t border-gray-300 my-2"></div>
