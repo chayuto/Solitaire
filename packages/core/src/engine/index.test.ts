@@ -2,7 +2,7 @@
  * Tests for GameEngine
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { GameEngine } from './index';
 import { createCard, createDeck } from '../utils';
 import type { Card } from '../types';
@@ -285,6 +285,290 @@ describe('GameEngine', () => {
       expect(newState.tableau[0].length).toBe(2);
       expect(newState.tableau[0][1].rank).toBe('7');
       expect(newState.discardPile.length).toBe(0);
+    });
+  });
+
+  describe('isWon', () => {
+    it('returns false for initial game state', () => {
+      const state = engine.initialize({ seed: 12345 });
+      expect(engine.isWon(state)).toBe(false);
+    });
+
+    it('returns true when all foundations are complete', () => {
+      const state = engine.initialize({ seed: 12345 });
+      
+      // Create complete foundations
+      const hearts = Array.from({ length: 13 }, (_, i) => 
+        createCard('hearts', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const diamonds = Array.from({ length: 13 }, (_, i) => 
+        createCard('diamonds', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const clubs = Array.from({ length: 13 }, (_, i) => 
+        createCard('clubs', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const spades = Array.from({ length: 13 }, (_, i) => 
+        createCard('spades', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+
+      const wonState = {
+        ...state,
+        foundations: { hearts, diamonds, clubs, spades },
+      };
+      
+      expect(engine.isWon(wonState)).toBe(true);
+    });
+
+    it('returns true when gameWon flag is set', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const wonState = { ...state, gameWon: true };
+      
+      expect(engine.isWon(wonState)).toBe(true);
+    });
+
+    it('returns false for partially complete foundations', () => {
+      const state = engine.initialize({ seed: 12345 });
+      
+      const hearts = Array.from({ length: 13 }, (_, i) => 
+        createCard('hearts', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+
+      const partialState = {
+        ...state,
+        foundations: {
+          hearts,
+          diamonds: [],
+          clubs: [],
+          spades: [],
+        },
+      };
+      
+      expect(engine.isWon(partialState)).toBe(false);
+    });
+  });
+
+  describe('isLost', () => {
+    it('returns false for initial game state (has legal moves)', () => {
+      const state = engine.initialize({ seed: 12345 });
+      expect(engine.isLost(state)).toBe(false);
+    });
+
+    it('returns false for a won game', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const wonState = { ...state, gameWon: true };
+      
+      expect(engine.isLost(wonState)).toBe(false);
+    });
+
+    it('returns true when no legal moves exist and game not won', () => {
+      // Create a state with no legal moves
+      const state = engine.initialize({ seed: 12345 });
+      const lostState = {
+        ...state,
+        drawPile: [],
+        discardPile: [],
+        tableau: [[], [], [], [], [], [], []],
+        foundations: {
+          hearts: [],
+          diamonds: [],
+          clubs: [],
+          spades: [],
+        },
+      };
+      
+      expect(engine.isLost(lostState)).toBe(true);
+    });
+  });
+
+  describe('getCompletionProgress', () => {
+    it('returns 0 for initial game state', () => {
+      const state = engine.initialize({ seed: 12345 });
+      expect(engine.getCompletionProgress(state)).toBe(0);
+    });
+
+    it('returns 100 for completed game', () => {
+      const state = engine.initialize({ seed: 12345 });
+      
+      const hearts = Array.from({ length: 13 }, (_, i) => 
+        createCard('hearts', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const diamonds = Array.from({ length: 13 }, (_, i) => 
+        createCard('diamonds', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const clubs = Array.from({ length: 13 }, (_, i) => 
+        createCard('clubs', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const spades = Array.from({ length: 13 }, (_, i) => 
+        createCard('spades', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+
+      const wonState = {
+        ...state,
+        foundations: { hearts, diamonds, clubs, spades },
+      };
+      
+      expect(engine.getCompletionProgress(wonState)).toBe(100);
+    });
+
+    it('returns 25 for one complete foundation', () => {
+      const state = engine.initialize({ seed: 12345 });
+      
+      const hearts = Array.from({ length: 13 }, (_, i) => 
+        createCard('hearts', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+
+      const partialState = {
+        ...state,
+        foundations: {
+          hearts,
+          diamonds: [],
+          clubs: [],
+          spades: [],
+        },
+      };
+      
+      expect(engine.getCompletionProgress(partialState)).toBe(25);
+    });
+  });
+
+  describe('getPerceivedDifficulty', () => {
+    it('returns a number between 0 and 100', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const difficulty = engine.getPerceivedDifficulty(state);
+      
+      expect(difficulty).toBeGreaterThanOrEqual(0);
+      expect(difficulty).toBeLessThanOrEqual(100);
+    });
+
+    it('returns 0 for a won game', () => {
+      const state = engine.initialize({ seed: 12345 });
+      
+      const hearts = Array.from({ length: 13 }, (_, i) => 
+        createCard('hearts', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const diamonds = Array.from({ length: 13 }, (_, i) => 
+        createCard('diamonds', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const clubs = Array.from({ length: 13 }, (_, i) => 
+        createCard('clubs', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+      const spades = Array.from({ length: 13 }, (_, i) => 
+        createCard('spades', ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'][i] as any)
+      );
+
+      const wonState = {
+        ...state,
+        foundations: { hearts, diamonds, clubs, spades },
+      };
+      
+      expect(engine.getPerceivedDifficulty(wonState)).toBe(0);
+    });
+  });
+
+  describe('exportState', () => {
+    it('exports game state as JSON string', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const exported = engine.exportState(state);
+      
+      expect(typeof exported).toBe('string');
+      expect(() => JSON.parse(exported)).not.toThrow();
+    });
+
+    it('exported state can be parsed back', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const exported = engine.exportState(state);
+      const parsed = JSON.parse(exported);
+      
+      expect(parsed.difficulty).toBe(state.difficulty);
+      expect(parsed.gameWon).toBe(state.gameWon);
+      expect(parsed.drawPile.length).toBe(state.drawPile.length);
+    });
+  });
+
+  describe('importState', () => {
+    it('imports valid game state from JSON', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const exported = engine.exportState(state);
+      const imported = engine.importState(exported);
+      
+      expect(imported.difficulty).toBe(state.difficulty);
+      expect(imported.gameWon).toBe(state.gameWon);
+      expect(imported.drawPile.length).toBe(state.drawPile.length);
+    });
+
+    it('throws error for invalid JSON', () => {
+      expect(() => engine.importState('not valid json')).toThrow('Invalid JSON');
+    });
+
+    it('throws error for invalid game state', () => {
+      const invalidState = JSON.stringify({ invalid: 'state' });
+      expect(() => engine.importState(invalidState)).toThrow();
+    });
+
+    it('validates imported state has exactly 52 cards', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const invalidState = {
+        ...state,
+        drawPile: [], // Remove cards to make invalid
+        tableau: [[], [], [], [], [], [], []],
+      };
+      
+      const exported = JSON.stringify(invalidState);
+      expect(() => engine.importState(exported)).toThrow('Game state must have exactly 52 cards');
+    });
+  });
+
+  describe('canApplyMove', () => {
+    it('returns true for valid draw_card move', () => {
+      const state = engine.initialize({ seed: 12345 });
+      expect(engine.canApplyMove(state, { type: 'draw_card' })).toBe(true);
+    });
+
+    it('returns false for draw_card when draw pile is empty', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const emptyDrawState = { ...state, drawPile: [] };
+      expect(engine.canApplyMove(emptyDrawState, { type: 'draw_card' })).toBe(false);
+    });
+
+    it('returns true for valid recycle_stock move', () => {
+      const state = engine.initialize({ seed: 12345 });
+      const recycleState = {
+        ...state,
+        drawPile: [],
+        discardPile: [createCard('hearts', 'A', true)],
+      };
+      expect(engine.canApplyMove(recycleState, { type: 'recycle_stock' })).toBe(true);
+    });
+
+    it('returns false for invalid tableau_to_tableau move', () => {
+      const state = engine.initialize({ seed: 12345 });
+      expect(engine.canApplyMove(state, {
+        type: 'tableau_to_tableau',
+        from: { column: 0, cardIndex: 99 }, // Invalid index
+        to: { column: 1 },
+      })).toBe(false);
+    });
+
+    it('returns false for move with missing parameters', () => {
+      const state = engine.initialize({ seed: 12345 });
+      expect(engine.canApplyMove(state, {
+        type: 'tableau_to_tableau',
+        from: { column: 0 }, // Missing cardIndex
+        to: { column: 1 },
+      })).toBe(false);
+    });
+
+    it('returns false for trying to move face-down card', () => {
+      const state = engine.initialize({ seed: 12345 });
+      
+      // Try to move a face-down card from column 6 (has multiple face-down cards)
+      if (state.tableau[6].length > 1) {
+        expect(engine.canApplyMove(state, {
+          type: 'tableau_to_tableau',
+          from: { column: 6, cardIndex: 0 }, // First card is face-down
+          to: { column: 0 },
+        })).toBe(false);
+      }
     });
   });
 });

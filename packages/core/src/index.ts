@@ -87,3 +87,9 @@ export {
   canRecycle,
   recycle,
 } from './rules';
+
+// Scoring functions
+export {
+  getCompletionProgress,
+  getPerceivedDifficulty,
+} from './scoring';
