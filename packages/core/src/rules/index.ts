@@ -1,0 +1,2 @@
+// Game rules implementation
+export {};

@@ -9,9 +9,13 @@
   "scripts": {
     "dev": "npm run dev -w app",
     "build": "npm run build -w app",
+    "build:libs": "npm run build -w @chayuto/solitaire-core && npm run build -w @chayuto/solitaire-mcts",
+    "build:all": "npm run build --workspaces --if-present",
     "lint": "npm run lint -w app",
     "test": "npm run test -w app",
     "test:run": "npm run test:run -w app",
+    "test:libs": "npm run test -w @chayuto/solitaire-core && npm run test -w @chayuto/solitaire-mcts",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "preview": "npm run preview -w app"
   },
   "devDependencies": {}
