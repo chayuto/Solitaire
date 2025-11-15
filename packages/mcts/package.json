@@ -1,8 +1,43 @@
 {
-  "name": "@solitaire/mcts",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@chayuto/solitaire-mcts",
+  "version": "0.1.0",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts"
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@chayuto/solitaire-core": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.8"
+  },
+  "keywords": [
+    "solitaire",
+    "klondike",
+    "mcts",
+    "monte-carlo",
+    "solver",
+    "typescript"
+  ],
+  "license": "MIT"
 }
