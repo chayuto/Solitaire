@@ -94,6 +94,20 @@ This document serves as the **entry point** for the comprehensive MCTS (Monte Ca
 
 ---
 
+### 7. [Performance Considerations](./20251115_mcts_v0_performance_considerations.md) ⚡
+**Purpose**: Performance optimization guide  
+**Key Content**:
+- Performance budgets and targets
+- Hot path analysis and optimization techniques
+- JavaScript/V8 engine optimizations
+- Web Workers for background search
+- Profiling strategies and tools
+- Performance regression tests
+
+**Read this** during Phase 4 and when optimizing - it's your performance bible.
+
+---
+
 ## Quick Start Guide
 
 ### For Project Managers / Stakeholders
@@ -356,8 +370,9 @@ All planning documents are in `/docs/internal/`:
 5. `20251115_mcts_v0_task_breakdown.md` (37KB, 47 atomic tasks)
 6. `20251115_mcts_v0_technical_specifications.md` (24KB, API reference)
 7. `20251115_mcts_v0_testing_strategy.md` (26KB, test plan)
+8. `20251115_mcts_v0_performance_considerations.md` (20KB, optimization guide)
 
-**Total Planning Documentation**: ~160KB, ~7,000 lines
+**Total Planning Documentation**: ~180KB, ~7,500 lines
 
 ---
 
