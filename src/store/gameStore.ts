@@ -684,167 +684,256 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return value;
     };
 
-    // Helper to score a move (higher is better)
-    const scoreMove = (move: PossibleMove): number => {
-      let score = move.score;
-      const { source, sourceColumn, sourceCardIndex, targetType, targetColumn } = move;
+    // Helper to check if there's a King available (face-up) in tableau or discard
+    const hasKingAvailable = (): boolean => {
+      // Check discard pile
+      if (state.discardPile.length > 0) {
+        const topCard = state.discardPile[state.discardPile.length - 1];
+        if (topCard.rank === 'K') return true;
+      }
+      // Check tableau
+      for (const column of state.tableau) {
+        for (let i = 0; i < column.length; i++) {
+          const card = column[i];
+          if (card.faceUp && card.rank === 'K') {
+            // Make sure it's moveable (top of a sequence)
+            return true;
+          }
+        }
+      }
+      return false;
+    };
 
-      // Bonus for moves to foundation (always good, but consider strategic timing)
-      if (targetType === 'foundation') {
-        score += 100;
-        // Extra bonus for Aces and 2s (start building foundations early)
-        if (move.card.rank === 'A') score += 50;
-        if (move.card.rank === '2') score += 30;
-        
-        // Strategic consideration: Don't rush to move small cards to foundation too early
-        // if they might be useful for building tableau sequences
-        const cardValue = getRankValue(move.card.rank);
-        if (cardValue <= 3 && state.drawPile.length > 15) {
-          // Slight penalty for moving very small cards early unless needed
-          // Check if this card could be useful for tableau moves
-          let hasTableauUse = false;
-          for (let col = 0; col < state.tableau.length; col++) {
-            const column = state.tableau[col];
-            if (column.length > 0) {
-              const topCard = column[column.length - 1];
-              // If there's a 4 or 5 on tableau, we might want to keep 2/3
-              if (topCard.faceUp && getRankValue(topCard.rank) === cardValue + 1) {
-                hasTableauUse = true;
-                break;
-              }
+    // Helper to calculate foundation evenness penalty
+    const getFoundationUnevennessScore = (): number => {
+      const levels = [
+        state.foundations.hearts.length,
+        state.foundations.diamonds.length,
+        state.foundations.clubs.length,
+        state.foundations.spades.length,
+      ];
+      const max = Math.max(...levels);
+      const min = Math.min(...levels);
+      return max - min; // Higher difference = more uneven
+    };
+
+    // Helper to check if a card is needed for tableau building
+    const isCardNeededForTableau = (card: Card): boolean => {
+      const cardValue = getRankValue(card.rank);
+      // Check all tableau columns to see if this card could help build sequences
+      for (let col = 0; col < state.tableau.length; col++) {
+        const column = state.tableau[col];
+        if (column.length > 0) {
+          const topCard = column[column.length - 1];
+          if (topCard.faceUp) {
+            const topValue = getRankValue(topCard.rank);
+            // This card could be placed on the top card
+            if (cardValue === topValue - 1 && isRed(card.suit) !== isRed(topCard.suit)) {
+              return true;
             }
           }
-          if (!hasTableauUse) score += 20; // Safe to move if no tableau use
+        }
+        // Check if any face-down card underneath would need this card
+        for (let i = 0; i < column.length; i++) {
+          const hiddenCard = getFaceDownCard(col, i);
+          if (hiddenCard) {
+            const hiddenValue = getRankValue(hiddenCard.rank);
+            // The hidden card could be placed on this card
+            if (hiddenValue === cardValue - 1 && isRed(hiddenCard.suit) !== isRed(card.suit)) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+
+    // NEW SCORING SYSTEM: Follows 5 priorities in strict order
+    // Priority #1: Unlock Tableau (1000000+ points)
+    // Priority #2: King Management (100000+ points)  
+    // Priority #3: Foundation Handling (10000+ points)
+    // Priority #4: Draw Pile Management (1000+ points)
+    // Priority #5: Flexibility (100+ points)
+    const scoreMove = (move: PossibleMove): number => {
+      let score = 0;
+      const { source, sourceColumn, sourceCardIndex, targetType, targetColumn } = move;
+      const cardValue = getRankValue(move.card.rank);
+
+      // PRIORITY #1: UNLOCK THE TABLEAU (1000000+)
+      // Always play from tableau before draw pile
+      if (source === 'tableau') {
+        score += 1000000; // Massive bonus for any tableau move
+        
+        // Prioritize moves from columns with MORE face-down cards
+        if (sourceColumn !== undefined) {
+          const faceDownCount = countFaceDownCards(sourceColumn);
+          score += faceDownCount * 50000; // More face-down = higher priority
         }
         
-        return score;
-      }
-
-      // For tableau moves, apply smart heuristics with face-down card knowledge
-      if (targetType === 'tableau' && targetColumn !== undefined) {
         // Check if this move reveals a face-down card
-        if (source === 'tableau' && sourceColumn !== undefined && sourceCardIndex !== undefined) {
+        if (sourceColumn !== undefined && sourceCardIndex !== undefined) {
           const sourceCol = state.tableau[sourceColumn];
           if (sourceCardIndex > 0 && !sourceCol[sourceCardIndex - 1].faceUp) {
-            // Use face-down card knowledge to evaluate reveal value
+            score += 100000; // Big bonus for revealing cards
+            
+            // Extra bonus based on what's revealed
             const revealValue = evaluateRevealValue(sourceColumn, sourceCardIndex - 1);
-            score += revealValue; // Strategic bonus based on what's underneath
-          }
-          
-          // Check if we're emptying a column
-          if (sourceCardIndex === 0) {
-            // Emptying a column is good only if we're moving a King
-            if (move.card.rank === 'K') {
-              score -= 50; // Penalty for moving King to non-empty (waste of empty space)
-            } else {
-              score += 60; // Good to empty column for future King placement
-              
-              // Extra consideration: check if there's a useful King in face-down cards
-              // that we might want this space for
-              let hasHiddenKing = false;
-              for (let col = 0; col < state.tableau.length; col++) {
-                for (let cardIdx = 0; cardIdx < state.tableau[col].length; cardIdx++) {
-                  const hiddenCard = getFaceDownCard(col, cardIdx);
-                  if (hiddenCard && hiddenCard.rank === 'K') {
-                    hasHiddenKing = true;
-                    break;
-                  }
-                }
-                if (hasHiddenKing) break;
-              }
-              if (hasHiddenKing) {
-                score += 20; // Extra bonus if there's a hidden King that might need this space
-              }
-            }
+            score += revealValue * 100; // Scale up reveal value
           }
         }
+      } else {
+        // Draw pile moves get much lower base score (only do when tableau exhausted)
+        score += 1000; // Still positive but much lower than tableau
+      }
 
+      // PRIORITY #2: KING MANAGEMENT (100000+)
+      if (targetType === 'tableau' && targetColumn !== undefined) {
         const targetCol = state.tableau[targetColumn];
         
-        // Penalty for moving to empty column (unless it's a King or reveals a card)
+        // Moving to empty column
         if (targetCol.length === 0) {
-          if (move.card.rank !== 'K') {
-            score -= 100; // Heavy penalty for non-King to empty column
-          } else {
-            // Moving King to empty column - evaluate based on what's underneath source
-            score += 40;
-            // Extra bonus if this reveals a card
-            if (source === 'tableau' && sourceColumn !== undefined && sourceCardIndex !== undefined) {
-              const sourceCol = state.tableau[sourceColumn];
-              if (sourceCardIndex > 0 && !sourceCol[sourceCardIndex - 1].faceUp) {
-                const revealValue = evaluateRevealValue(sourceColumn, sourceCardIndex - 1);
-                score += revealValue; // Strategic reveal bonus
-              }
-            }
+          if (move.card.rank === 'K') {
+            score += 100000; // Good - Kings go to empty spaces
             
-            // Consider which King to move if multiple Kings are available
-            // Prefer to move Kings from columns with fewer face-down cards
+            // Prefer Kings from columns with MORE face-down cards
             if (source === 'tableau' && sourceColumn !== undefined) {
               const faceDownCount = countFaceDownCards(sourceColumn);
-              score -= faceDownCount * 5; // Slight penalty per face-down card
+              score += faceDownCount * 10000;
             }
+            
+            // Strategic King placement: check what cards need to be unblocked
+            // Prefer Kings that will help unblock stuck cards
+            for (let col = 0; col < state.tableau.length; col++) {
+              if (col === sourceColumn) continue;
+              const column = state.tableau[col];
+              for (let i = column.length - 1; i >= 0; i--) {
+                const card = column[i];
+                if (card.faceUp && getRankValue(card.rank) === 12) { // Queen
+                  // Check if this Queen needs a King of opposite color
+                  if (isRed(card.suit) !== isRed(move.card.suit)) {
+                    score += 20000; // Bonus for King that unblocks a Queen
+                  }
+                }
+              }
+            }
+          } else {
+            // Never create empty column without a King!
+            score -= 900000; // Massive penalty
+          }
+        }
+        
+        // Check if this move would empty a column
+        if (source === 'tableau' && sourceColumn !== undefined && sourceCardIndex === 0) {
+          // We're about to empty a column
+          if (!hasKingAvailable()) {
+            score -= 500000; // Large penalty if no King is ready
+          }
+        }
+      }
+
+      // PRIORITY #3: FOUNDATION HANDLING (10000+)
+      if (targetType === 'foundation') {
+        // Always play Aces and 2s immediately
+        if (move.card.rank === 'A') {
+          score += 50000; // Highest foundation priority
+        } else if (move.card.rank === '2') {
+          score += 45000; // Second highest
+        } else if (cardValue <= 4) {
+          // 3s and 4s: check if needed for tableau
+          if (isCardNeededForTableau(move.card)) {
+            score += 5000; // Lower priority - might be needed
+          } else {
+            score += 35000; // Safe to move
           }
         } else {
-          // Moving to non-empty column
-          score += 30;
+          // 5+ cards: be very cautious
+          if (isCardNeededForTableau(move.card)) {
+            score -= 20000; // Don't move if needed!
+          } else {
+            score += 10000; // OK to move if not needed
+          }
+        }
+        
+        // Build foundations evenly - penalize if this would make foundations uneven
+        const currentUnevenness = getFoundationUnevennessScore();
+        // Simulate the move
+        const newLevel = state.foundations[move.card.suit].length + 1;
+        const otherLevels = [
+          state.foundations.hearts.length,
+          state.foundations.diamonds.length,
+          state.foundations.clubs.length,
+          state.foundations.spades.length,
+        ].filter((_, i) => ['hearts', 'diamonds', 'clubs', 'spades'][i] !== move.card.suit);
+        otherLevels.push(newLevel);
+        const maxLevel = Math.max(...otherLevels);
+        const minLevel = Math.min(...otherLevels);
+        const newUnevenness = maxLevel - minLevel;
+        
+        if (newUnevenness > currentUnevenness) {
+          score -= (newUnevenness - currentUnevenness) * 5000; // Penalty for making uneven
+        }
+      }
+
+      // PRIORITY #4: DRAW PILE MANAGEMENT (1000+)
+      if (source === 'discard') {
+        // Heavy penalty for using draw pile cards
+        score -= 50000; // Discourage draw pile use
+        
+        // Only acceptable if it helps Priority #1 or #2
+        if (targetType === 'tableau' && targetColumn !== undefined) {
+          const targetCol = state.tableau[targetColumn];
+          
+          // Exception 1: Placing strategic King
+          if (move.card.rank === 'K' && targetCol.length === 0) {
+            score += 80000; // OK to use draw pile King for empty column
+          }
+          
+          // Exception 2: Helps unlock tableau cards
+          // Check if target column has face-down cards
+          const targetFaceDownCount = countFaceDownCards(targetColumn);
+          if (targetFaceDownCount > 3) {
+            score += 30000; // Helps build on column that needs progress
+          }
+        }
+      }
+
+      // PRIORITY #5: FLEXIBILITY AND OPTIONS (100+)
+      if (targetType === 'tableau' && targetColumn !== undefined) {
+        const targetCol = state.tableau[targetColumn];
+        
+        if (targetCol.length > 0) {
+          // Building on non-empty column
+          score += 500; // Base flexibility bonus
           
           // Bonus for building longer sequences
           const numCardsToMove = source === 'tableau' && sourceColumn !== undefined && sourceCardIndex !== undefined
             ? state.tableau[sourceColumn].length - sourceCardIndex
             : 1;
-          score += numCardsToMove * 5;
+          score += numCardsToMove * 100;
           
-          // Strategic consideration: Check if target column has many face-down cards
-          // Prefer to build on columns with fewer face-down cards to maintain flexibility
-          const targetFaceDownCount = countFaceDownCards(targetColumn);
-          if (targetFaceDownCount > 3) {
-            score -= 10; // Slight penalty for building on columns with many hidden cards
-          }
-        }
-
-        // Penalty for moving from discard to tableau if we haven't cycled through draw pile
-        if (source === 'discard' && state.drawPile.length > 10) {
-          score -= 20; // Prefer to see more cards first
-        }
-
-        // Check if this move might block future moves
-        // Enhanced blocking detection with face-down card knowledge
-        if (source === 'discard' && targetCol.length > 0) {
-          const targetCard = targetCol[targetCol.length - 1];
-          const cardValue = getRankValue(move.card.rank);
-          const targetValue = getRankValue(targetCard.rank);
-          
-          // Check if we're potentially blocking
-          if (cardValue > targetValue - 1 && isRed(move.card.suit) === isRed(targetCard.suit)) {
-            score -= 15;
-          }
-          
-          // Check if this card might block access to important face-down cards
-          // Look for cards in tableau that need this card's rank
-          for (let col = 0; col < state.tableau.length; col++) {
-            if (col === targetColumn) continue;
-            for (let cardIdx = 0; cardIdx < state.tableau[col].length; cardIdx++) {
-              const hiddenCard = getFaceDownCard(col, cardIdx);
-              if (hiddenCard) {
-                const hiddenValue = getRankValue(hiddenCard.rank);
-                // If we're placing a card that the hidden card needs to stack on
-                if (hiddenValue === cardValue - 1 && isRed(hiddenCard.suit) !== isRed(move.card.suit)) {
-                  score -= 25; // Penalty for potentially blocking a needed card
-                }
+          // Prefer to keep diverse stacks - check if we're creating suit diversity
+          if (source === 'tableau' && sourceColumn !== undefined) {
+            // Check if we're creating suit diversity
+            let targetHasRed = false;
+            let targetHasBlack = false;
+            for (const card of targetCol) {
+              if (card.faceUp) {
+                if (isRed(card.suit)) targetHasRed = true;
+                else targetHasBlack = true;
               }
             }
+            
+            const movingIsRed = isRed(move.card.suit);
+            if ((movingIsRed && !targetHasRed) || (!movingIsRed && !targetHasBlack)) {
+              score += 200; // Bonus for adding suit diversity
+            }
           }
-        }
-        
-        // Strategic consideration for tableau-to-tableau moves
-        if (source === 'tableau' && sourceColumn !== undefined && targetCol.length > 0) {
-          // Check if this move helps or hinders accessing face-down cards
-          const sourceFaceDownCount = countFaceDownCards(sourceColumn);
-          const targetFaceDownCount = countFaceDownCards(targetColumn);
           
-          // Prefer moves that help reveal cards from columns with more face-down cards
-          if (sourceFaceDownCount > targetFaceDownCount) {
-            score += 15; // Bonus for moving from a column that needs more reveals
+          // Don't commit to moves that reduce options
+          // Prefer columns with fewer face-down cards for flexibility
+          const targetFaceDownCount = countFaceDownCards(targetColumn);
+          if (targetFaceDownCount <= 2) {
+            score += 300; // Bonus for building on nearly-clear columns
           }
         }
       }
