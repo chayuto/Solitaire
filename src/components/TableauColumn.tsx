@@ -18,6 +18,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
   const hasAnyValidDestination = useGameStore((state) => state.hasAnyValidDestination);
+  const replayMode = useGameStore((state) => state.replayMode);
 
   // Check for reduced motion preference
   const shouldReduceMotion = useMemo(() => checkReducedMotion(), []);
@@ -26,6 +27,8 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
   const isValidDestination = showValidMoves && selectedCard && canMoveToTableau(selectedCard.card, columnIndex);
 
   const handleCardClick = (cardIndex: number) => {
+    if (replayMode) return;
+    
     const card = column[cardIndex];
     
     // If a card is already selected
@@ -96,10 +99,10 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
                 selectedCard.cardIndex === index;
               
               // A card is interactable if it's face up and no card is currently selected
-              const isInteractable = card.faceUp && !selectedCard;
+              const isInteractable = card.faceUp && !selectedCard && !replayMode;
               
               // Check if this card has valid destinations (only if showValidMoves is enabled and no card selected)
-              const hasValidMoves = showValidMoves && !selectedCard && card.faceUp && 
+              const hasValidMoves = showValidMoves && !selectedCard && card.faceUp && !replayMode &&
                 hasAnyValidDestination(card, 'tableau', columnIndex, index);
               
               return (

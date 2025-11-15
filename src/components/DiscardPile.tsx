@@ -11,12 +11,13 @@ const DiscardPile: React.FC = () => {
   const deselectCard = useGameStore((state) => state.deselectCard);
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const hasAnyValidDestination = useGameStore((state) => state.hasAnyValidDestination);
+  const replayMode = useGameStore((state) => state.replayMode);
 
   // Check for reduced motion preference
   const shouldReduceMotion = useMemo(() => checkReducedMotion(), []);
 
   const handleCardClick = () => {
-    if (discardPile.length === 0) return;
+    if (replayMode || discardPile.length === 0) return;
 
     // If the top card is already selected, deselect it
     if (selectedCard?.source === 'discard') {
@@ -72,9 +73,9 @@ const DiscardPile: React.FC = () => {
             <Card
               card={{ ...discardPile[discardPile.length - 1], faceUp: true }}
               onClick={handleCardClick}
-              isInteractable={isInteractable}
+              isInteractable={isInteractable && !replayMode}
               isSelected={isSelected}
-              hasValidMoves={hasValidMoves}
+              hasValidMoves={hasValidMoves && !replayMode}
             />
           </motion.div>
         ) : (

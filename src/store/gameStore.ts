@@ -43,6 +43,14 @@ interface GameStore extends GameState {
   toggleAutoPlay: () => void;
   performAutoPlayMove: () => void;
   checkAndTriggerAutoComplete: () => void;
+  startReplay: () => void;
+  pauseReplay: () => void;
+  resumeReplay: () => void;
+  stopReplay: () => void;
+  stepForward: () => void;
+  stepBackward: () => void;
+  setReplaySpeed: (speed: number) => void;
+  goToReplayIndex: (index: number) => void;
 }
 
 /**
@@ -104,6 +112,10 @@ const initializeGameState = (difficulty: Difficulty = DEFAULT_DIFFICULTY): GameS
     initialBoardSetup,
     perceivedDifficulty: calculatePerceivedDifficulty(initialBoardSetup),
     completionProgress: 0, // Start at 0% completion
+    replayMode: false,
+    replayIndex: 0,
+    replayPaused: false,
+    replaySpeed: 1000, // 1 second per move
   };
 
   return initialState;
@@ -473,6 +485,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       initialBoardSetup: state.initialBoardSetup,
       perceivedDifficulty: state.perceivedDifficulty,
       completionProgress: state.completionProgress,
+      replayMode: state.replayMode,
+      replayIndex: state.replayIndex,
+      replayPaused: state.replayPaused,
+      replaySpeed: state.replaySpeed,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -524,6 +540,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         initialBoardSetup: importedState.initialBoardSetup,
         perceivedDifficulty,
         completionProgress,
+        replayMode: false,
+        replayIndex: 0,
+        replayPaused: false,
+        replaySpeed: importedState.replaySpeed ?? 1000,
       });
       
       return true;
@@ -1137,5 +1157,202 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       }, 100);
     }
+  },
+
+  startReplay: () => {
+    const state = get();
+    if (state.moveHistory.length === 0) return;
+    
+    // Reset to initial state and start replay
+    set({
+      replayMode: true,
+      replayIndex: 0,
+      replayPaused: false,
+      autoPlayEnabled: false,
+      autoPlayInProgress: false,
+    });
+    
+    // Apply moves up to index 0 (essentially reset to initial state)
+    get().goToReplayIndex(0);
+    
+    // Start auto-replay
+    setTimeout(() => {
+      const currentState = get();
+      if (currentState.replayMode && !currentState.replayPaused) {
+        get().stepForward();
+      }
+    }, state.replaySpeed);
+  },
+
+  pauseReplay: () => {
+    set({ replayPaused: true });
+  },
+
+  resumeReplay: () => {
+    const state = get();
+    set({ replayPaused: false });
+    
+    // Continue auto-replay if not at the end
+    if (state.replayIndex < state.moveHistory.length) {
+      setTimeout(() => {
+        const currentState = get();
+        if (currentState.replayMode && !currentState.replayPaused) {
+          get().stepForward();
+        }
+      }, state.replaySpeed);
+    }
+  },
+
+  stopReplay: () => {
+    set({
+      replayMode: false,
+      replayPaused: false,
+      replayIndex: 0,
+    });
+  },
+
+  stepForward: () => {
+    const state = get();
+    if (!state.replayMode || state.replayIndex >= state.moveHistory.length) return;
+    
+    const newIndex = state.replayIndex + 1;
+    get().goToReplayIndex(newIndex);
+    
+    // Continue auto-replay if not paused and not at the end
+    if (!state.replayPaused && newIndex < state.moveHistory.length) {
+      setTimeout(() => {
+        const currentState = get();
+        if (currentState.replayMode && !currentState.replayPaused) {
+          get().stepForward();
+        }
+      }, state.replaySpeed);
+    }
+  },
+
+  stepBackward: () => {
+    const state = get();
+    if (!state.replayMode || state.replayIndex <= 0) return;
+    
+    const newIndex = state.replayIndex - 1;
+    get().goToReplayIndex(newIndex);
+  },
+
+  setReplaySpeed: (speed: number) => {
+    set({ replaySpeed: speed });
+  },
+
+  goToReplayIndex: (index: number) => {
+    const state = get();
+    if (!state.replayMode || !state.initialBoardSetup) return;
+    
+    // Clamp index to valid range
+    const targetIndex = Math.max(0, Math.min(index, state.moveHistory.length));
+    
+    // Reset to initial board setup
+    const newState: Partial<GameState> = {
+      drawPile: JSON.parse(JSON.stringify(state.initialBoardSetup.drawPile)),
+      discardPile: JSON.parse(JSON.stringify(state.initialBoardSetup.discardPile)),
+      foundations: JSON.parse(JSON.stringify(state.initialBoardSetup.foundations)),
+      tableau: JSON.parse(JSON.stringify(state.initialBoardSetup.tableau)),
+      selectedCard: undefined,
+      replayIndex: targetIndex,
+    };
+    
+    // Apply moves up to targetIndex
+    for (let i = 0; i < targetIndex; i++) {
+      const move = state.moveHistory[i];
+      
+      switch (move.type) {
+        case 'draw_card': {
+          // Draw a card
+          if (newState.drawPile && newState.drawPile.length > 0) {
+            const card = newState.drawPile[0];
+            const drawnCard = { ...card, faceUp: true };
+            newState.drawPile = newState.drawPile.slice(1);
+            newState.discardPile = [...(newState.discardPile || []), drawnCard];
+          } else if (newState.discardPile && newState.discardPile.length > 0) {
+            // Reset draw pile from discard pile
+            newState.drawPile = [...newState.discardPile].reverse().map(card => ({
+              ...card,
+              faceUp: false,
+            }));
+            newState.discardPile = [];
+          }
+          break;
+        }
+        
+        case 'tableau_to_tableau': {
+          if (move.from?.columnIndex !== undefined && move.to?.columnIndex !== undefined && newState.tableau) {
+            const sourceColumn = [...newState.tableau[move.from.columnIndex]];
+            const cardIndex = move.from.cardIndex !== undefined ? move.from.cardIndex : sourceColumn.length - 1;
+            const cardsToMove = sourceColumn.slice(cardIndex, cardIndex + 1);
+            const remainingCards = sourceColumn.slice(0, cardIndex);
+            
+            newState.tableau[move.from.columnIndex] = remainingCards;
+            newState.tableau[move.to.columnIndex] = [...newState.tableau[move.to.columnIndex], ...cardsToMove];
+          }
+          break;
+        }
+        
+        case 'tableau_to_foundation': {
+          if (move.from?.columnIndex !== undefined && move.to?.suit && newState.tableau && newState.foundations) {
+            const sourceColumn = [...newState.tableau[move.from.columnIndex]];
+            const card = sourceColumn.pop();
+            if (card) {
+              newState.tableau[move.from.columnIndex] = sourceColumn;
+              newState.foundations[move.to.suit] = [...newState.foundations[move.to.suit], card];
+            }
+          }
+          break;
+        }
+        
+        case 'discard_to_tableau': {
+          if (move.to?.columnIndex !== undefined && newState.discardPile && newState.tableau) {
+            const card = newState.discardPile.pop();
+            if (card) {
+              newState.tableau[move.to.columnIndex] = [...newState.tableau[move.to.columnIndex], card];
+            }
+          }
+          break;
+        }
+        
+        case 'discard_to_foundation': {
+          if (move.to?.suit && newState.discardPile && newState.foundations) {
+            const card = newState.discardPile.pop();
+            if (card) {
+              newState.foundations[move.to.suit] = [...newState.foundations[move.to.suit], card];
+            }
+          }
+          break;
+        }
+        
+        case 'flip_card': {
+          if (move.from?.columnIndex !== undefined && move.from.cardIndex !== undefined && newState.tableau) {
+            const column = [...newState.tableau[move.from.columnIndex]];
+            if (column[move.from.cardIndex]) {
+              column[move.from.cardIndex] = { ...column[move.from.cardIndex], faceUp: true };
+              newState.tableau[move.from.columnIndex] = column;
+            }
+          }
+          break;
+        }
+      }
+    }
+    
+    // Calculate completion progress for the current replay state
+    const tempState: GameState = {
+      ...state,
+      ...newState,
+      drawPile: newState.drawPile!,
+      discardPile: newState.discardPile!,
+      foundations: newState.foundations!,
+      tableau: newState.tableau!,
+    };
+    const completionProgress = calculateCompletionProgress(tempState);
+    
+    set({
+      ...newState,
+      completionProgress,
+    });
   },
 }));

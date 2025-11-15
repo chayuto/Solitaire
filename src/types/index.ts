@@ -76,4 +76,8 @@ export interface GameState {
   };
   perceivedDifficulty?: number; // Calculated difficulty score based on initial board setup (0-100, undefined if no initial setup)
   completionProgress: number; // Game completion percentage (0-100)
+  replayMode: boolean; // True when in replay mode
+  replayIndex: number; // Current index in move history during replay
+  replayPaused: boolean; // True when replay is paused
+  replaySpeed: number; // Speed of replay in ms per move (default 1000)
 }

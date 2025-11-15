@@ -12,10 +12,11 @@ import type { Difficulty } from '../types';
  * - Toggle features (valid moves, god mode, auto-play)
  */
 const ControlPanel: React.FC = () => {
-  const { exportGameState, importGameState, initializeGame, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty } = useGameStore();
+  const { exportGameState, importGameState, initializeGame, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty, startReplay } = useGameStore();
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
   const autoPlayEnabled = useGameStore((state) => state.autoPlayEnabled);
+  const replayMode = useGameStore((state) => state.replayMode);
   const moveCount = useGameStore((state) => state.moveHistory.length);
   const difficulty = useGameStore((state) => state.difficulty);
   const perceivedDifficulty = useGameStore((state) => state.perceivedDifficulty);
@@ -184,37 +185,49 @@ const ControlPanel: React.FC = () => {
           Export Game
         </button>
 
+        {moveCount > 0 && !replayMode && (
+          <button
+            onClick={startReplay}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+          >
+            🎬 Start Replay
+          </button>
+        )}
+
         <div className="border-t border-gray-300 my-2"></div>
         
         <button
           onClick={toggleValidMoves}
+          disabled={replayMode}
           className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
             showValidMoves
               ? 'bg-green-600 hover:bg-green-700 text-white'
               : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-          }`}
+          } ${replayMode ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {showValidMoves ? '✓' : '✗'} Valid Moves
         </button>
         
         <button
           onClick={toggleGodMode}
+          disabled={replayMode}
           className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
             godMode
               ? 'bg-purple-600 hover:bg-purple-700 text-white'
               : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-          }`}
+          } ${replayMode ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {godMode ? '👁️' : '👁️‍🗨️'} God Mode
         </button>
         
         <button
           onClick={toggleAutoPlay}
+          disabled={replayMode}
           className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
             autoPlayEnabled
               ? 'bg-amber-600 hover:bg-amber-700 text-white'
               : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-          }`}
+          } ${replayMode ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {autoPlayEnabled ? '⏸️' : '▶️'} Auto Play
         </button>

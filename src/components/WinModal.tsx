@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 const WinModal: React.FC = () => {
   const gameWon = useGameStore(state => state.gameWon);
   const initializeGame = useGameStore(state => state.initializeGame);
+  const exportGameState = useGameStore(state => state.exportGameState);
   const moveHistory = useGameStore(state => state.moveHistory);
   const difficulty = useGameStore(state => state.difficulty);
   const perceivedDifficulty = useGameStore(state => state.perceivedDifficulty);
@@ -17,6 +18,19 @@ const WinModal: React.FC = () => {
   const totalMoves = moveHistory.length;
   const difficultyLabels = ['Very Easy', 'Easy', 'Normal', 'Hard', 'Very Hard'];
   const difficultyLabel = difficultyLabels[difficulty - 1] || 'Normal';
+
+  const handleExport = () => {
+    const jsonState = exportGameState();
+    const blob = new Blob([jsonState], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `solitaire-win-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const backdropVariants = shouldReduceMotion ? undefined : {
     hidden: { opacity: 0 },
@@ -108,6 +122,12 @@ const WinModal: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleExport}
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+              >
+                Export Game
+              </button>
               <button
                 onClick={() => initializeGame()}
                 className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"

@@ -8,6 +8,7 @@ const DrawPile: React.FC = () => {
   const drawPile = useGameStore((state) => state.drawPile);
   const drawCard = useGameStore((state) => state.drawCard);
   const godMode = useGameStore((state) => state.godMode);
+  const replayMode = useGameStore((state) => state.replayMode);
 
   // Check for reduced motion preference
   const shouldReduceMotion = useMemo(() => checkReducedMotion(), []);
@@ -27,10 +28,10 @@ const DrawPile: React.FC = () => {
 
   return (
     <motion.div 
-      className="relative w-20 h-28 cursor-pointer"
-      onClick={drawCard}
-      whileHover={shouldReduceMotion ? {} : { scale: 1.05 }}
-      whileTap={shouldReduceMotion ? {} : { scale: 0.95 }}
+      className={`relative w-20 h-28 ${replayMode ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
+      onClick={replayMode ? undefined : drawCard}
+      whileHover={shouldReduceMotion || replayMode ? {} : { scale: 1.05 }}
+      whileTap={shouldReduceMotion || replayMode ? {} : { scale: 0.95 }}
       transition={{ duration: 0.2 }}
     >
       <AnimatePresence mode="wait">

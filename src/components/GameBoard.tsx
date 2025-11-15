@@ -7,6 +7,7 @@ import TableauColumn from './TableauColumn';
 import ControlPanel from './ControlPanel';
 import ActivityLog from './ActivityLog';
 import WinModal from './WinModal';
+import ReplayControls from './ReplayControls';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 
 const GameBoard: React.FC = () => {
@@ -53,6 +54,9 @@ const GameBoard: React.FC = () => {
             >
               Solitaire
             </motion.h1>
+            
+            {/* Replay Controls */}
+            <ReplayControls />
             
             {/* Top Row: Draw Pile, Discard Pile, and Foundation Piles */}
             <motion.div 

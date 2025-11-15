@@ -31,6 +31,10 @@ describe('gameStateHelpers', () => {
         difficulty: 3,
         gameWon: false,
         completionProgress: 0,
+        replayMode: false,
+        replayIndex: 0,
+        replayPaused: false,
+        replaySpeed: 1000,
       };
 
       const hash1 = getGameStateHash(state);
@@ -66,6 +70,10 @@ describe('gameStateHelpers', () => {
         difficulty: 3,
         gameWon: false,
         completionProgress: 0,
+        replayMode: false,
+        replayIndex: 0,
+        replayPaused: false,
+        replaySpeed: 1000,
       };
 
       const state2: GameState = {
@@ -118,6 +126,10 @@ describe('gameStateHelpers', () => {
         difficulty: 3,
         gameWon: false,
         completionProgress: 0,
+        replayMode: false,
+        replayIndex: 0,
+        replayPaused: false,
+        replaySpeed: 1000,
       };
 
       const predictedHash = getStateHashAfterMove(state, {
@@ -180,6 +192,10 @@ describe('gameStateHelpers', () => {
         difficulty: 3,
         gameWon: false,
         completionProgress: 0,
+        replayMode: false,
+        replayIndex: 0,
+        replayPaused: false,
+        replaySpeed: 1000,
       };
 
       const predictedHash = getStateHashAfterMove(state, {
@@ -241,6 +257,10 @@ describe('gameStateHelpers', () => {
         difficulty: 3,
         gameWon: false,
         completionProgress: 0,
+        replayMode: false,
+        replayIndex: 0,
+        replayPaused: false,
+        replaySpeed: 1000,
       };
 
       const predictedHash = getStateHashAfterMove(state, {
@@ -307,6 +327,10 @@ describe('gameStateHelpers', () => {
         difficulty: 3,
         gameWon: false,
         completionProgress: 0,
+        replayMode: false,
+        replayIndex: 0,
+        replayPaused: false,
+        replaySpeed: 1000,
       };
 
       const predictedHash = getStateHashAfterMove(state, {
