@@ -109,12 +109,24 @@ describe('Validation Utilities', () => {
     });
 
     it('should find duplicates in draw pile', () => {
-      const state = createValidGameState();
       const card = createCard('hearts', 'A');
-      state.drawPile = [card, card];
-      state.discardPile = [];
-      state.foundations = { hearts: [], diamonds: [], clubs: [], spades: [] };
-      state.tableau = [[], [], [], [], [], [], []];
+      const emptyFoundations: Foundations = {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: []
+      };
+
+      const state: GameState = {
+        drawPile: [card, card], // Duplicate
+        discardPile: [],
+        foundations: emptyFoundations,
+        tableau: [[], [], [], [], [], [], []],
+        moveHistory: [],
+        difficulty: 3,
+        gameWon: false,
+        completionProgress: 0,
+      };
       
       const duplicates = findDuplicates(state);
       expect(duplicates).toContain('hearts-A');
@@ -179,26 +191,47 @@ describe('Validation Utilities', () => {
     });
 
     it('should return false for invalid card count', () => {
-      const state = createValidGameState();
-      state.drawPile = state.drawPile.slice(0, -1); // Remove one card
+      const origState = createValidGameState();
+      const state = {
+        ...origState,
+        drawPile: origState.drawPile.slice(0, -1), // Remove one card
+      };
       expect(isValidGameState(state)).toBe(false);
     });
 
     it('should return false for duplicate cards', () => {
-      const state = createValidGameState();
       const card = createCard('hearts', 'A');
-      state.drawPile = [card, card];
-      state.discardPile = [];
-      state.foundations = { hearts: [], diamonds: [], clubs: [], spades: [] };
-      state.tableau = [[], [], [], [], [], [], []];
+      const emptyFoundations: Foundations = {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: []
+      };
+
+      const state: GameState = {
+        drawPile: [card, card],
+        discardPile: [],
+        foundations: emptyFoundations,
+        tableau: [[], [], [], [], [], [], []],
+        moveHistory: [],
+        difficulty: 3,
+        gameWon: false,
+        completionProgress: 0,
+      };
       expect(isValidGameState(state)).toBe(false);
     });
 
     it('should return false for invalid foundation sequence', () => {
-      const state = createValidGameState();
+      const origState = createValidGameState();
       const card2 = createCard('hearts', '2');
-      state.foundations.hearts = [card2]; // Should start with Ace
-      state.drawPile = state.drawPile.slice(0, -1);
+      const state = {
+        ...origState,
+        foundations: {
+          ...origState.foundations,
+          hearts: [card2], // Should start with Ace
+        },
+        drawPile: origState.drawPile.slice(0, -1),
+      };
       expect(isValidGameState(state)).toBe(false);
     });
   });
@@ -210,8 +243,11 @@ describe('Validation Utilities', () => {
     });
 
     it('should throw for wrong number of cards', () => {
-      const state = createValidGameState();
-      state.drawPile = state.drawPile.slice(0, -1); // Remove one card
+      const origState = createValidGameState();
+      const state = {
+        ...origState,
+        drawPile: origState.drawPile.slice(0, -1), // Remove one card
+      };
       
       expect(() => validateGameState(state))
         .toThrow('Game state must have exactly 52 cards');
@@ -533,16 +569,22 @@ describe('Validation Utilities', () => {
     });
 
     it('should throw for invalid completion progress', () => {
-      const state = createValidGameState();
-      state.completionProgress = 150;
+      const origState = createValidGameState();
+      const state = {
+        ...origState,
+        completionProgress: 150,
+      };
       
       expect(() => validateGameState(state))
         .toThrow('Completion progress must be between 0 and 100');
     });
 
     it('should throw for invalid perceived difficulty', () => {
-      const state = createValidGameState();
-      state.perceivedDifficulty = -10;
+      const origState = createValidGameState();
+      const state = {
+        ...origState,
+        perceivedDifficulty: -10,
+      };
       
       expect(() => validateGameState(state))
         .toThrow('Perceived difficulty must be between 0 and 100');

@@ -1,7 +1,67 @@
-// @chayuto/solitaire-core
-// Core game logic library for Solitaire
+/**
+ * @chayuto/solitaire-core
+ * Core game logic library for Klondike Solitaire
+ * 
+ * This library provides pure, immutable functions and types for implementing
+ * Klondike Solitaire. It includes:
+ * - Type definitions for cards, game state, and moves
+ * - Utility functions for card and deck manipulation
+ * - Game state validation
+ * - State hashing for cycle detection
+ * 
+ * All functions are pure and do not mutate input data.
+ */
 
 export const VERSION = '0.1.0';
 
-// Placeholder exports - to be implemented
-export {};
+// Type exports
+export type {
+  Card,
+  Suit,
+  Rank,
+  Difficulty,
+  Move,
+  MoveType,
+  MoveCommand,
+  GameState,
+  Foundations,
+  InitializeOptions,
+} from './types';
+
+// Utility exports
+export {
+  // Card utilities
+  SUITS,
+  RANKS,
+  RANK_VALUES,
+  isRed,
+  isRedCard,
+  isBlack,
+  isBlackCard,
+  getColor,
+  getCardColor,
+  getRankValue,
+  compareRanks,
+  createCard,
+  flipCard,
+  areOppositeColors,
+  areSameColor,
+  
+  // Deck utilities
+  createDeck,
+  shuffle,
+  shuffleDeck,
+  partialShuffle,
+  arrangeDeckByDifficulty,
+  
+  // Validation utilities
+  countCards,
+  findDuplicates,
+  isValidGameState,
+  validateGameState,
+  
+  // Hash utilities
+  hashGameState,
+  hashGameStateMultiple,
+  areStatesEqual,
+} from './utils';
