@@ -633,7 +633,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     
-    // Update state history (keep last 20 states for better loop detection)
+    // Add current state to history BEFORE executing move (keep last 20 states)
+    // This ensures predictive loop detection and next call's loop check work correctly
     const updatedStateHistory = [...stateHistory, currentStateHash].slice(-20);
     set({ autoPlayStateHistory: updatedStateHistory });
 
@@ -1045,9 +1046,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
 
     // Filter out moves that would result in loop states (predictive loop detection)
+    // Use updatedStateHistory (which includes current state) instead of stateHistory
     const nonLoopingMoves = possibleMoves.filter(move => {
       const futureStateHash = getStateHashAfterMove(state, move);
-      return !stateHistory.includes(futureStateHash);
+      return !updatedStateHistory.includes(futureStateHash);
     });
 
     // If all possible moves would lead to loops, detect it as a loop condition
