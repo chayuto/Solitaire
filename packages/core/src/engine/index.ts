@@ -8,6 +8,8 @@ import { arrangeDeckByDifficulty } from '../utils/deck';
 import { canDraw, draw, canRecycle, recycle } from '../rules/stock';
 import { canMoveToTableau, canMoveSequence, getValidTableauDestinations } from '../rules/tableau';
 import { canMoveToFoundation, hasValidFoundationDestination } from '../rules/foundation';
+import { getCompletionProgress as calcCompletionProgress, getPerceivedDifficulty as calcPerceivedDifficulty } from '../scoring';
+import { validateGameState } from '../utils/validation';
 
 /**
  * GameEngine class for Klondike Solitaire
@@ -264,7 +266,79 @@ export class GameEngine {
    * @returns true if the move is valid, false otherwise
    */
   public canApplyMove(state: GameState, command: MoveCommand): boolean {
-    throw new Error('Not implemented');
+    try {
+      switch (command.type) {
+        case 'draw_card':
+          return canDraw(state);
+          
+        case 'recycle_stock':
+          return canRecycle(state);
+          
+        case 'tableau_to_tableau': {
+          if (command.from?.column === undefined || command.from?.cardIndex === undefined || command.to?.column === undefined) {
+            return false;
+          }
+          
+          const sourcePile = state.tableau[command.from.column];
+          if (!sourcePile || command.from.cardIndex >= sourcePile.length) {
+            return false;
+          }
+          
+          const card = sourcePile[command.from.cardIndex];
+          if (!card.faceUp) {
+            return false;
+          }
+          
+          const cardsToMove = sourcePile.slice(command.from.cardIndex);
+          const targetPile = state.tableau[command.to.column];
+          
+          return canMoveSequence(cardsToMove, targetPile);
+        }
+          
+        case 'tableau_to_foundation': {
+          if (command.from?.column === undefined || command.from?.cardIndex === undefined || !command.to?.suit) {
+            return false;
+          }
+          
+          const sourcePile = state.tableau[command.from.column];
+          if (!sourcePile || command.from.cardIndex >= sourcePile.length) {
+            return false;
+          }
+          
+          const card = sourcePile[command.from.cardIndex];
+          const foundationPile = state.foundations[command.to.suit];
+          
+          return canMoveToFoundation(card, foundationPile);
+        }
+          
+        case 'discard_to_tableau': {
+          if (state.discardPile.length === 0 || command.to?.column === undefined) {
+            return false;
+          }
+          
+          const card = state.discardPile[state.discardPile.length - 1];
+          const targetPile = state.tableau[command.to.column];
+          
+          return canMoveToTableau(card, targetPile);
+        }
+          
+        case 'discard_to_foundation': {
+          if (state.discardPile.length === 0 || !command.to?.suit) {
+            return false;
+          }
+          
+          const card = state.discardPile[state.discardPile.length - 1];
+          const foundationPile = state.foundations[command.to.suit];
+          
+          return canMoveToFoundation(card, foundationPile);
+        }
+          
+        default:
+          return false;
+      }
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -348,7 +422,18 @@ export class GameEngine {
    * @returns true if all 52 cards are in the foundations
    */
   public isWon(state: GameState): boolean {
-    throw new Error('Not implemented');
+    // Game is won if gameWon flag is set OR all foundations are complete
+    if (state.gameWon) {
+      return true;
+    }
+    
+    // Check if all four foundations have all 13 cards
+    return (
+      state.foundations.hearts.length === 13 &&
+      state.foundations.diamonds.length === 13 &&
+      state.foundations.clubs.length === 13 &&
+      state.foundations.spades.length === 13
+    );
   }
 
   /**
@@ -358,7 +443,12 @@ export class GameEngine {
    * @returns true if there are no legal moves and the game is not won
    */
   public isLost(state: GameState): boolean {
-    throw new Error('Not implemented');
+    // Game is lost if not won and there are no legal moves
+    if (this.isWon(state)) {
+      return false;
+    }
+    
+    return this.getLegalMoves(state).length === 0;
   }
 
   /**
@@ -368,7 +458,7 @@ export class GameEngine {
    * @returns Completion progress (0-100)
    */
   public getCompletionProgress(state: GameState): number {
-    throw new Error('Not implemented');
+    return calcCompletionProgress(state);
   }
 
   /**
@@ -379,7 +469,7 @@ export class GameEngine {
    * @returns Difficulty score (0-100)
    */
   public getPerceivedDifficulty(state: GameState): number {
-    throw new Error('Not implemented');
+    return calcPerceivedDifficulty(state);
   }
 
   /**
@@ -389,7 +479,7 @@ export class GameEngine {
    * @returns JSON string representation
    */
   public exportState(state: GameState): string {
-    throw new Error('Not implemented');
+    return JSON.stringify(state, null, 2);
   }
 
   /**
@@ -400,6 +490,18 @@ export class GameEngine {
    * @throws Error if JSON is invalid or state is invalid
    */
   public importState(json: string): GameState {
-    throw new Error('Not implemented');
+    try {
+      const state = JSON.parse(json) as GameState;
+      
+      // Validate the imported state
+      validateGameState(state);
+      
+      return state;
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        throw new Error(`Invalid JSON: ${error.message}`);
+      }
+      throw error;
+    }
   }
 }
