@@ -1,22 +1,25 @@
 import { create } from 'zustand';
 import type { GameState, Card, Suit, Move, Difficulty } from '../types';
-import { 
+import {
   arrangeDeckByDifficulty,
-  canMoveToTableau as canMoveToTableauHelper,
-  canMoveToFoundation as canMoveToFoundationHelper,
-  hasValidTableauDestination as hasValidTableauDestinationHelper,
-  hasValidFoundationDestination as hasValidFoundationDestinationHelper,
+  canMoveToTableau as canMoveToTableauCore,
+  canMoveToFoundation as canMoveToFoundationCore,
+  hasValidFoundationDestination as hasValidFoundationDestinationCore,
+  hashGameState,
+  getRankValue,
+  isRed,
+  getPerceivedDifficulty,
+  getCompletionProgress,
+  getValidTableauDestinations,
+} from '@chayuto/solitaire-core';
+import {
   hasAnyValidDestination as hasAnyValidDestinationHelper,
   hasAnyValidMoves,
   isGameWon,
   canAutoComplete,
-  calculatePerceivedDifficulty,
-  calculateCompletionProgress,
-  getGameStateHash,
   getStateHashAfterMove,
-  getRankValue,
-  isRed,
 } from './helpers';
+import { uiToCore } from '../adapters/coreAdapter';
 import { DEFAULT_DIFFICULTY, TABLEAU_COLUMNS } from '../constants';
 
 /**
@@ -68,8 +71,9 @@ const initializeGameState = (difficulty: Difficulty = DEFAULT_DIFFICULTY): GameS
   for (let col = 0; col < TABLEAU_COLUMNS; col++) {
     for (let row = 0; row <= col; row++) {
       const card = deck[deckIndex];
-      card.faceUp = row === col; // Last card in each column is face up
-      tableau[col].push(card);
+      // Create new card object with faceUp property set (core cards are readonly)
+      const tableauCard = { ...card, faceUp: row === col };
+      tableau[col].push(tableauCard);
       deckIndex++;
     }
   }
@@ -110,13 +114,16 @@ const initializeGameState = (difficulty: Difficulty = DEFAULT_DIFFICULTY): GameS
     difficulty,
     gameWon: false,
     initialBoardSetup,
-    perceivedDifficulty: calculatePerceivedDifficulty(initialBoardSetup),
+    perceivedDifficulty: undefined, // Will be calculated below
     completionProgress: 0, // Start at 0% completion
     replayMode: false,
     replayIndex: 0,
     replayPaused: false,
     replaySpeed: 1000, // 1 second per move
   };
+
+  // Calculate perceived difficulty after initialState is created
+  initialState.perceivedDifficulty = getPerceivedDifficulty(uiToCore(initialState));
 
   return initialState;
 };
@@ -168,22 +175,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   canMoveToTableau: (card, targetColumn) => {
     const state = get();
-    return canMoveToTableauHelper(card, targetColumn, state.tableau);
+    return canMoveToTableauCore(card, state.tableau[targetColumn]);
   },
   
   canMoveToFoundation: (card, suit) => {
     const state = get();
-    return canMoveToFoundationHelper(card, suit, state.foundations);
+    return canMoveToFoundationCore(card, state.foundations[suit]);
   },
   
   hasValidTableauDestination: (card, sourceColumn) => {
     const state = get();
-    return hasValidTableauDestinationHelper(card, state.tableau, sourceColumn);
+    const destinations = getValidTableauDestinations(card, state.tableau, sourceColumn);
+    return destinations.length > 0;
   },
   
   hasValidFoundationDestination: (card) => {
     const state = get();
-    return hasValidFoundationDestinationHelper(card, state.foundations);
+    return hasValidFoundationDestinationCore(card, state.foundations);
   },
   
   hasAnyValidDestination: (card, source, columnIndex, cardIndex) => {
@@ -263,7 +271,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         tableau: newTableau, 
         selectedCard: undefined,
         moveHistory: [...state.moveHistory, ...newMoves],
-        completionProgress: calculateCompletionProgress(updatedState),
+        completionProgress: getCompletionProgress(uiToCore(updatedState)),
       });
     } else if (selected.source === 'discard') {
       // Move from discard to tableau
@@ -296,7 +304,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         tableau: newTableau, 
         selectedCard: undefined,
         moveHistory: [...state.moveHistory, move],
-        completionProgress: calculateCompletionProgress(updatedState),
+        completionProgress: getCompletionProgress(uiToCore(updatedState)),
       });
     }
   },
@@ -378,7 +386,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({
         ...updatedState,
         selectedCard: undefined,
-        completionProgress: calculateCompletionProgress(updatedState),
+        completionProgress: getCompletionProgress(uiToCore(updatedState)),
       });
       
       // Check for win condition
@@ -419,7 +427,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({
         ...updatedState,
         selectedCard: undefined,
-        completionProgress: calculateCompletionProgress(updatedState),
+        completionProgress: getCompletionProgress(uiToCore(updatedState)),
       });
       
       // Check for win condition
@@ -520,8 +528,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         selectedCard: undefined,
         autoPlayInProgress: false,
       };
-      const completionProgress = calculateCompletionProgress(importedStateForCalc);
-      const perceivedDifficulty = importedState.perceivedDifficulty ?? calculatePerceivedDifficulty(importedState.initialBoardSetup);
+      const completionProgress = getCompletionProgress(uiToCore(importedStateForCalc));
+      const perceivedDifficulty = importedState.perceivedDifficulty ?? getPerceivedDifficulty(uiToCore(importedStateForCalc));
       
       // Set the imported state
       set({
@@ -612,7 +620,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ autoPlayInProgress: true });
     
     // Check for loop detection - track the current game state
-    const currentStateHash = getGameStateHash(state);
+    const currentStateHash = hashGameState(uiToCore(state));
     const stateHistory = state.autoPlayStateHistory || [];
     
     // Check if we've seen this state before (loop detection)
@@ -1350,7 +1358,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       foundations: newState.foundations!,
       tableau: newState.tableau!,
     };
-    const completionProgress = calculateCompletionProgress(tempState);
+    const completionProgress = getCompletionProgress(uiToCore(tempState));
     
     set({
       ...newState,

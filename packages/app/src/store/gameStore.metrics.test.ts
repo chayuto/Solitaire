@@ -39,7 +39,7 @@ describe('GameStore - Metrics', () => {
       });
     });
 
-    it('should be undefined when initialBoardSetup is not available', () => {
+    it('should be calculated even when initialBoardSetup is not available', () => {
       // Create a game state without initialBoardSetup
       const store = useGameStore.getState();
       const jsonState = store.exportGameState();
@@ -54,7 +54,9 @@ describe('GameStore - Metrics', () => {
       expect(importSuccess).toBe(true);
       
       const state = useGameStore.getState();
-      expect(state.perceivedDifficulty).toBeUndefined();
+      // Core library always calculates difficulty based on current state
+      expect(state.perceivedDifficulty).toBeGreaterThanOrEqual(0);
+      expect(state.perceivedDifficulty).toBeLessThanOrEqual(100);
     });
 
     it('should be exported and imported correctly', () => {

@@ -28,7 +28,10 @@ export function uiToCore(uiState: UIGameState): CoreGameState {
       spades: uiState.foundations.spades,
     },
     tableau: uiState.tableau,
-    moveHistory: uiState.moveHistory,
+    // Filter out UI-specific move types that core doesn't understand
+    moveHistory: uiState.moveHistory.filter(m => 
+      !['autoplay_start', 'autoplay_stop', 'autoplay_deadend', 'autoplay_loop_detected'].includes(m.type)
+    ) as any,
     difficulty: uiState.difficulty,
     gameWon: uiState.gameWon,
     completionProgress: uiState.completionProgress,

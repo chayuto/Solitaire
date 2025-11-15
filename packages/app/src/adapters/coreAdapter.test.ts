@@ -5,7 +5,6 @@
 import { describe, it, expect } from 'vitest';
 import { uiToCore, coreToUI, getDefaultUIFields } from './coreAdapter';
 import type { GameState as UIGameState, Card } from '../types';
-import type { GameState as CoreGameState } from '@chayuto/solitaire-core';
 
 // Helper to create a minimal UI game state for testing
 function createMockUIState(): UIGameState {
