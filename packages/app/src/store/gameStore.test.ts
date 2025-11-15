@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useGameStore } from './gameStore';
+import { hashGameState } from '@chayuto/solitaire-core';
+import { uiToCore } from '../adapters/coreAdapter';
 
 describe('GameStore - Movement Recording', () => {
   beforeEach(() => {
@@ -541,22 +543,19 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
       autoPlayEnabled: true,
       autoPlayInProgress: false,
       autoPlayStateHistory: [],
+      difficulty: 3 as const,
+      gameWon: false,
+      completionProgress: 0,
+      replayMode: false,
+      replayIndex: 0,
+      replayPaused: false,
+      replaySpeed: 1000,
     };
     
     useGameStore.setState(loopState);
     
     // Manually add current state to history to simulate a loop
-    const currentHash = JSON.stringify({
-      drawPile: [],
-      discardPile: [],
-      foundations: {
-        hearts: [],
-        diamonds: [],
-        clubs: [],
-        spades: [],
-      },
-      tableau: loopState.tableau.map(col => col.map(c => ({ id: c.id, faceUp: c.faceUp }))),
-    });
+    const currentHash = hashGameState(uiToCore(loopState));
     
     useGameStore.setState({ autoPlayStateHistory: [currentHash] });
     
