@@ -10,7 +10,7 @@
  * The Core GameState is pure game state without UI concerns.
  */
 
-import type { GameState as CoreGameState } from '@chayuto/solitaire-core';
+import type { GameState as CoreGameState, Move as CoreMove } from '@chayuto/solitaire-core';
 import type { GameState as UIGameState, Card, Move } from '../types';
 
 /**
@@ -31,7 +31,7 @@ export function uiToCore(uiState: UIGameState): CoreGameState {
     // Filter out UI-specific move types that core doesn't understand
     moveHistory: uiState.moveHistory.filter(m => 
       !['autoplay_start', 'autoplay_stop', 'autoplay_deadend', 'autoplay_loop_detected'].includes(m.type)
-    ) as any,
+    ) as readonly CoreMove[],
     difficulty: uiState.difficulty,
     gameWon: uiState.gameWon,
     completionProgress: uiState.completionProgress,
