@@ -65,3 +65,25 @@ export {
   hashGameStateMultiple,
   areStatesEqual,
 } from './utils';
+
+// Game engine
+export { GameEngine } from './engine';
+
+// Game rules
+export {
+  // Tableau rules
+  canMoveToTableau,
+  canMoveSequence,
+  getValidTableauDestinations,
+  
+  // Foundation rules
+  canMoveToFoundation,
+  getNextFoundationRank,
+  hasValidFoundationDestination,
+  
+  // Stock rules
+  canDraw,
+  draw,
+  canRecycle,
+  recycle,
+} from './rules';
