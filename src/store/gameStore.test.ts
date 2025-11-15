@@ -743,6 +743,7 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     expect(loopMove).toBeDefined();
     expect(state.autoPlayEnabled).toBe(false);
   });
+
 });
 
 describe('GameStore - Valid Move Detection', () => {
