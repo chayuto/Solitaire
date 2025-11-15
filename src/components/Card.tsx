@@ -49,7 +49,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
       return 'ring-4 ring-yellow-400 scale-105';
     }
     if (hasValidMoves) {
-      return 'ring-2 ring-green-400 hover:ring-4 hover:ring-green-500';
+      return 'ring-2 ring-red-400 hover:ring-4 hover:ring-red-500';
     }
     if (isInteractable) {
       return 'ring-2 ring-cyan-400 hover:ring-4 hover:ring-cyan-500';
@@ -98,9 +98,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
               <div className="text-xl font-bold leading-none">{rank}</div>
               <div className="text-2xl leading-none">{suitSymbols[suit]}</div>
             </div>
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-4xl">{suitSymbols[suit]}</div>
-            </div>
+            <div className="flex-1"></div>
             <div className="flex justify-between items-end rotate-180">
               <div className="text-xl font-bold leading-none">{rank}</div>
               <div className="text-2xl leading-none">{suitSymbols[suit]}</div>
