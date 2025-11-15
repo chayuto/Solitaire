@@ -36,7 +36,7 @@ const DrawPile: React.FC = () => {
       <AnimatePresence mode="wait">
         {drawPile.length > 0 ? (
           <motion.div 
-            key="draw-pile-card"
+            key={`draw-pile-${drawPile[0].id}`}
             className="absolute inset-0"
             variants={drawVariants}
             initial="initial"
