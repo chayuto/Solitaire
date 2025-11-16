@@ -102,6 +102,11 @@ const GameBoard: React.FC = () => {
           <ControlPanel />
         </div>
       </div>
+
+      {/* Build Info - subtle footer */}
+      <div className="fixed bottom-2 right-2 text-[10px] text-green-200/40 font-mono select-none pointer-events-none">
+        <div>v{__COMMIT_HASH__}</div>
+      </div>
     </div>
   );
 };

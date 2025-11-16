@@ -1,6 +1,6 @@
 # Solitaire Card Game
 
-A modern, interactive Solitaire (Klondike) card game built with React and TypeScript.
+A modern, interactive Solitaire (Klondike) card game built with React and TypeScript. Organized as a monorepo with reusable game logic libraries.
 
 ## 🎮 Features
 
@@ -10,6 +10,7 @@ A modern, interactive Solitaire (Klondike) card game built with React and TypeSc
 - Export game history and board setup
 - Responsive green felt-style game board
 - Built with modern React 19
+- Modular architecture with reusable game logic libraries
 
 ## 🛠️ Tech Stack
 
@@ -22,11 +23,16 @@ A modern, interactive Solitaire (Klondike) card game built with React and TypeSc
 - **Animations**: Framer Motion 12.23
 - **Testing**: Vitest 4.0 with React Testing Library
 - **Code Quality**: ESLint with TypeScript support
+- **Monorepo**: npm workspaces with 3 packages
 
 ## 📦 Installation
 
 ```bash
+# Install all workspace dependencies
 npm install
+
+# Build core library (required for first run)
+npm run build:libs
 ```
 
 ## 🚀 Development
@@ -35,11 +41,23 @@ npm install
 # Start development server
 npm run dev
 
-# Build for production
+# Build all packages
+npm run build:all
+
+# Build libraries only
+npm run build:libs
+
+# Build app for production
 npm run build
 
 # Preview production build
 npm run preview
+
+# Run tests for all packages
+npm run test:libs
+
+# Type check all packages
+npm run typecheck
 ```
 
 ## 🌐 Deployment
@@ -85,49 +103,63 @@ npm run test:coverage
 npm run lint
 ```
 
-## 📁 Project Structure
+## 📁 Monorepo Structure
+
+This project uses npm workspaces with three packages:
 
 ```
-src/
-├── constants/          # Game configuration
-│   ├── game.ts         # Card and game constants
-│   ├── difficulty.ts   # Difficulty system config
-│   └── index.ts        # Barrel export
-├── components/         # React components
-│   ├── Card.tsx        # Individual card component
-│   ├── DrawPile.tsx    # Draw pile component
-│   ├── DiscardPile.tsx # Discard pile component
-│   ├── FoundationPile.tsx # Foundation pile component
-│   ├── TableauColumn.tsx  # Tableau column component
-│   ├── ControlPanel.tsx   # Game controls
-│   ├── ActivityLog.tsx    # Move history log
-│   ├── WinModal.tsx       # Win condition modal
-│   └── GameBoard.tsx      # Main game board
-├── store/              # State management
-│   ├── helpers/        # Pure helper functions
-│   │   ├── deckHelpers.ts       # Deck operations
-│   │   ├── cardHelpers.ts       # Card utilities
-│   │   ├── validationHelpers.ts # Move validation
-│   │   ├── metricsHelpers.ts    # Metrics calculation
-│   │   ├── gameStateHelpers.ts  # State utilities
-│   │   └── index.ts             # Barrel export
-│   ├── gameStore.ts    # Zustand game state store
-│   └── *.test.ts       # Store tests
-├── types/              # TypeScript type definitions
-│   └── index.ts        # Card, GameState, Move types
-├── utils/              # Utility functions
-│   └── motion.ts       # Motion detection utility
-├── test/               # Test setup
-│   └── setup.ts        # Vitest configuration
-├── App.tsx             # Main App component
-└── main.tsx           # Application entry point
+packages/
+├── core/                      # @chayuto/solitaire-core (Game Logic Library)
+│   ├── src/
+│   │   ├── types/            # Core type definitions
+│   │   ├── utils/            # Card/deck utilities, validation, hashing
+│   │   ├── rules/            # Game rules (tableau, foundation, stock)
+│   │   ├── scoring/          # Difficulty and progress calculation
+│   │   ├── engine/           # Game engine
+│   │   └── index.ts          # Public API exports
+│   ├── tests/                # Core library tests
+│   └── package.json          # Library metadata (v0.1.0)
+│
+├── mcts/                      # @chayuto/solitaire-mcts (AI Solver Library)
+│   ├── src/                  # Monte Carlo Tree Search solver
+│   └── package.json          # Library metadata (v0.1.0)
+│
+└── app/                       # Main Application
+    ├── src/
+    │   ├── components/       # React components (Card, GameBoard, etc.)
+    │   ├── store/            # Zustand state management
+    │   │   ├── gameStore.ts  # Main game store (uses @chayuto/solitaire-core)
+    │   │   └── uiHelpers.ts  # UI-specific helpers
+    │   ├── adapters/         # Core↔UI state adapters
+    │   ├── constants/        # UI-specific constants
+    │   ├── types/            # UI-specific types
+    │   └── App.tsx           # Main App component
+    ├── public/               # Static assets
+    └── package.json          # App dependencies
 ```
 
-**Recent Refactoring (Nov 2025):** The codebase was refactored for improved maintainability:
-- Extracted helpers and constants from monolithic gameStore
-- Reduced gameStore.ts from 1,324 → 890 lines (33% reduction)
-- Added comprehensive JSDoc documentation
-- See `/docs/internal/20251114_deep_refactor_summary.md` for details
+### Package Relationships
+
+- **`@chayuto/solitaire-core`**: Pure game logic library (zero dependencies)
+  - Type-safe Klondike Solitaire engine
+  - Framework-agnostic, reusable in any JavaScript project
+  - ESM + CJS builds with TypeScript declarations
+
+- **`@chayuto/solitaire-mcts`**: AI solver library (depends on core)
+  - Monte Carlo Tree Search implementation
+  - Provides hint/solver functionality
+
+- **`app`**: React application (uses both libraries)
+  - UI components and user interactions
+  - State management with Zustand
+  - Imports game logic from `@chayuto/solitaire-core`
+
+**Recent Architecture Update (Nov 2025):** Extracted game logic into reusable libraries:
+- Created monorepo structure with npm workspaces
+- Extracted 800+ lines of pure game logic into `@chayuto/solitaire-core`
+- Removed duplicate helper functions (544 lines eliminated)
+- App now uses library for all game logic
+- See `/docs/internal/20251115_lib_v0_summary_index.md` for full planning docs
 
 ## 🎯 Game Rules
 
