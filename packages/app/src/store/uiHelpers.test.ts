@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { getGameStateHash, getStateHashAfterMove } from './gameStateHelpers';
-import type { GameState, Card } from '../../types';
+import { getGameStateHash, getStateHashAfterMove } from './uiHelpers';
+import type { GameState, Card } from '../types';
 
-describe('gameStateHelpers', () => {
+describe('uiHelpers', () => {
   describe('getGameStateHash', () => {
     it('should generate consistent hashes for the same state', () => {
       const state: GameState = {
