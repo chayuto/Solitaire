@@ -2,68 +2,112 @@
 
 ## Repository Overview
 
-**Solitaire (Klondike) card game** - Modern React SPA with save/load, move history, and drag-and-drop.
+**Solitaire (Klondike) card game** - Monorepo with game logic libraries and React app.
 
-**Stack:** React 19.2 + TypeScript 5.9 + Vite 7.2 + Zustand 5.0 + Tailwind 4.1 + @dnd-kit 6.3 + Vitest 4.0 | Node 20.x | ~1,500 LOC, 8 components
+**Stack:** React 19.2 + TypeScript 5.9 + Vite 7.2 + Zustand 5.0 + Tailwind 4.1 + @dnd-kit 6.3 + Vitest 4.0 | Node 20.x | Monorepo (3 packages)
 
 ## Essential Commands
 
-**ALWAYS run `npm ci` first** (or `npm install` for dev). All commands work from fresh clone after `npm ci`.
+**ALWAYS run `npm ci` first, then `npm run build:libs`** to build core library before running app.
 
 ```bash
-npm run lint      # ESLint (~1-2s) - Must pass for CI
-npm run test:run  # Vitest (~1s, 15 tests) - Must pass for CI
-npm run build     # tsc -b && vite build (~1-2s) - Must pass for CI
-npm run dev       # Dev server :5173 (~200ms)
-npm run preview   # Preview build :4173
-npm test          # Tests in watch mode
+npm ci                  # Install all workspace dependencies
+npm run build:libs      # Build @chayuto/solitaire-core and @chayuto/solitaire-mcts
+npm run lint            # ESLint (~1-2s) - Must pass for CI
+npm run test:run        # Vitest (~1s, 90 tests) - Must pass for CI
+npm run build           # App build: tsc -b && vite build (~1-2s) - Must pass for CI
+npm run build:all       # Build all packages
+npm run dev             # Dev server :5173 (~200ms)
+npm run preview         # Preview build :4173
+npm test                # Tests in watch mode
+npm run test:libs       # Test core and mcts libraries
+npm run typecheck       # Type check all packages
 ```
 
 **Known Issue:** `npm run test:coverage` requires missing `@vitest/coverage-v8` - skip unless specifically needed.
 
 ## CI/CD - Must Pass All Three Jobs
 
-`.github/workflows/ci.yml` runs 3 parallel jobs: **Lint**, **Test**, **Build**. Each runs `npm ci` then its command.
+`.github/workflows/ci.yml` runs 3 parallel jobs: **Lint**, **Test**, **Build**. Each runs `npm ci`, `npm run build:libs`, then its command.
 
-**Validate before committing:** `npm ci && npm run lint && npm run test:run && npm run build` (must all pass)
+**Validate before committing:** `npm ci && npm run build:libs && npm run lint && npm run test:run && npm run build` (must all pass)
 
-## Project Structure
+## Monorepo Structure
 
 ```
-src/
-  components/        # 8 React components (Card, DrawPile, DiscardPile, FoundationPile, 
-                     #   TableauColumn, GameBoard, ControlPanel, ActivityLog)
-  store/
-    gameStore.ts     # ALL GAME LOGIC (501 lines) - Zustand store with game rules
-    gameStore.test.ts # 14 tests
-  types/index.ts     # Card, GameState, Move, Suit, Rank types (55 lines)
-  test/setup.ts      # Vitest config (@testing-library/jest-dom)
-  App.tsx            # Entry (renders GameBoard)
-  main.tsx           # React DOM root
-  index.css          # Global styles + Tailwind imports
+/
+├── packages/
+│   ├── core/                  # @chayuto/solitaire-core v0.1.0
+│   │   ├── src/
+│   │   │   ├── types/        # Core game types (Card, GameState, Move, etc.)
+│   │   │   ├── utils/        # Card/deck utils, validation, hashing
+│   │   │   ├── rules/        # Game rules (tableau, foundation, stock)
+│   │   │   ├── scoring/      # Difficulty & progress calculation
+│   │   │   ├── engine/       # Game engine
+│   │   │   └── index.ts      # Public API
+│   │   ├── tests/            # Core library tests
+│   │   ├── vite.config.ts    # Library build config
+│   │   └── package.json      # ESM + CJS, zero dependencies
+│   │
+│   ├── mcts/                  # @chayuto/solitaire-mcts v0.1.0
+│   │   ├── src/              # MCTS solver (placeholder)
+│   │   └── package.json      # Depends on @chayuto/solitaire-core
+│   │
+│   └── app/                   # Main application
+│       ├── src/
+│       │   ├── components/   # React components (8 total)
+│       │   ├── store/
+│       │   │   ├── gameStore.ts    # Zustand store (uses @chayuto/solitaire-core)
+│       │   │   └── uiHelpers.ts    # UI-specific helpers (90 tests)
+│       │   ├── adapters/     # Core↔UI state adapters
+│       │   ├── constants/    # UI-specific constants
+│       │   ├── types/        # UI-specific types
+│       │   └── App.tsx       # Main App component
+│       ├── vite.config.ts    # App build config
+│       └── package.json      # Depends on @chayuto/solitaire-core
+│
+├── package.json              # Root workspace config (npm workspaces)
+├── tsconfig.base.json        # Shared TypeScript config
+└── docs/                     # Documentation
+    ├── internal/             # Architecture & planning docs
+    └── reports/              # Task reports
 
-Config: tsconfig.json (root), tsconfig.app.json (src/, strict), tsconfig.node.json (vite.config.ts)
-        vite.config.ts (React plugin + Vitest), eslint.config.js (flat config), tailwind.config.js
-        postcss.config.js (@tailwindcss/postcss)
-        
-CI: .github/workflows/ci.yml
-Docs: docs/reports/ (16 task planning docs)
-Build output: dist/ (ignored), node_modules/ (ignored)
+Build outputs: packages/*/dist/ (ignored), node_modules/ (ignored)
 ```
 
 ## Architecture
 
-**gameStore.ts (501 lines) - ALL game logic lives here:**
-- Functions: `initializeGame()`, `drawCard()`, `selectCard()`, `moveCardToTableau()`, `moveCardToFoundation()`
-- Validation: `canMoveToTableau()`, `canMoveToFoundation()`
-- Export/import: `exportGameState()`, `importGameState()`, `exportMoveHistory()`, `exportBoardSetup()`
+**@chayuto/solitaire-core (pure game logic library):**
+- Zero dependencies, framework-agnostic
+- Types: Card, GameState, Move, Difficulty, Foundations
+- Utils: Card/deck creation, shuffle, validation, hashing
+- Rules: canMoveToTableau(), canMoveToFoundation(), draw(), recycle()
+- Scoring: getCompletionProgress(), getPerceivedDifficulty()
+- Engine: GameEngine class (initialize, applyMove, getLegalMoves)
+- Build: ESM + CJS + TypeScript declarations
 
-**types/index.ts:** Card (suit, rank, faceUp, id), GameState (drawPile, discardPile, foundations, tableau, moveHistory), Move
+**packages/app/src/store/gameStore.ts (Zustand store):**
+- Imports game logic from @chayuto/solitaire-core
+- Wraps core functions with UI state management
+- Handles card selection, move execution, autoplay, replay
+- 90 tests covering all game scenarios
 
-**Components:** GameBoard (main layout) → ControlPanel + ActivityLog + DrawPile + DiscardPile + FoundationPile×4 + TableauColumn×7
+**packages/app/src/store/uiHelpers.ts (UI-specific helpers):**
+- getGameStateHash() - Loop detection for autoplay
+- getStateHashAfterMove() - Predictive hashing
+- hasAnyValidDestination() - Card selection logic
+- hasAnyValidMoves() - Deadend detection
+- isGameWon() - Win condition check
+- canAutoComplete() - Autoplay trigger
+
+**packages/app/src/adapters/coreAdapter.ts:**
+- uiToCore() - Convert UI GameState to Core GameState
+- coreToUI() - Convert Core GameState back to UI GameState
+
+**Components:** GameBoard → ControlPanel + ActivityLog + DrawPile + DiscardPile + FoundationPile×4 + TableauColumn×7
 All use `useGameStore()` hook. @dnd-kit for drag-and-drop.
 
-**Tests:** `.test.ts`/`.test.tsx` next to source. Vitest + @testing-library/react. Setup: `src/test/setup.ts`
+**Tests:** `.test.ts`/`.test.tsx` next to source. Vitest + @testing-library/react. 90 tests total.
 
 ## Key Config Notes
 
@@ -74,11 +118,17 @@ All use `useGameStore()` hook. @dnd-kit for drag-and-drop.
 
 ## Patterns & Conventions
 
-**Adding features:** Update types/index.ts → gameStore.ts (logic) → components/ → add .test.ts → lint/test/build
+**Adding game logic features:** Update packages/core/src/ → rebuild libs → update app → tests → lint/build
+
+**Adding UI features:** Update packages/app/src/ (components/store) → add .test.ts → lint/test/build
 
 **Style:** Functional React + strict TypeScript (no `any`), Tailwind utilities, Zustand `useGameStore()` hook
 **Naming:** PascalCase.tsx (components), camelCase.ts (utils), .test.ts/.test.tsx (tests)
-**Imports:** `import type { Card } from '../types'` for types, relative paths, named exports (except React components)
+**Imports:** 
+- Core library: `import { canMoveToTableau } from '@chayuto/solitaire-core'`
+- Types: `import type { Card } from '../types'`
+- Relative paths for local modules
+- Named exports (except React components)
 
 ## Agent Workflow Guidelines
 
@@ -92,8 +142,17 @@ All use `useGameStore()` hook. @dnd-kit for drag-and-drop.
 
 ## Validation Checklist
 
-**Required:** `npm run lint && npm run test:run && npm run build` (all must pass, verify dist/ created)
-**Optional:** `npm run dev` (:5173) or `npm run preview` (:4173) to verify manually
+**Required:** 
+1. `npm ci` - Install dependencies
+2. `npm run build:libs` - Build core and mcts libraries
+3. `npm run lint` - Must pass with 0 errors
+4. `npm run test:run` - All 90 tests must pass
+5. `npm run build` - Must succeed, verify packages/app/dist/ created
+
+**Optional:** 
+- `npm run dev` (:5173) to test manually
+- `npm run preview` (:4173) to verify production build
+- `npm run test:libs` to test libraries separately
 
 ## Known Issues
 

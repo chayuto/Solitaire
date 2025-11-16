@@ -18,7 +18,7 @@ import {
   isGameWon,
   canAutoComplete,
   getStateHashAfterMove,
-} from './helpers';
+} from './uiHelpers';
 import { uiToCore } from '../adapters/coreAdapter';
 import { DEFAULT_DIFFICULTY, TABLEAU_COLUMNS } from '../constants';
 

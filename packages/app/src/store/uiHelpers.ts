@@ -1,58 +1,135 @@
 /**
- * Move validation helpers
- * Checks if moves are valid according to Solitaire rules
+ * UI-specific game helpers
+ * Functions that are specific to the UI layer and not part of core game logic
  */
 
-import type { Card, GameState, Suit } from '../../types';
-import { canPlaceOnTableauCard, canPlaceOnFoundation, canStartTableauColumn } from './cardHelpers';
-import { SUITS } from '../../constants';
+import type { GameState, Card, Suit, Move } from '../types';
+import {
+  canMoveToTableau,
+  canMoveToFoundation,
+  hasValidFoundationDestination,
+  SUITS,
+} from '@chayuto/solitaire-core';
 
 /**
- * Checks if a card can be moved to a specific tableau column
- * @param card - The card to move
- * @param targetColumn - The column to move to
- * @param tableau - Current tableau state
- * @returns true if the move is valid
+ * Records a move in the game's move history
+ * @param state - Current game state
+ * @param move - The move to record
+ * @returns Updated move history array
  */
-export const canMoveToTableau = (card: Card, targetColumn: number, tableau: Card[][]): boolean => {
-  const column = tableau[targetColumn];
-  
-  // Empty column can only accept Kings
-  if (column.length === 0) {
-    return canStartTableauColumn(card);
-  }
-  
-  // Get the last card in the target column
-  const targetCard = column[column.length - 1];
-  
-  // Must be face up
-  if (!targetCard.faceUp) {
-    return false;
-  }
-  
-  // Check if card can be placed on target
-  return canPlaceOnTableauCard(card, targetCard);
+export const recordMove = (state: GameState, move: Move): Move[] => {
+  return [...state.moveHistory, move];
 };
 
 /**
- * Checks if a card can be moved to a specific foundation pile
- * @param card - The card to move
- * @param suit - The foundation suit
- * @param foundations - Current foundations state
- * @returns true if the move is valid
+ * Generates a hash of the current game state for loop detection
+ * Creates a simplified representation focusing on card positions
+ * @param state - Current game state
+ * @returns JSON string representing the game state
  */
-export const canMoveToFoundation = (
-  card: Card, 
-  suit: Suit, 
-  foundations: GameState['foundations']
-): boolean => {
-  // Must match suit
-  if (card.suit !== suit) {
-    return false;
+export const getGameStateHash = (state: GameState): string => {
+  // Create a simplified representation of the game state
+  const stateSnapshot = {
+    drawPile: state.drawPile.map(c => c.id),
+    discardPile: state.discardPile.map(c => c.id),
+    foundations: {
+      hearts: state.foundations.hearts.map(c => c.id),
+      diamonds: state.foundations.diamonds.map(c => c.id),
+      clubs: state.foundations.clubs.map(c => c.id),
+      spades: state.foundations.spades.map(c => c.id),
+    },
+    tableau: state.tableau.map(col => col.map(c => ({ id: c.id, faceUp: c.faceUp }))),
+  };
+  return JSON.stringify(stateSnapshot);
+};
+
+/**
+ * Simulates a move and returns the resulting state hash without actually changing state
+ * Used for predictive loop detection in autoplay
+ * @param state - Current game state
+ * @param move - The move to simulate
+ * @returns Hash of the state that would result from this move
+ */
+export const getStateHashAfterMove = (
+  state: GameState,
+  move: {
+    card: Card;
+    source: 'tableau' | 'discard';
+    sourceColumn?: number;
+    sourceCardIndex?: number;
+    targetType: 'foundation' | 'tableau';
+    targetColumn?: number;
+    targetSuit?: Suit;
   }
-  
-  const foundation = foundations[suit];
-  return canPlaceOnFoundation(card, foundation);
+): string => {
+  // Clone the relevant parts of the state
+  const newDrawPile = [...state.drawPile];
+  const newDiscardPile = [...state.discardPile];
+  const newFoundations = {
+    hearts: [...state.foundations.hearts],
+    diamonds: [...state.foundations.diamonds],
+    clubs: [...state.foundations.clubs],
+    spades: [...state.foundations.spades],
+  };
+  const newTableau = state.tableau.map(col => [...col]);
+
+  // Simulate the move
+  if (move.targetType === 'foundation' && move.targetSuit) {
+    // Move to foundation
+    if (move.source === 'tableau' && move.sourceColumn !== undefined) {
+      newTableau[move.sourceColumn] = newTableau[move.sourceColumn].slice(0, -1);
+      
+      // Flip the last card if it exists and is face down
+      if (newTableau[move.sourceColumn].length > 0) {
+        const lastCard = newTableau[move.sourceColumn][newTableau[move.sourceColumn].length - 1];
+        if (!lastCard.faceUp) {
+          newTableau[move.sourceColumn][newTableau[move.sourceColumn].length - 1] = {
+            ...lastCard,
+            faceUp: true,
+          };
+        }
+      }
+    } else if (move.source === 'discard') {
+      newDiscardPile.pop();
+    }
+    newFoundations[move.targetSuit].push(move.card);
+  } else if (move.targetType === 'tableau' && move.targetColumn !== undefined) {
+    // Move to tableau
+    if (move.source === 'tableau' && move.sourceColumn !== undefined && move.sourceCardIndex !== undefined) {
+      const cardsToMove = newTableau[move.sourceColumn].slice(move.sourceCardIndex);
+      newTableau[move.sourceColumn] = newTableau[move.sourceColumn].slice(0, move.sourceCardIndex);
+      
+      // Flip the last card if it exists and is face down
+      if (newTableau[move.sourceColumn].length > 0) {
+        const lastCard = newTableau[move.sourceColumn][newTableau[move.sourceColumn].length - 1];
+        if (!lastCard.faceUp) {
+          newTableau[move.sourceColumn][newTableau[move.sourceColumn].length - 1] = {
+            ...lastCard,
+            faceUp: true,
+          };
+        }
+      }
+      
+      newTableau[move.targetColumn].push(...cardsToMove);
+    } else if (move.source === 'discard') {
+      newDiscardPile.pop();
+      newTableau[move.targetColumn].push(move.card);
+    }
+  }
+
+  // Create the hash from the simulated state
+  const stateSnapshot = {
+    drawPile: newDrawPile.map(c => c.id),
+    discardPile: newDiscardPile.map(c => c.id),
+    foundations: {
+      hearts: newFoundations.hearts.map(c => c.id),
+      diamonds: newFoundations.diamonds.map(c => c.id),
+      clubs: newFoundations.clubs.map(c => c.id),
+      spades: newFoundations.spades.map(c => c.id),
+    },
+    tableau: newTableau.map(col => col.map(c => ({ id: c.id, faceUp: c.faceUp }))),
+  };
+  return JSON.stringify(stateSnapshot);
 };
 
 /**
@@ -74,27 +151,7 @@ export const hasValidTableauDestination = (
       continue;
     }
     
-    if (canMoveToTableau(card, col, tableau)) {
-      return true;
-    }
-  }
-  
-  return false;
-};
-
-/**
- * Checks if a card has any valid destination in the foundations
- * @param card - The card to check
- * @param foundations - Current foundations state
- * @returns true if at least one valid foundation destination exists
- */
-export const hasValidFoundationDestination = (
-  card: Card, 
-  foundations: GameState['foundations']
-): boolean => {
-  // Check all foundations for valid destinations
-  for (const suit of SUITS) {
-    if (canMoveToFoundation(card, suit, foundations)) {
+    if (canMoveToTableau(card, tableau[col])) {
       return true;
     }
   }
@@ -163,7 +220,7 @@ export const hasAnyValidMoves = (state: GameState): boolean => {
     
     // Check foundation
     for (const suit of SUITS) {
-      if (canMoveToFoundation(discardCard, suit, state.foundations)) {
+      if (canMoveToFoundation(discardCard, state.foundations[suit])) {
         return true;
       }
     }
