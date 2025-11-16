@@ -791,23 +791,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // PRIORITY #1: UNLOCK THE TABLEAU (1000000+)
       // Always play from tableau before draw pile
       if (source === 'tableau') {
-        score += 1000000; // Massive bonus for any tableau move
-        
-        // Prioritize moves from columns with MORE face-down cards
-        if (sourceColumn !== undefined) {
-          const faceDownCount = countFaceDownCards(sourceColumn);
-          score += faceDownCount * 50000; // More face-down = higher priority
-        }
-        
         // Check if this move reveals a face-down card
-        if (sourceColumn !== undefined && sourceCardIndex !== undefined) {
-          const sourceCol = state.tableau[sourceColumn];
-          if (sourceCardIndex > 0 && !sourceCol[sourceCardIndex - 1].faceUp) {
+        const revealsCard = sourceColumn !== undefined && sourceCardIndex !== undefined && 
+                           sourceCardIndex > 0 && !state.tableau[sourceColumn][sourceCardIndex - 1].faceUp;
+        
+        if (revealsCard) {
+          // Moves that reveal cards get the massive bonus
+          score += 1000000; // Massive bonus for revealing moves
+          
+          // Prioritize moves from columns with MORE face-down cards
+          if (sourceColumn !== undefined) {
+            const faceDownCount = countFaceDownCards(sourceColumn);
+            score += faceDownCount * 50000; // More face-down = higher priority
+          }
+          
+          // Extra bonus based on what's revealed
+          if (sourceColumn !== undefined && sourceCardIndex !== undefined) {
             score += 100000; // Big bonus for revealing cards
-            
-            // Extra bonus based on what's revealed
             const revealValue = evaluateRevealValue(sourceColumn, sourceCardIndex - 1);
             score += revealValue * 100; // Scale up reveal value
+          }
+        } else {
+          // Moves that don't reveal cards get much lower base score
+          // Only slightly better than draw pile moves
+          score += 2000; // Small bonus - avoid unless necessary
+          
+          // Additional penalty for moving single cards to tableau without revealing
+          // This prevents useless back-and-forth moves that cause loops
+          if (targetType === 'tableau' && sourceCardIndex !== undefined && sourceColumn !== undefined) {
+            const numCardsMoving = state.tableau[sourceColumn].length - sourceCardIndex;
+            if (numCardsMoving === 1) {
+              // Moving just one card without revealing anything - likely useless
+              // Heavy penalty to make it much less attractive than drawing or other moves
+              score -= 10000; // Strong penalty to avoid useless moves
+            }
           }
         }
       } else {
@@ -905,12 +922,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       // PRIORITY #4: DRAW PILE MANAGEMENT (1000+)
       if (source === 'discard') {
-        // Heavy penalty for using draw pile cards
-        score -= 50000; // Discourage draw pile use
-        
-        // Only acceptable if it helps Priority #1 or #2
-        if (targetType === 'tableau' && targetColumn !== undefined) {
-          const targetCol = state.tableau[targetColumn];
+        // Penalty for using draw pile cards - but less for foundation moves
+        if (targetType === 'foundation') {
+          // Foundation moves from discard are OK, just slightly lower priority
+          score -= 5000; // Small penalty - still want to prioritize tableau first
+        } else if (targetType === 'tableau') {
+          // Heavy penalty for using draw pile cards for tableau
+          score -= 50000; // Discourage draw pile use for tableau
+          
+          const targetCol = state.tableau[targetColumn!];
           
           // Exception 1: Placing strategic King
           if (move.card.rank === 'K' && targetCol.length === 0) {
@@ -919,7 +939,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           
           // Exception 2: Helps unlock tableau cards
           // Check if target column has face-down cards
-          const targetFaceDownCount = countFaceDownCards(targetColumn);
+          const targetFaceDownCount = countFaceDownCards(targetColumn!);
           if (targetFaceDownCount > 3) {
             score += 30000; // Helps build on column that needs progress
           }
@@ -1078,6 +1098,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Sort by score (highest first)
     nonLoopingMoves.sort((a, b) => b.score - a.score);
+    
+    // Filter out moves with negative scores (useless moves)
+    // These are moves that are worse than drawing a card
+    const worthwhileMoves = nonLoopingMoves.filter(move => move.score > 0);
 
     // Check if we're in fast auto-complete mode (all tableau cards face up and no draw pile)
     const isAutoCompleteMode = state.drawPile.length === 0 && 
@@ -1085,9 +1109,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const moveDelay = isAutoCompleteMode ? 100 : 1000;
     const selectDelay = isAutoCompleteMode ? 50 : 200;
 
-    // Execute the best move
-    if (nonLoopingMoves.length > 0) {
-      const bestMove = nonLoopingMoves[0];
+    // Execute the best move if we have worthwhile moves
+    if (worthwhileMoves.length > 0) {
+      const bestMove = worthwhileMoves[0];
       
       // Select the card
       get().selectCard(bestMove.source, bestMove.sourceColumn, bestMove.sourceCardIndex);

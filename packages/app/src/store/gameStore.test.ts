@@ -574,8 +574,12 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     const store = useGameStore.getState();
     
     // Create a scenario with multiple possible moves where one would cause a loop
+    // This test now verifies that useless moves (that don't reveal cards) are avoided
+    // even if they don't directly loop
     const testState = {
-      drawPile: [],
+      drawPile: [
+        { suit: 'diamonds' as const, rank: '3' as const, faceUp: false, id: 'diamonds-3' },
+      ],
       discardPile: [],
       foundations: {
         hearts: [{ suit: 'hearts' as const, rank: 'A' as const, faceUp: true, id: 'hearts-A' }],
@@ -608,7 +612,7 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     
     // Simulate a state hash that would result from moving spades-7 to hearts-8
     const loopingStateHash = JSON.stringify({
-      drawPile: [],
+      drawPile: [{ id: 'diamonds-3' }],
       discardPile: [],
       foundations: {
         hearts: ['hearts-A'],
@@ -638,11 +642,12 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     
     const state = useGameStore.getState();
     
-    // Should NOT have triggered loop detection immediately since it should avoid the looping move
+    // Should NOT have triggered loop detection
     const loopMove = state.moveHistory.find(m => m.type === 'autoplay_loop_detected');
     expect(loopMove).toBeUndefined();
     
-    // Should have selected a move (autoPlayInProgress should be true after selecting move)
+    // Should have selected a move or drawn a card (autoPlayInProgress should be true after initiating action)
+    // Since all tableau moves are useless (don't reveal cards), it should draw instead
     expect(state.autoPlayInProgress).toBe(true);
   });
 
@@ -741,6 +746,84 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     const loopMove = state.moveHistory.find(m => m.type === 'autoplay_loop_detected');
     expect(loopMove).toBeDefined();
     expect(state.autoPlayEnabled).toBe(false);
+  });
+
+  it('should avoid useless tableau-to-tableau moves that do not reveal cards', async () => {
+    const store = useGameStore.getState();
+    
+    // Create a scenario where moving a single card from one tableau to another
+    // doesn't reveal anything and is essentially useless (can lead to loops)
+    const testState = {
+      drawPile: [
+        { suit: 'diamonds' as const, rank: '5' as const, faceUp: false, id: 'diamonds-5' },
+        { suit: 'clubs' as const, rank: '4' as const, faceUp: false, id: 'clubs-4' },
+      ],
+      discardPile: [],
+      foundations: {
+        hearts: [],
+        diamonds: [],
+        clubs: [],
+        spades: [],
+      },
+      tableau: [
+        // Column 0: Single face-up card - moving this won't reveal anything
+        [{ suit: 'spades' as const, rank: '7' as const, faceUp: true, id: 'spades-7' }],
+        // Column 1: Can accept the 7 of spades
+        [{ suit: 'hearts' as const, rank: '8' as const, faceUp: true, id: 'hearts-8' }],
+        // Column 2: Has a face-down card that could be revealed
+        [
+          { suit: 'diamonds' as const, rank: 'K' as const, faceUp: false, id: 'diamonds-K' },
+          { suit: 'clubs' as const, rank: '9' as const, faceUp: true, id: 'clubs-9' },
+        ],
+        [],
+        [],
+        [],
+        [],
+      ],
+      selectedCard: undefined,
+      moveHistory: [],
+      showValidMoves: true,
+      godMode: false,
+      autoPlayEnabled: true,
+      autoPlayInProgress: false,
+      autoPlayStateHistory: [],
+      difficulty: 3 as const,
+      gameWon: false,
+      completionProgress: 0,
+    };
+    
+    useGameStore.setState(testState);
+    
+    // Trigger auto-play move
+    store.performAutoPlayMove();
+    
+    // Wait for move to complete
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const state = useGameStore.getState();
+    
+    // Check the moves made - filter out non-game moves
+    const gameMoves = state.moveHistory.filter(m => 
+      m.type !== 'autoplay_start' && 
+      m.type !== 'autoplay_stop' &&
+      m.type !== 'autoplay_deadend' &&
+      m.type !== 'autoplay_loop_detected'
+    );
+    
+    if (gameMoves.length > 0) {
+      const lastMove = gameMoves[gameMoves.length - 1];
+      
+      // The move should NOT be moving the single spades-7 from column 0 to column 1
+      // That would be a useless move that doesn't reveal anything
+      const isUselessMove = 
+        lastMove.type === 'tableau_to_tableau' &&
+        lastMove.from?.columnIndex === 0 &&
+        lastMove.to?.columnIndex === 1 &&
+        lastMove.card.id === 'spades-7';
+      
+      // With our fix, this should be false - we should prefer drawing or other moves
+      expect(isUselessMove).toBe(false);
+    }
   });
 
 });
