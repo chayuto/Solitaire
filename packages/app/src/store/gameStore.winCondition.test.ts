@@ -267,4 +267,42 @@ describe('GameStore - Auto-Complete Trigger', () => {
     // Should NOT have enabled auto-play
     expect(useGameStore.getState().autoPlayEnabled).toBe(false);
   });
+
+  it('should not show win modal when loading a won game for replay', () => {
+    const store = useGameStore.getState();
+    
+    // Create a winning state
+    const ranks: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const winningState: Partial<GameState> = {
+      drawPile: [],
+      discardPile: [],
+      tableau: [[], [], [], [], [], [], []],
+      foundations: {
+        hearts: ranks.map(rank => ({ suit: 'hearts', rank, faceUp: true, id: `hearts-${rank}` })),
+        diamonds: ranks.map(rank => ({ suit: 'diamonds', rank, faceUp: true, id: `diamonds-${rank}` })),
+        clubs: ranks.map(rank => ({ suit: 'clubs', rank, faceUp: true, id: `clubs-${rank}` })),
+        spades: ranks.map(rank => ({ suit: 'spades', rank, faceUp: true, id: `spades-${rank}` })),
+      },
+      gameWon: true, // Game was previously won
+      moveHistory: [
+        { type: 'draw_card', timestamp: Date.now(), card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'test' } },
+      ],
+    };
+    
+    // Export the winning state as if user exported a won game
+    const exportedWonGame = JSON.stringify({
+      ...JSON.parse(store.exportGameState()),
+      ...winningState,
+    });
+    
+    // Import the won game
+    store.importGameState(exportedWonGame);
+    
+    // After importing, gameWon should be false to allow replay
+    expect(useGameStore.getState().gameWon).toBe(false);
+    
+    // User should be able to start replay
+    expect(useGameStore.getState().moveHistory.length).toBeGreaterThan(0);
+    expect(useGameStore.getState().replayMode).toBe(false); // Not in replay mode yet
+  });
 });
