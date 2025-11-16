@@ -532,6 +532,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const perceivedDifficulty = importedState.perceivedDifficulty ?? getPerceivedDifficulty(uiToCore(importedStateForCalc));
       
       // Set the imported state
+      // Note: gameWon is set to false to allow replay functionality for won games
       set({
         drawPile: importedState.drawPile,
         discardPile: importedState.discardPile,
@@ -544,7 +545,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         autoPlayEnabled: importedState.autoPlayEnabled,
         autoPlayInProgress: false,
         difficulty: importedState.difficulty,
-        gameWon: importedState.gameWon,
+        gameWon: false, // Always set to false to allow replay even for won games
         initialBoardSetup: importedState.initialBoardSetup,
         perceivedDifficulty,
         completionProgress,
