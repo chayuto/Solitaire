@@ -297,7 +297,7 @@ describe('MCTSNode', () => {
       node.visits = 3;
       node.value = 2;
 
-      expect(node.getAverageValue()).toBeCloseTo(0.6666666666666666);
+      expect(node.getAverageValue()).toBeCloseTo(2 / 3, 10);
     });
 
     it('should handle high precision values', () => {
@@ -525,8 +525,8 @@ describe('MCTSNode', () => {
         orders.push(poppedMoves.join(','));
       }
 
-      // With 10 trials and 3 moves, we should see at least 2 different orders
-      // (probability of all same is extremely low: (1/6)^9 ≈ 0.000002)
+      // With 10 trials and 3! = 6 possible orders, we should see at least 2 different orders
+      // (probability of all trials having the same order: (1/6)^(10-1) ≈ 0.000002)
       const uniqueOrders = new Set(orders);
       expect(uniqueOrders.size).toBeGreaterThan(1);
     });
