@@ -3,5 +3,5 @@
 
 export const VERSION = '0.1.0';
 
-// Placeholder exports - to be implemented
-export {};
+// Core MCTS exports
+export { MCTSNode } from './core/MCTSNode';
