@@ -1,0 +1,59 @@
+version: 2
+updates:
+  # Maintain npm dependencies for the monorepo
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    groups:
+      # Group all production dependencies together
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@types/*"
+          - "@testing-library/*"
+          - "@vitest/*"
+          - "eslint*"
+          - "vite*"
+          - "vitest"
+          - "typescript"
+      # Group all development dependencies together
+      development-dependencies:
+        patterns:
+          - "@types/*"
+          - "@testing-library/*"
+          - "@vitest/*"
+          - "eslint*"
+          - "vite*"
+          - "vitest"
+          - "typescript"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "npm"
+
+  # Maintain GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
