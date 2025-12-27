@@ -5,3 +5,4 @@
 
 export * from './game';
 export * from './difficulty';
+export * from './autoplay';
