@@ -318,8 +318,14 @@ Add comprehensive tests:
 ```typescript
 // packages/core/tests/rules/tableau.test.ts
 import { describe, it, expect } from 'vitest';
-import { canMoveToTableau, canMoveSequence, getValidTableauDestinations } from '../../src/rules/tableau';
-import { createCard } from '../../src/utils/card';
+// Note: Import paths should match actual core library exports
+// Check packages/core/src/index.ts for actual function names
+import { 
+  canMoveToTableau, 
+  canMoveSequence, 
+  getValidTableauDestinations,
+  createCard 
+} from '@chayuto/solitaire-core';
 
 describe('Tableau Rules', () => {
   describe('canMoveToTableau', () => {

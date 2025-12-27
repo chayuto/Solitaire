@@ -241,10 +241,14 @@ const ActivityLog: React.FC = () => {
   );
 };
 
-// Memoized move entry
-const MoveEntry = memo(({ move }: { move: Move }) => {
-  // Render move details...
-});
+// Memoized move entry with custom comparison
+// Move objects are immutable, so shallow comparison on move.id is sufficient
+const MoveEntry = memo(
+  ({ move }: { move: Move }) => {
+    // Render move details...
+  },
+  (prevProps, nextProps) => prevProps.move.timestamp === nextProps.move.timestamp
+);
 ```
 
 ---

@@ -242,13 +242,17 @@ test:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     
     - name: Check coverage thresholds
+      # Using Node.js for portability (bc may not be available in all CI environments)
       run: |
-        COVERAGE=$(cat ./packages/app/coverage/coverage-summary.json | jq '.total.lines.pct')
-        echo "Line coverage: $COVERAGE%"
-        if (( $(echo "$COVERAGE < 70" | bc -l) )); then
-          echo "Coverage below 70% threshold!"
-          exit 1
-        fi
+        node -e "
+          const coverage = require('./packages/app/coverage/coverage-summary.json');
+          const linePct = coverage.total.lines.pct;
+          console.log('Line coverage: ' + linePct + '%');
+          if (linePct < 70) {
+            console.error('Coverage below 70% threshold!');
+            process.exit(1);
+          }
+        "
 ```
 
 **Add coverage badge to README:**
