@@ -2,6 +2,8 @@
  * Foundation rules module
  * Functions for validating and processing foundation pile moves
  * All functions are pure and do not mutate input data
+ * 
+ * @module rules/foundation
  */
 
 import type { Card, Rank, Foundations } from '../types';
@@ -14,6 +16,7 @@ import { getRankValue } from '../utils/card';
  * - Cards must be of the same suit as the foundation
  * - Cards must be in ascending rank order (e.g., 2 on A, 3 on 2)
  * 
+ * @public
  * @param card - The card to move
  * @param foundationPile - The target foundation pile
  * @returns true if the move is legal, false otherwise
@@ -38,6 +41,7 @@ export function canMoveToFoundation(card: Card, foundationPile: readonly Card[])
 /**
  * Gets the next expected rank for a foundation pile
  * 
+ * @public
  * @param foundationPile - The foundation pile to check
  * @returns The next rank that can be placed, or null if the pile is complete (has King)
  */
@@ -65,6 +69,7 @@ export function getNextFoundationRank(foundationPile: readonly Card[]): Rank | n
 /**
  * Checks if a card has a valid destination in any foundation pile
  * 
+ * @public
  * @param card - The card to check
  * @param foundations - All four foundation piles
  * @returns true if the card can be moved to its suit's foundation

@@ -2,6 +2,8 @@
  * Tableau rules module
  * Functions for validating and processing tableau pile moves
  * All functions are pure and do not mutate input data
+ * 
+ * @module rules/tableau
  */
 
 import type { Card } from '../types';
@@ -14,6 +16,7 @@ import { getColor, getRankValue } from '../utils/card';
  * - Cards must alternate colors (red on black, black on red)
  * - Cards must be in descending rank order (e.g., 7 on 8, Q on K)
  * 
+ * @public
  * @param card - The card to move
  * @param targetColumn - The target tableau column
  * @returns true if the move is legal, false otherwise
@@ -40,6 +43,7 @@ export function canMoveToTableau(card: Card, targetColumn: readonly Card[]): boo
  * The sequence must be valid (alternating colors, descending ranks)
  * and the first card of the sequence must be movable to the target
  * 
+ * @public
  * @param cards - The sequence of cards to move
  * @param targetColumn - The target tableau column
  * @returns true if the sequence can be moved, false otherwise
@@ -76,6 +80,7 @@ export function canMoveSequence(cards: readonly Card[], targetColumn: readonly C
 /**
  * Gets all valid tableau destination columns for a card
  * 
+ * @public
  * @param card - The card to move
  * @param tableau - All tableau columns
  * @param sourceColumn - Optional source column index (to exclude it from results)

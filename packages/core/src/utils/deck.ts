@@ -2,6 +2,8 @@
  * Deck utility functions
  * Functions for creating, shuffling, and arranging decks of cards
  * All functions are pure and do not mutate input arrays
+ * 
+ * @module utils/deck
  */
 
 import type { Card, Difficulty } from '../types';
@@ -10,6 +12,7 @@ import { SUITS, RANKS, createCard } from './card';
 /**
  * Difficulty-based shuffle percentages
  * Used for partial shuffling to control game difficulty
+ * @internal
  */
 const VERY_EASY_SHUFFLE_PERCENT = 20;
 const EASY_SHUFFLE_PERCENT = 50;
@@ -18,6 +21,7 @@ const HARD_EXTRA_SHUFFLE_PERCENT = 30;
 /**
  * Simple seeded random number generator (LCG - Linear Congruential Generator)
  * Using parameters from Numerical Recipes
+ * @internal
  * @param seed - The seed value
  * @returns A random number generator function
  */
@@ -34,6 +38,7 @@ function createSeededRandom(seed: number): () => number {
  * Creates a full standard 52-card deck
  * All cards are created face down by default
  * Cards are in a standard order: hearts A-K, diamonds A-K, clubs A-K, spades A-K
+ * @public
  * @param faceUp - Whether cards should be face up (default: false)
  * @returns Array of 52 Card objects in standard order
  */
@@ -52,6 +57,7 @@ export function createDeck(faceUp: boolean = false): Card[] {
 /**
  * Performs a Fisher-Yates shuffle on an array
  * This is a full random shuffle with uniform distribution
+ * @public
  * @param array - The array to shuffle
  * @param seed - Optional seed for reproducible shuffles
  * @returns A new shuffled array
@@ -70,6 +76,7 @@ export function shuffle<T>(array: readonly T[], seed?: number): T[] {
 
 /**
  * Shuffles a deck of cards
+ * @public
  * @param deck - The deck to shuffle
  * @param seed - Optional seed for reproducible shuffles
  * @returns A new shuffled deck
@@ -81,6 +88,7 @@ export function shuffleDeck(deck: readonly Card[], seed?: number): Card[] {
 /**
  * Performs a partial shuffle by swapping a percentage of elements
  * Used for difficulty levels that require controlled randomization
+ * @public
  * @param array - The array to partially shuffle
  * @param shufflePercentage - Percentage of swaps to perform (0-100+)
  * @param seed - Optional seed for reproducible shuffles
@@ -113,6 +121,7 @@ export function partialShuffle<T>(
  * - Level 4 (Hard): Full shuffle + 30% extra swaps
  * - Level 5 (Very Hard): Double shuffle for maximum entropy
  * 
+ * @public
  * @param difficulty - The difficulty level (1-5)
  * @param seed - Optional seed for reproducible games
  * @returns A shuffled deck arranged according to difficulty
