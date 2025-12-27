@@ -18,11 +18,13 @@ import {
  * Collects all possible moves from the current game state
  * 
  * @param state - Current game state
- * @param canMoveToTableauFn - Function to check tableau move validity
- * @param canMoveToFoundationFn - Function to check foundation move validity
+ * @param canMoveToTableauFn - Function to check tableau move validity (defaults to using state.tableau)
+ * @param canMoveToFoundationFn - Function to check foundation move validity (defaults to using state.foundations)
  * @returns Array of possible moves (unscored)
  * 
  * @public
+ * @remarks The default parameters intentionally capture `state` from the function parameter.
+ * This closure is evaluated at call time, ensuring correct behavior.
  */
 export function collectPossibleMoves(
   state: GameState,
