@@ -23,7 +23,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@chayuto/solitaire-core": "^0.1.0"
+    "@chayuto/solitaire-core": "workspace:^0.1.0"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

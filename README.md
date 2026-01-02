@@ -23,41 +23,41 @@ A modern, interactive Solitaire (Klondike) card game built with React and TypeSc
 - **Animations**: Framer Motion 12.23
 - **Testing**: Vitest 4.0 with React Testing Library
 - **Code Quality**: ESLint with TypeScript support
-- **Monorepo**: npm workspaces with 3 packages
+- **Monorepo**: pnpm workspaces with 3 packages
 
 ## 📦 Installation
 
 ```bash
 # Install all workspace dependencies
-npm install
+pnpm install
 
 # Build core library (required for first run)
-npm run build:libs
+pnpm run build:libs
 ```
 
 ## 🚀 Development
 
 ```bash
 # Start development server
-npm run dev
+pnpm run dev
 
 # Build all packages
-npm run build:all
+pnpm run build:all
 
 # Build libraries only
-npm run build:libs
+pnpm run build:libs
 
 # Build app for production
-npm run build
+pnpm run build
 
 # Preview production build
-npm run preview
+pnpm run preview
 
 # Run tests for all packages
-npm run test:libs
+pnpm run test:libs
 
 # Type check all packages
-npm run typecheck
+pnpm run typecheck
 ```
 
 ## 🌐 Deployment
@@ -84,28 +84,28 @@ To enable GitHub Pages after pushing:
 
 ```bash
 # Run tests in watch mode
-npm test
+pnpm test
 
 # Run tests once
-npm run test:run
+pnpm run test:run
 
 # Run tests with UI
-npm run test:ui
+pnpm run test:ui
 
 # Generate coverage report
-npm run test:coverage
+pnpm run test:coverage
 ```
 
 ## 🔍 Code Quality
 
 ```bash
 # Run ESLint
-npm run lint
+pnpm run lint
 ```
 
 ## 📁 Monorepo Structure
 
-This project uses npm workspaces with three packages:
+This project uses pnpm workspaces with three packages:
 
 ```
 packages/
@@ -155,7 +155,7 @@ packages/
   - Imports game logic from `@chayuto/solitaire-core`
 
 **Recent Architecture Update (Nov 2025):** Extracted game logic into reusable libraries:
-- Created monorepo structure with npm workspaces
+- Created monorepo structure with pnpm workspaces
 - Extracted 800+ lines of pure game logic into `@chayuto/solitaire-core`
 - Removed duplicate helper functions (544 lines eliminated)
 - App now uses library for all game logic
