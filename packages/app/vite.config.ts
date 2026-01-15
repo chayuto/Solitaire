@@ -16,7 +16,7 @@ const getBuildInfo = () => {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/Solitaire/',
+  base: '/',
   define: {
     __BUILD_TIME__: JSON.stringify(getBuildInfo().buildTime),
     __COMMIT_HASH__: JSON.stringify(getBuildInfo().commitHash),
