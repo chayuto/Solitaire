@@ -10,6 +10,7 @@ import { canMoveToTableau, canMoveSequence, getValidTableauDestinations } from '
 import { canMoveToFoundation, hasValidFoundationDestination } from '../rules/foundation';
 import { getCompletionProgress as calcCompletionProgress, getPerceivedDifficulty as calcPerceivedDifficulty } from '../scoring';
 import { validateGameState } from '../utils/validation';
+import { TABLEAU_COLUMNS, CARDS_PER_SUIT } from '../constants';
 
 /**
  * GameEngine class for Klondike Solitaire
@@ -28,10 +29,10 @@ export class GameEngine {
     const deck = options?.customDeck ?? arrangeDeckByDifficulty(difficulty, options?.seed);
 
     // Deal cards to tableau (1, 2, 3, ..., 7 cards per column)
-    const tableau: any[][] = Array(7).fill(null).map(() => []);
+    const tableau: any[][] = Array(TABLEAU_COLUMNS).fill(null).map(() => []);
     let deckIndex = 0;
     
-    for (let col = 0; col < 7; col++) {
+    for (let col = 0; col < TABLEAU_COLUMNS; col++) {
       for (let row = 0; row <= col; row++) {
         const card = deck[deckIndex];
         tableau[col].push({
@@ -380,7 +381,7 @@ export class GameEngine {
     }
 
     // 3. Tableau moves
-    for (let col = 0; col < 7; col++) {
+    for (let col = 0; col < TABLEAU_COLUMNS; col++) {
       const pile = state.tableau[col];
       if (pile.length === 0) continue;
       
@@ -429,10 +430,10 @@ export class GameEngine {
     
     // Check if all four foundations have all 13 cards
     return (
-      state.foundations.hearts.length === 13 &&
-      state.foundations.diamonds.length === 13 &&
-      state.foundations.clubs.length === 13 &&
-      state.foundations.spades.length === 13
+      state.foundations.hearts.length === CARDS_PER_SUIT &&
+      state.foundations.diamonds.length === CARDS_PER_SUIT &&
+      state.foundations.clubs.length === CARDS_PER_SUIT &&
+      state.foundations.spades.length === CARDS_PER_SUIT
     );
   }
 
