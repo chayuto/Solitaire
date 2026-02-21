@@ -5,11 +5,7 @@
 
 import type { GameState, Card, Rank } from '../types';
 import { getRankValue } from './card';
-
-/**
- * Total number of cards in a standard deck
- */
-const DECK_SIZE = 52;
+import { DECK_SIZE, TABLEAU_COLUMNS } from '../constants';
 
 /**
  * Counts the total number of cards in a game state
@@ -166,8 +162,8 @@ export function isValidGameState(state: GameState): boolean {
  */
 export function validateGameState(state: GameState): void {
   // Rule 7: Check tableau has 7 columns
-  if (state.tableau.length !== 7) {
-    throw new Error(`Tableau must have exactly 7 columns, found ${state.tableau.length}`);
+  if (state.tableau.length !== TABLEAU_COLUMNS) {
+    throw new Error(`Tableau must have exactly ${TABLEAU_COLUMNS} columns, found ${state.tableau.length}`);
   }
   
   // Rule 1: Check total card count

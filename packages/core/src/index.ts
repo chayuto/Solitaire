@@ -28,12 +28,23 @@ export type {
   InitializeOptions,
 } from './types';
 
+// Game constants
+export {
+  DECK_SIZE,
+  TABLEAU_COLUMNS,
+  CARDS_PER_SUIT,
+  NUM_SUITS,
+  TABLEAU_INITIAL_CARDS,
+} from './constants';
+
 // Utility exports
 export {
   // Card utilities
   SUITS,
   RANKS,
   RANK_VALUES,
+  RED_SUITS,
+  BLACK_SUITS,
   isRed,
   isRedCard,
   isBlack,

@@ -5,6 +5,7 @@
 
 import type { GameState, Card } from '../types';
 import { getRankValue } from '../utils/card';
+import { DECK_SIZE } from '../constants';
 
 /**
  * Calculate the game completion progress as a percentage
@@ -20,7 +21,7 @@ export function getCompletionProgress(state: GameState): number {
     state.foundations.clubs.length +
     state.foundations.spades.length;
   
-  return (cardsInFoundations / 52) * 100;
+  return (cardsInFoundations / DECK_SIZE) * 100;
 }
 
 /**

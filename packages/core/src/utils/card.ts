@@ -32,15 +32,15 @@ export const RANK_VALUES: Record<Rank, number> = {
 
 /**
  * Red suits for color checking
- * @internal
+ * @public
  */
-const RED_SUITS: readonly Suit[] = ['hearts', 'diamonds'] as const;
+export const RED_SUITS: readonly Suit[] = ['hearts', 'diamonds'] as const;
 
 /**
  * Black suits for color checking
- * @internal
+ * @public
  */
-const BLACK_SUITS: readonly Suit[] = ['clubs', 'spades'] as const;
+export const BLACK_SUITS: readonly Suit[] = ['clubs', 'spades'] as const;
 
 /**
  * Checks if a suit is red (hearts or diamonds)
