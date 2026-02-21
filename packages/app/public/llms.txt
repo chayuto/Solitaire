@@ -1,0 +1,43 @@
+# Solitaire (Klondike)
+
+> A free, open-source Klondike Solitaire card game built with React, TypeScript, and Tailwind CSS. Play the classic single-player card game directly in your web browser with drag-and-drop support, animations, and automatic move detection.
+
+## About
+
+Solitaire is a browser-based implementation of the classic Klondike Solitaire card game. It features a modern UI with smooth animations powered by Framer Motion, drag-and-drop card interactions via @dnd-kit, and a responsive design that works on desktop and mobile devices.
+
+Key features:
+- Classic Klondike Solitaire gameplay with standard rules
+- Drag-and-drop card movement
+- Automatic card placement to foundations
+- Move history and undo functionality
+- Game state tracking with win detection
+- Difficulty scoring and completion progress
+- Responsive design for desktop and mobile
+- Smooth animations and visual feedback
+- No account required, no ads, fully client-side
+
+## Technology
+
+- Frontend: React 19, TypeScript 5.9, Tailwind CSS 4
+- State management: Zustand 5
+- Drag and drop: @dnd-kit 6
+- Animations: Framer Motion 12
+- Build: Vite 7, pnpm workspaces
+- Hosting: GitHub Pages
+
+## Architecture
+
+- [Game core library](https://github.com/chayuto/Solitaire/tree/main/packages/core): Pure TypeScript game logic with zero dependencies — card types, deck utilities, game rules, move validation, and scoring
+- [MCTS solver](https://github.com/chayuto/Solitaire/tree/main/packages/mcts): Monte Carlo Tree Search solver for the game (placeholder)
+- [Web application](https://github.com/chayuto/Solitaire/tree/main/packages/app): React-based UI with Zustand store, drag-and-drop, and animations
+
+## Links
+
+- [Play Solitaire](https://chayuto.github.io/Solitaire/): Live game — play directly in your browser
+- [Source Code](https://github.com/chayuto/Solitaire): GitHub repository with full source code and documentation
+
+## Optional
+
+- [Core library README](https://github.com/chayuto/Solitaire/blob/main/packages/core/README.md): Detailed documentation for the game logic library
+- [Project README](https://github.com/chayuto/Solitaire/blob/main/README.md): Project overview, setup instructions, and development guide

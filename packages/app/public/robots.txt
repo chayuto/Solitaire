@@ -1,0 +1,36 @@
+# robots.txt for Solitaire (Klondike) - https://chayuto.github.io/Solitaire/
+# Last updated: 2026-02-21
+
+# Allow all search engine crawlers
+User-agent: *
+Allow: /
+Disallow:
+
+# Sitemap location
+Sitemap: https://chayuto.github.io/Solitaire/sitemap.xml
+
+# AI Crawler Directives
+# Allow AI crawlers to access and understand the site
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Cohere-AI
+Allow: /
