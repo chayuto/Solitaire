@@ -88,7 +88,7 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
   };
 
   return (
-    <div className="relative w-20" style={{ minHeight: `${columnHeight}px` }}>
+    <div data-testid={`tableau-column-${columnIndex}`} className="relative w-20" style={{ minHeight: `${columnHeight}px` }}>
       {column.length > 0 ? (
         <div className="relative">
           <AnimatePresence mode="popLayout">

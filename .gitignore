@@ -25,3 +25,9 @@ dist-ssr
 
 /docs/internal
 /docs/personal
+
+# Playwright
+/packages/app/test-results/
+/packages/app/playwright-report/
+/packages/app/blob-report/
+/packages/app/playwright/.cache/

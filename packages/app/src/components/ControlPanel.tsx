@@ -94,11 +94,11 @@ const ControlPanel: React.FC = () => {
   };
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-4 w-full lg:w-52">
+    <div data-testid="control-panel" className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-4 w-full lg:w-52">
       <h2 className="text-lg font-bold text-gray-800 mb-4 text-center">Controls</h2>
       
       {/* Move Counter */}
-      <div className="bg-green-600 text-white font-bold py-2 px-4 rounded text-center mb-4">
+      <div data-testid="move-counter" className="bg-green-600 text-white font-bold py-2 px-4 rounded text-center mb-4">
         <div className="text-sm">Moves</div>
         <div className="text-2xl">{moveCount}</div>
       </div>
@@ -149,6 +149,7 @@ const ControlPanel: React.FC = () => {
           {([1, 2, 3, 4, 5] as Difficulty[]).map((level) => (
             <button
               key={level}
+              data-testid={`difficulty-btn-${level}`}
               onClick={() => handleDifficultyChange(level)}
               className={`flex-1 py-2 px-1 rounded text-xs font-semibold transition-colors ${
                 difficulty === level
@@ -165,6 +166,7 @@ const ControlPanel: React.FC = () => {
       
       <div className="space-y-2">
         <button
+          data-testid="new-game-btn"
           onClick={handleNewGame}
           className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
@@ -172,6 +174,7 @@ const ControlPanel: React.FC = () => {
         </button>
         
         <button
+          data-testid="import-btn"
           onClick={handleImport}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
@@ -179,6 +182,7 @@ const ControlPanel: React.FC = () => {
         </button>
         
         <button
+          data-testid="export-btn"
           onClick={handleExport}
           className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
@@ -187,6 +191,7 @@ const ControlPanel: React.FC = () => {
 
         {moveCount > 0 && !replayMode && (
           <button
+            data-testid="replay-btn"
             onClick={startReplay}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
           >
@@ -197,6 +202,7 @@ const ControlPanel: React.FC = () => {
         <div className="border-t border-gray-300 my-2"></div>
         
         <button
+          data-testid="valid-moves-btn"
           onClick={toggleValidMoves}
           disabled={replayMode}
           className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
@@ -209,6 +215,7 @@ const ControlPanel: React.FC = () => {
         </button>
         
         <button
+          data-testid="god-mode-btn"
           onClick={toggleGodMode}
           disabled={replayMode}
           className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
@@ -221,6 +228,7 @@ const ControlPanel: React.FC = () => {
         </button>
         
         <button
+          data-testid="auto-play-btn"
           onClick={toggleAutoPlay}
           disabled={replayMode}
           className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
