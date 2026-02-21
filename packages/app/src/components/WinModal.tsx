@@ -78,6 +78,7 @@ const WinModal: React.FC = () => {
           exit="hidden"
         >
           <motion.div
+            data-testid="win-modal"
             className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center"
             variants={modalVariants}
             initial="hidden"

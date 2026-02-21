@@ -81,6 +81,10 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
     if (godMode) {
       return (
         <motion.div 
+          data-testid={`card-${card.id}`}
+          data-card-suit={suit}
+          data-card-rank={rank}
+          data-card-faceup="false"
           className="relative"
           initial={shouldReduceMotion ? undefined : "faceDown"}
           animate={shouldReduceMotion ? undefined : "faceDown"}
@@ -114,6 +118,10 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
     
     return (
       <motion.div
+        data-testid={`card-${card.id}`}
+        data-card-suit={suit}
+        data-card-rank={rank}
+        data-card-faceup="false"
         onClick={onClick}
         className={`w-20 h-28 bg-blue-900 border-2 border-blue-700 rounded-lg flex items-center justify-center cursor-pointer shadow-md select-none ${getHighlightClass()}`}
         initial={shouldReduceMotion ? undefined : "faceDown"}
@@ -130,6 +138,10 @@ const Card: React.FC<CardProps> = ({ card, onClick, isInteractable = false, isSe
 
   return (
     <motion.div
+      data-testid={`card-${card.id}`}
+      data-card-suit={suit}
+      data-card-rank={rank}
+      data-card-faceup="true"
       onClick={onClick}
       className={`w-20 h-28 bg-white border-2 border-gray-300 rounded-lg flex flex-col p-2 cursor-pointer shadow-md select-none ${color} ${getHighlightClass()}`}
       initial={shouldReduceMotion ? undefined : "faceUp"}

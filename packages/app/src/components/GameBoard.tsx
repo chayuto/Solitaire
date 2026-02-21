@@ -32,7 +32,7 @@ const GameBoard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-700 via-green-600 to-green-800">
+    <div data-testid="game-board" className="min-h-screen bg-gradient-to-br from-green-700 via-green-600 to-green-800">
       <WinModal />
       
       {/* Desktop: side panels, Mobile: stacked layout */}

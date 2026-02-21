@@ -59,7 +59,7 @@ const DiscardPile: React.FC = () => {
   };
 
   return (
-    <div className="relative w-20 h-28">
+    <div data-testid="discard-pile" className="relative w-20 h-28">
       <AnimatePresence mode="wait">
         {discardPile.length > 0 ? (
           <motion.div 

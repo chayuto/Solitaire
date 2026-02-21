@@ -28,6 +28,7 @@ const DrawPile: React.FC = () => {
 
   return (
     <motion.div 
+      data-testid="draw-pile"
       className={`relative w-20 h-28 ${replayMode ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
       onClick={replayMode ? undefined : drawCard}
       whileHover={shouldReduceMotion || replayMode ? {} : { scale: 1.05 }}
