@@ -4,7 +4,7 @@
 
 **Solitaire (Klondike) card game** - Monorepo with game logic libraries and React app.
 
-**Stack:** React 19.2 + TypeScript 5.9 + Vite 7.2 + Zustand 5.0 + Tailwind 4.1 + @dnd-kit 6.3 + Vitest 4.0 | Node 20.x | Monorepo (3 packages)
+**Stack:** React 19.2 + TypeScript 5.9 + Vite 8 + Zustand 5.0 + Tailwind 4 + Vitest 4 + Playwright | Node 24.x LTS + pnpm 11 | Monorepo (3 packages)
 
 ## Essential Commands
 
@@ -26,11 +26,25 @@ npm run typecheck       # Type check all packages
 
 **Known Issue:** `npm run test:coverage` requires missing `@vitest/coverage-v8` - skip unless specifically needed.
 
-## CI/CD - Must Pass All Three Jobs
+## CI/CD - Must Pass All Jobs
 
-`.github/workflows/ci.yml` runs 3 parallel jobs: **Lint**, **Test**, **Build**. Each runs `npm ci`, `npm run build:libs`, then its command.
+`.github/workflows/ci.yml` runs 4 parallel jobs: **Lint**, **Test**, **E2E**, **Build** on Node 24 + pnpm 11. Each installs deps, runs `build:libs`, then its command (E2E also installs the Playwright Chromium browser).
 
-**Validate before committing:** `npm ci && npm run build:libs && npm run lint && npm run test:run && npm run build` (must all pass)
+**Validate before committing:** `pnpm install && pnpm run build:libs && pnpm run lint && pnpm run test:run && pnpm run build` (must all pass; run `pnpm run test:e2e` for UI changes)
+
+## High-Fidelity / Agentic Testing
+
+The app supports deterministic, agent-friendly UI testing — see the
+`high-fidelity-frontend-testing` skill (`.claude/skills/`).
+
+- **Seeds:** `/?seed=42` (and `&difficulty=1..5`) give an identical deal every
+  run (`packages/app/src/store/urlConfig.ts`).
+- **Test bridge:** `window.__solitaire` (`packages/app/src/testBridge.ts`) — a
+  typed API to introspect and drive the game.
+- **Selectors:** cards/piles/controls carry `data-testid`; add them to new
+  interactive elements.
+- **e2e:** `packages/app/e2e/*.spec.ts` (Playwright); `pnpm run test:e2e`.
+- **Playwright MCP:** `.mcp.json` registers `@playwright/mcp`.
 
 ## Monorepo Structure
 
@@ -142,17 +156,18 @@ All use `useGameStore()` hook. @dnd-kit for drag-and-drop.
 
 ## Validation Checklist
 
-**Required:** 
-1. `npm ci` - Install dependencies
-2. `npm run build:libs` - Build core and mcts libraries
-3. `npm run lint` - Must pass with 0 errors
-4. `npm run test:run` - All 90 tests must pass
-5. `npm run build` - Must succeed, verify packages/app/dist/ created
+**Required:**
+1. `pnpm install` - Install dependencies
+2. `pnpm run build:libs` - Build core and mcts libraries
+3. `pnpm run lint` - Must pass with 0 errors
+4. `pnpm run test:run` - All unit tests must pass
+5. `pnpm run build` - Must succeed, verify packages/app/dist/ created
 
-**Optional:** 
-- `npm run dev` (:5173) to test manually
-- `npm run preview` (:4173) to verify production build
-- `npm run test:libs` to test libraries separately
+**Optional:**
+- `pnpm run test:e2e` - Playwright e2e (run for any UI change)
+- `pnpm run dev` (:5173) to test manually
+- `pnpm run preview` (:4173) to verify production build
+- `pnpm run test:libs` to test libraries separately
 
 ## Known Issues
 
@@ -162,5 +177,5 @@ All use `useGameStore()` hook. @dnd-kit for drag-and-drop.
 
 ## Troubleshooting
 
-If commands fail: verify Node 20.x → `rm -rf node_modules dist` → `npm ci` → retry
+If commands fail: verify Node 24.x LTS + pnpm 11 → `rm -rf node_modules dist` → `pnpm install` → retry
 **Reference:** .github/workflows/ci.yml shows exact passing sequence

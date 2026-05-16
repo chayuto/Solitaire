@@ -82,6 +82,8 @@ To enable GitHub Pages after pushing:
 
 ## 🧪 Testing
 
+### Unit tests (Vitest)
+
 ```bash
 # Run tests in watch mode
 pnpm test
@@ -95,6 +97,28 @@ pnpm run test:ui
 # Generate coverage report
 pnpm run test:coverage
 ```
+
+### End-to-end tests (Playwright)
+
+```bash
+# Run the full e2e suite (starts the dev server automatically)
+pnpm run test:e2e
+
+# Interactive UI mode
+pnpm --filter app test:e2e:ui
+```
+
+The app is instrumented for **high-fidelity, deterministic UI testing**:
+
+- **Seeded deals** — `?seed=42` (optionally `&difficulty=1..5`) reproduces an
+  identical game every run.
+- **`window.__solitaire` test bridge** — a typed API to introspect and drive the
+  game from automation without simulating pointer input.
+- **Stable selectors** — every card, pile and control carries a `data-testid`.
+- **Playwright MCP** — `.mcp.json` enables agent-driven browser testing and
+  visual debugging.
+
+See `.claude/skills/high-fidelity-frontend-testing/` for the full guide.
 
 ## 🔍 Code Quality
 
