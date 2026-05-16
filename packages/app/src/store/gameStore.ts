@@ -17,6 +17,7 @@ import {
   canAutoComplete,
 } from './uiHelpers';
 import { uiToCore } from '../adapters/coreAdapter';
+import { initialGameConfig } from './urlConfig';
 import { DEFAULT_DIFFICULTY, TABLEAU_COLUMNS, AUTOPLAY_TIMING, AUTOPLAY_LOOP_DETECTION } from '../constants';
 import { collectPossibleMoves, scoreMoves, filterLoopingMoves } from '../autoplay';
 
@@ -25,7 +26,7 @@ import { collectPossibleMoves, scoreMoves, filterLoopingMoves } from '../autopla
  * Manages all game logic and state mutations for Solitaire
  */
 interface GameStore extends GameState {
-  initializeGame: (difficulty?: Difficulty) => void;
+  initializeGame: (difficulty?: Difficulty, seed?: number) => void;
   setDifficulty: (difficulty: Difficulty) => void;
   selectCard: (source: 'tableau' | 'discard', columnIndex?: number, cardIndex?: number) => void;
   deselectCard: () => void;
@@ -58,10 +59,16 @@ interface GameStore extends GameState {
  * Initializes a new game state with the specified difficulty
  * Deals cards to tableau and sets up initial game conditions
  * @param difficulty - Game difficulty level (default: 3 = Normal)
+ * @param seed - Optional RNG seed for a reproducible deal. Same seed => the
+ *   exact same board every time — required for deterministic, high-fidelity
+ *   automated/agentic testing. When omitted, the deal is random.
  * @returns Complete initial game state
  */
-const initializeGameState = (difficulty: Difficulty = DEFAULT_DIFFICULTY): GameState => {
-  const deck = arrangeDeckByDifficulty(difficulty);
+const initializeGameState = (
+  difficulty: Difficulty = DEFAULT_DIFFICULTY,
+  seed?: number,
+): GameState => {
+  const deck = arrangeDeckByDifficulty(difficulty, seed);
   const tableau: Card[][] = Array(TABLEAU_COLUMNS).fill(null).map(() => []);
   
   // Deal cards to tableau (1 card to first column, 2 to second, etc.)
@@ -129,10 +136,10 @@ const initializeGameState = (difficulty: Difficulty = DEFAULT_DIFFICULTY): GameS
 
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  ...initializeGameState(),
-  initializeGame: (difficulty?: Difficulty) => {
+  ...initializeGameState(initialGameConfig.difficulty, initialGameConfig.seed),
+  initializeGame: (difficulty?: Difficulty, seed?: number) => {
     const currentDifficulty = difficulty ?? get().difficulty ?? 3;
-    set(initializeGameState(currentDifficulty));
+    set(initializeGameState(currentDifficulty, seed));
   },
   setDifficulty: (difficulty: Difficulty) => set({ difficulty }),
   
