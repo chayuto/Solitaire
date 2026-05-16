@@ -658,8 +658,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     );
     
     // Score all moves
-    const scoredMoves = scoreMoves(possibleMoves, state);
-    
+    const allScoredMoves = scoreMoves(possibleMoves, state);
+
+    // Detect fast auto-complete mode (draw pile empty, every tableau card face up).
+    // In this endgame state the columns are sorted runs and the only productive
+    // move is sending cards to the foundations. Tableau-to-tableau moves merely
+    // shuffle sorted stacks around (and can loop forever), so when any foundation
+    // move exists we restrict selection to foundation moves only.
+    const isAutoCompleteMode = state.drawPile.length === 0 &&
+      state.tableau.every(col => col.every(card => card.faceUp));
+    const foundationMoves = allScoredMoves.filter(m => m.targetType === 'foundation');
+    const restrictToFoundations = isAutoCompleteMode && foundationMoves.length > 0;
+    const scoredMoves = restrictToFoundations ? foundationMoves : allScoredMoves;
+
     // Filter out moves that would result in loop states
     const nonLoopingMoves = filterLoopingMoves(scoredMoves, state, updatedStateHistory);
 
@@ -682,12 +693,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Sort by score (highest first)
     nonLoopingMoves.sort((a, b) => b.score - a.score);
     
-    // Filter out moves with negative scores (useless moves)
-    const worthwhileMoves = nonLoopingMoves.filter(move => move.score > 0);
+    // Filter out moves with negative scores (useless moves). When restricted to
+    // foundation moves every move is necessary endgame progress, so keep them
+    // all even if a tableau-building heuristic scored one negative.
+    const worthwhileMoves = restrictToFoundations
+      ? nonLoopingMoves
+      : nonLoopingMoves.filter(move => move.score > 0);
 
-    // Check if we're in fast auto-complete mode (all tableau cards face up and no draw pile)
-    const isAutoCompleteMode = state.drawPile.length === 0 && 
-      state.tableau.every(col => col.every(card => card.faceUp));
     const moveDelay = isAutoCompleteMode ? AUTOPLAY_TIMING.FAST_MOVE_DELAY : AUTOPLAY_TIMING.NORMAL_MOVE_DELAY;
     const selectDelay = isAutoCompleteMode ? AUTOPLAY_TIMING.SELECT_DELAY_FAST : AUTOPLAY_TIMING.SELECT_DELAY_NORMAL;
 
