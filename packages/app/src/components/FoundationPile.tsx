@@ -66,7 +66,13 @@ const FoundationPile: React.FC<FoundationPileProps> = ({ suit }) => {
   };
 
   return (
-    <div data-testid={`foundation-${suit}`} className="relative w-20 h-28" onClick={handleClick}>
+    <div
+      data-testid={`foundation-${suit}`}
+      role="button"
+      aria-label={`${suit} foundation, ${foundation.length} cards`}
+      className="relative w-20 h-28"
+      onClick={handleClick}
+    >
       <AnimatePresence mode="wait">
         {foundation.length > 0 ? (
           <motion.div 

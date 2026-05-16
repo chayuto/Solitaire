@@ -48,7 +48,7 @@ test.describe('window.__solitaire test bridge', () => {
       keys: Object.keys(window.__solitaire!).sort(),
     }));
 
-    expect(info.version).toBe(1);
+    expect(info.version).toBe(2);
     expect(info.keys).toEqual(
       [
         'deselect',
@@ -58,6 +58,8 @@ test.describe('window.__solitaire test bridge', () => {
         'getState',
         'getSummary',
         'isWon',
+        'listScenarios',
+        'loadScenario',
         'loadState',
         'moveToFoundation',
         'moveToTableau',

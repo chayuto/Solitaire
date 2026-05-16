@@ -19,6 +19,7 @@
  */
 
 import { useGameStore } from './store/gameStore';
+import { scenarios, scenarioNames, isScenarioName } from './testScenarios';
 import type { Card, Difficulty, GameState, Suit } from './types';
 
 /** Compact, token-efficient game snapshot for agents. */
@@ -94,6 +95,13 @@ export interface SolitaireTestBridge {
     | { source: 'discard' }
     | { source: 'foundation'; suit: Suit }
     | null;
+  /** Names of the built-in board-state fixtures available to `loadScenario`. */
+  listScenarios: () => string[];
+  /**
+   * Load a named board-state fixture for a fast, deterministic re-run — see
+   * the `testScenarios` module. Returns `false` for an unknown name.
+   */
+  loadScenario: (name: string) => boolean;
 }
 
 declare global {
@@ -171,7 +179,7 @@ export function installTestBridge(): void {
   }
 
   const bridge: SolitaireTestBridge = {
-    version: 1,
+    version: 2,
     getState: () => useGameStore.getState(),
     getSummary: () => buildSummary(useGameStore.getState()),
     newGame: (options) =>
@@ -187,6 +195,10 @@ export function installTestBridge(): void {
     toggleAutoPlay: () => useGameStore.getState().toggleAutoPlay(),
     isWon: () => useGameStore.getState().gameWon,
     findCard: (cardId) => locateCard(useGameStore.getState(), cardId),
+    listScenarios: () => [...scenarioNames],
+    loadScenario: (name) =>
+      isScenarioName(name) &&
+      useGameStore.getState().importGameState(JSON.stringify(scenarios[name]())),
   };
 
   window.__solitaire = bridge;

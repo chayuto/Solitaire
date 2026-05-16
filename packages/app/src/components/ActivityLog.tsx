@@ -92,11 +92,12 @@ const ActivityLog: React.FC = () => {
   };
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl w-full overflow-hidden">
+    <div data-testid="activity-log" className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl w-full overflow-hidden">
       {/* Header */}
       <div className="bg-blue-600 text-white px-4 py-2 flex items-center justify-between">
         <h3 className="text-lg font-bold">Activity Log</h3>
         <button
+          data-testid="activity-log-toggle-btn"
           onClick={handleToggleMinimize}
           className="hover:bg-blue-700 rounded px-2 py-1 transition-colors text-sm font-semibold"
           aria-label={isMinimized ? 'Expand' : 'Minimize'}
@@ -111,6 +112,7 @@ const ActivityLog: React.FC = () => {
           {/* Controls */}
           <div className="p-3 border-b border-gray-200 flex gap-2">
             <button
+              data-testid="activity-log-copy-btn"
               onClick={handleCopyToClipboard}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded transition-colors text-sm"
               disabled={visibleLogs.length === 0}
@@ -118,6 +120,7 @@ const ActivityLog: React.FC = () => {
               📋 Copy
             </button>
             <button
+              data-testid="activity-log-clear-btn"
               onClick={handleClearView}
               className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-3 rounded transition-colors text-sm"
               disabled={visibleLogs.length === 0}
@@ -127,7 +130,7 @@ const ActivityLog: React.FC = () => {
           </div>
 
           {/* Log Display */}
-          <div className="h-48 lg:h-96 overflow-y-auto p-3 bg-gray-50">
+          <div data-testid="activity-log-entries" className="h-48 lg:h-96 overflow-y-auto p-3 bg-gray-50">
             {visibleLogs.length === 0 ? (
               <p className="text-gray-500 text-center text-sm mt-8">No activities yet</p>
             ) : (
@@ -138,6 +141,7 @@ const ActivityLog: React.FC = () => {
                   return (
                     <div
                       key={`${move.timestamp}-${index}`}
+                      data-testid="activity-log-entry"
                       className={`text-xs p-2 rounded shadow-sm border transition-colors ${
                         isDeadendOrLoop
                           ? 'bg-red-50 border-red-300 text-red-900 font-semibold'
@@ -156,7 +160,7 @@ const ActivityLog: React.FC = () => {
 
           {/* Footer */}
           <div className="px-3 py-2 bg-gray-100 border-t border-gray-200">
-            <p className="text-xs text-gray-600 text-center">
+            <p data-testid="activity-log-count" className="text-xs text-gray-600 text-center">
               Total: {visibleLogs.length} {visibleLogs.length === 1 ? 'activity' : 'activities'}
             </p>
           </div>

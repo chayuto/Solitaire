@@ -88,7 +88,13 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
   };
 
   return (
-    <div data-testid={`tableau-column-${columnIndex}`} className="relative w-20" style={{ minHeight: `${columnHeight}px` }}>
+    <div
+      data-testid={`tableau-column-${columnIndex}`}
+      role="group"
+      aria-label={`Tableau column ${columnIndex + 1}`}
+      className="relative w-20"
+      style={{ minHeight: `${columnHeight}px` }}
+    >
       {column.length > 0 ? (
         <div className="relative">
           <AnimatePresence mode="popLayout">
@@ -140,6 +146,8 @@ const TableauColumn: React.FC<TableauColumnProps> = ({ columnIndex }) => {
       ) : (
         <motion.div
           onClick={handleEmptyColumnClick}
+          role="button"
+          aria-label={`Tableau column ${columnIndex + 1}, empty`}
           className={`w-20 h-28 border-2 border-dashed rounded-lg bg-gray-100 cursor-pointer transition-all ${
             isValidDestination
               ? 'border-cyan-500 bg-cyan-100 ring-4 ring-cyan-400 shadow-lg shadow-cyan-500/50'
