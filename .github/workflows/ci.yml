@@ -126,7 +126,7 @@ jobs:
         run: pnpm run build:libs
 
       - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+        run: pnpm --filter app exec playwright install chromium --with-deps
 
       - name: Run E2E tests
         run: pnpm run test:e2e
