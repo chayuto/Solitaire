@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { Move, Card } from '../types';
 
 const ActivityLog: React.FC = () => {
   const moveHistory = useGameStore((state) => state.moveHistory);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [visibleLogs, setVisibleLogs] = useState<Move[]>([]);
+  // "Clear View" hides the log until the next move arrives. Remembering the
+  // history length at clear time keeps visibleLogs a pure derivation of
+  // moveHistory, rather than mirroring it into state via a setState-in-effect.
+  const [clearedAtLength, setClearedAtLength] = useState(-1);
 
-  // Update visible logs when move history changes
-  useEffect(() => {
-    setVisibleLogs(moveHistory);
-  }, [moveHistory]);
+  const visibleLogs: Move[] =
+    moveHistory.length === clearedAtLength ? [] : moveHistory;
 
   const formatCard = (card: Card): string => {
     const suitSymbols: Record<string, string> = {
@@ -83,7 +84,7 @@ const ActivityLog: React.FC = () => {
   };
 
   const handleClearView = () => {
-    setVisibleLogs([]);
+    setClearedAtLength(moveHistory.length);
   };
 
   const handleToggleMinimize = () => {
