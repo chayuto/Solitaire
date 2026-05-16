@@ -12,6 +12,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  /* post-deploy.spec.ts targets a live URL — see playwright.deploy.config.ts */
+  testIgnore: 'post-deploy.spec.ts',
   /* Run tests in parallel for speed */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code */

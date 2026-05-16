@@ -16,6 +16,7 @@
     "test": "pnpm --filter app test",
     "test:run": "pnpm --filter app test:run",
     "test:e2e": "pnpm --filter app test:e2e",
+    "test:e2e:deploy": "pnpm --filter app test:e2e:deploy",
     "test:libs": "pnpm --filter @chayuto/solitaire-core test && pnpm --filter @chayuto/solitaire-mcts test",
     "typecheck": "pnpm -r typecheck",
     "preview": "pnpm --filter app preview"
