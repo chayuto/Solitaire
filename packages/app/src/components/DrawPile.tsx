@@ -27,8 +27,14 @@ const DrawPile: React.FC = () => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       data-testid="draw-pile"
+      role="button"
+      aria-label={
+        drawPile.length > 0
+          ? `Draw pile, ${drawPile.length} cards`
+          : 'Draw pile empty, click to recycle'
+      }
       className={`relative w-20 h-28 ${replayMode ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
       onClick={replayMode ? undefined : drawCard}
       whileHover={shouldReduceMotion || replayMode ? {} : { scale: 1.05 }}

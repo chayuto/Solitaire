@@ -63,12 +63,28 @@ driving the game without simulating clicks. In a Playwright test use
 | `draw()` | Draw from stock (recycles when empty). |
 | `findCard(id)` | Locate a card by id, e.g. `"hearts-A"`. |
 | `toggleAutoPlay()` / `isWon()` | Drive the solver / check victory. |
+| `listScenarios()` | Names of the built-in board-state fixtures. |
+| `loadScenario(name)` | Jump straight to a named fixture (see below). |
 
-To set up an exact board state, build a `GameState` object and call
-`loadState(JSON.stringify(state))` — see `oneMoveFromWinning()` in
-`e2e/user-journey.spec.ts` for a worked example.
+To set up an exact board state, prefer a **named scenario** (next section); for
+a one-off, build a `GameState` object and call `loadState(JSON.stringify(state))`.
 
-### 3. Stable selectors (`data-testid`)
+### 3. Board-state scenarios (fast re-runs)
+
+Some positions — winnable end-games, one-move-from-win — are impractical to
+reach by playing from a seed. `packages/app/src/testScenarios.ts` defines named
+fixtures that craft them directly:
+
+| Scenario | Position |
+|---|---|
+| `oneMoveFromWinning` | One click from victory — exercises the win modal. |
+| `autoCompleteReady` | Fully-sorted end-game; auto-play solves it to a win. |
+| `fourKingsToWin` | Foundations A→Q, four Kings in the tableau. |
+
+Load one via the bridge: `window.__solitaire.loadScenario('autoCompleteReady')`,
+or in a spec with the `loadScenario(page, name)` helper. See `e2e/scenarios.spec.ts`.
+
+### 4. Stable selectors (`data-testid`)
 
 Locate elements by `data-testid`, never by coordinates. The conventions:
 
@@ -80,7 +96,17 @@ Locate elements by `data-testid`, never by coordinates. The conventions:
   `valid-moves-btn`, `god-mode-btn`, `auto-play-btn`,
   `difficulty-btn-1`..`difficulty-btn-5`, `control-panel`, `move-counter`,
   `move-count`.
+- Replay controls: `replay-controls`, `replay-exit-btn`, `replay-back-btn`,
+  `replay-play-btn`, `replay-forward-btn`, `replay-progress`,
+  `replay-progress-bar`, `replay-speed-select`.
+- Activity log: `activity-log`, `activity-log-toggle-btn`,
+  `activity-log-copy-btn`, `activity-log-clear-btn`, `activity-log-entries`,
+  `activity-log-entry`, `activity-log-count`.
 - Containers: `game-board`, `win-modal`.
+
+Every card and pile also carries an ARIA `role` + `aria-label`, so
+`getByRole('button', { name: 'A of hearts' })` and Playwright MCP's
+accessibility-tree mode work as first-class locators.
 
 In Playwright: `page.getByTestId('draw-pile')`. Always wait for readiness with
 the `waitForGame` helper (`e2e/helpers.ts`) before asserting. Add a
@@ -125,8 +151,6 @@ game).
 
 ## Recommended enhancements (not yet done)
 
-- Add ARIA `role="button"` + `aria-label` to cards/piles so Playwright MCP's
-  accessibility-tree mode and `getByRole` work as first-class locators.
 - Add `toHaveScreenshot()` visual-regression baselines once the UI is stable.
 
 ## Pre-flight checklist

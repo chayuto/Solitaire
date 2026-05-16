@@ -46,10 +46,11 @@ const ReplayControls: React.FC = () => {
   };
 
   return (
-    <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-4 mb-4">
+    <div data-testid="replay-controls" className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-4 mb-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-bold text-gray-800">🎬 Replay Mode</h3>
         <button
+          data-testid="replay-exit-btn"
           onClick={stopReplay}
           className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-semibold rounded transition-colors text-sm"
         >
@@ -60,7 +61,7 @@ const ReplayControls: React.FC = () => {
       {/* Progress Bar */}
       <div className="mb-3">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-sm font-semibold text-gray-700">
+          <span data-testid="replay-progress" className="text-sm font-semibold text-gray-700">
             Move {replayIndex} / {totalMoves}
           </span>
           <span className="text-xs text-gray-600">
@@ -68,6 +69,7 @@ const ReplayControls: React.FC = () => {
           </span>
         </div>
         <div
+          data-testid="replay-progress-bar"
           className="w-full bg-gray-200 rounded-full h-3 cursor-pointer"
           onClick={handleProgressClick}
         >
@@ -81,6 +83,7 @@ const ReplayControls: React.FC = () => {
       {/* Control Buttons */}
       <div className="flex items-center justify-center gap-2 mb-3">
         <button
+          data-testid="replay-back-btn"
           onClick={stepBackward}
           disabled={isAtStart}
           className="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -91,6 +94,7 @@ const ReplayControls: React.FC = () => {
         
         {replayPaused || isAtEnd ? (
           <button
+            data-testid="replay-play-btn"
             onClick={isAtEnd ? () => {
               goToReplayIndex(0);
               resumeReplay();
@@ -102,6 +106,7 @@ const ReplayControls: React.FC = () => {
           </button>
         ) : (
           <button
+            data-testid="replay-play-btn"
             onClick={pauseReplay}
             className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded transition-colors text-sm"
             title="Pause"
@@ -111,6 +116,7 @@ const ReplayControls: React.FC = () => {
         )}
         
         <button
+          data-testid="replay-forward-btn"
           onClick={stepForward}
           disabled={isAtEnd}
           className="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -127,6 +133,7 @@ const ReplayControls: React.FC = () => {
         </label>
         <select
           id="replay-speed"
+          data-testid="replay-speed-select"
           value={replaySpeed}
           onChange={handleSpeedChange}
           className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

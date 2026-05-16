@@ -100,7 +100,7 @@ const ControlPanel: React.FC = () => {
       {/* Move Counter */}
       <div data-testid="move-counter" className="bg-green-600 text-white font-bold py-2 px-4 rounded text-center mb-4">
         <div className="text-sm">Moves</div>
-        <div className="text-2xl">{moveCount}</div>
+        <div data-testid="move-count" className="text-2xl">{moveCount}</div>
       </div>
 
       {/* Metrics Display */}
