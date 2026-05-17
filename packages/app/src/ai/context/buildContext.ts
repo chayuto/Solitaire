@@ -125,10 +125,13 @@ export function buildContext(
   }
 
   // --- Tableau ---
-  const tableau = state.tableau.map((column) => {
+  // Each column carries an explicit 1-based `column` number so the model
+  // refers to columns the same way the move descriptions and UI do.
+  const tableau = state.tableau.map((column, index) => {
     const faceDown = column.filter((c) => !c.faceUp);
     const faceUp = column.filter((c) => c.faceUp);
     const col: AIMoveContext['tableau'][number] = {
+      column: index + 1,
       faceDownCount: faceDown.length,
       faceUp: faceUp.map(cardShort),
     };
@@ -145,7 +148,9 @@ export function buildContext(
 
   const context: AIMoveContext = {
     notation:
-      'Cards: rank then suit (A 2-9 T J Q K; H D C S). Tableau columns and faceUp arrays are listed bottom-to-top.',
+      'Cards: rank then suit (A 2-9 T J Q K; H D C S). Tableau columns are ' +
+      'numbered 1 to 7 by their "column" field; faceUp arrays are bottom-to-top. ' +
+      'Always refer to columns by that 1-based number in your reasoning.',
     foundations,
     tableau,
     discardTop,

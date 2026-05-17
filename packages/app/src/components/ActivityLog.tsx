@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { Move, Card } from '../types';
 
 const ActivityLog: React.FC = () => {
   const moveHistory = useGameStore((state) => state.moveHistory);
   const [isMinimized, setIsMinimized] = useState(false);
+  // The scrollable entries container. Newest entries render at the top, so we
+  // scroll back to the top whenever a move lands to keep the latest visible.
+  const entriesRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (entriesRef.current) {
+      entriesRef.current.scrollTop = 0;
+    }
+  }, [moveHistory.length]);
   // "Clear View" hides the log until the next move arrives. Remembering the
   // history length at clear time keeps visibleLogs a pure derivation of
   // moveHistory, rather than mirroring it into state via a setState-in-effect.
@@ -130,7 +138,7 @@ const ActivityLog: React.FC = () => {
           </div>
 
           {/* Log Display */}
-          <div data-testid="activity-log-entries" className="h-48 lg:h-96 overflow-y-auto p-3 bg-gray-50">
+          <div ref={entriesRef} data-testid="activity-log-entries" className="h-48 lg:h-96 overflow-y-auto p-3 bg-gray-50">
             {visibleLogs.length === 0 ? (
               <p className="text-gray-500 text-center text-sm mt-8">No activities yet</p>
             ) : (

@@ -33,7 +33,7 @@ export type AIContextPreset = 'minimal' | 'standard' | 'detailed' | 'custom';
 export interface AIConfig {
   /** Which LLM provider to use. */
   provider: AIProviderId;
-  /** Provider-specific model id, e.g. `gemini-2.5-flash`. */
+  /** Provider-specific model id, e.g. `gemma-4-31b-it`. */
   model: string;
   /** Active context preset. */
   preset: AIContextPreset;
@@ -88,6 +88,8 @@ export interface AILegalMove {
 
 /** One tableau column, as presented to the LLM. */
 export interface AITableauColumn {
+  /** 1-based column number (1 to 7) — matches the numbering used everywhere else. */
+  column: number;
   /** Number of face-down (hidden) cards at the bottom of the column. */
   faceDownCount: number;
   /** Face-up cards, bottom-to-top, in card shorthand (e.g. `["KS","QH"]`). */
@@ -228,7 +230,11 @@ export class AIError extends Error {
 // Store-side records
 // ---------------------------------------------------------------------------
 
-/** A record of one AI decision, kept in the store's `aiDecisionLog`. */
+/**
+ * A record of one AI decision, kept in the store's `aiDecisionLog` and included
+ * in an exported game. Carries enough detail (the choice, the reasoning, the
+ * cost, the alternatives) to serve as a row in a future benchmarking dataset.
+ */
 export interface AIDecisionRecord {
   /** When the decision was applied. */
   timestamp: number;
@@ -244,4 +250,20 @@ export interface AIDecisionRecord {
   alternativeDescribe?: string;
   /** Model that produced the decision. */
   model: string;
+  /** Index the model chose, within the legal-move list it was shown. */
+  moveIndex?: number;
+  /** Number of legal moves the model chose from. */
+  legalMoveCount?: number;
+  /** Wall-clock time for the move, including retries, in ms. */
+  durationMs?: number;
+  /** Retries performed before the move succeeded. */
+  retries?: number;
+  /** Prompt (input) tokens, when the provider reported usage. */
+  promptTokens?: number;
+  /** Thinking tokens, when reported (thinking models only). */
+  thoughtTokens?: number;
+  /** Output (answer) tokens, when reported. */
+  outputTokens?: number;
+  /** Total billed tokens, when reported. */
+  totalTokens?: number;
 }

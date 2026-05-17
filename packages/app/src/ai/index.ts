@@ -14,7 +14,29 @@ export {
   AI_DECISION_LOG_LIMIT,
   AI_AUTO_MOVE_DELAY,
   AI_AUTO_HISTORY_LIMIT,
+  AI_RETRY_MAX_ATTEMPTS,
+  AI_AUTO_RETRY_COOLDOWN,
 } from './constants';
+
+// Retry / resilience
+export {
+  suggestMoveWithRetry,
+  isRetryableAIError,
+  isTransientAIError,
+  backoffDelay,
+  RETRYABLE_ERROR_KINDS,
+  TRANSIENT_ERROR_KINDS,
+} from './retry';
+export type { RetryInfo, SuggestMoveRetryOptions } from './retry';
+
+// Diagnostics
+export {
+  recordAIDiagnostics,
+  getAIDiagnostics,
+  getLastAIDiagnostics,
+  clearAIDiagnostics,
+} from './diagnostics';
+export type { AIDiagnostics } from './diagnostics';
 
 // Configuration / presets
 export { DEFAULT_AI_CONFIG, PRESET_FIELDS, applyPreset } from './context/presets';

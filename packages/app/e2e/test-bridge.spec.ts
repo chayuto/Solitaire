@@ -57,6 +57,7 @@ test.describe('window.__solitaire test bridge', () => {
         'draw',
         'exportState',
         'findCard',
+        'getAIDiagnostics',
         'getAIState',
         'getState',
         'getSummary',

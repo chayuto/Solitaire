@@ -68,6 +68,7 @@ export interface GameState {
   autoPlayInProgress: boolean;
   autoPlayStateHistory?: string[]; // Track recent game states for loop detection
   difficulty: Difficulty; // Game difficulty level (1=Very Easy, 2=Easy, 3=Normal, 4=Hard, 5=Very Hard)
+  seed?: number; // RNG seed for the deal, when one was used (enables a repeatable re-deal)
   gameWon: boolean; // True when all cards are in foundations
   initialBoardSetup?: {
     drawPile: Card[];
@@ -94,6 +95,8 @@ export interface GameState {
   aiThinking?: boolean; // True while an AI move suggestion is in flight
   aiAutoPlay?: boolean; // True while the AI is auto-playing the whole game move-by-move
   aiThinkingSince?: number; // Timestamp the in-flight request started (for the elapsed counter)
+  aiStatus?: string; // Soft status line shown while a request is in flight (e.g. retry progress)
+  aiRetryCount?: number; // Retries performed for the in-flight/last request
   aiError?: string; // Last AI advisor error message, shown until the next request
   aiDecisionLog?: AIDecisionRecord[]; // History of AI decisions (most recent last)
   aiKeyModalOpen?: boolean; // True when the API key modal is open
