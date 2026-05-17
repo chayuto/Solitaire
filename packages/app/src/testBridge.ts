@@ -32,6 +32,10 @@ import type { Card, Difficulty, GameState, Suit } from './types';
 
 /** Compact, token-efficient game snapshot for agents. */
 export interface GameSummary {
+  /** UUIDv7 of this game session, or null if unset. */
+  gameSessionId: string | null;
+  /** Deal seed, or null when the deal was not seeded. */
+  seed: number | null;
   moveCount: number;
   drawPile: number;
   discardPile: number;
@@ -205,6 +209,8 @@ function buildSummary(state: GameState): GameSummary {
   const discardTop = state.discardPile[state.discardPile.length - 1];
 
   return {
+    gameSessionId: state.gameSessionId ?? null,
+    seed: state.seed ?? null,
     moveCount: state.moveHistory.length,
     drawPile: state.drawPile.length,
     discardPile: state.discardPile.length,

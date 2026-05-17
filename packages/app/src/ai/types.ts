@@ -185,6 +185,8 @@ export interface AIRequest {
    * Retries of the same request reuse it; each interaction is logged under it.
    */
   requestId?: string;
+  /** UUIDv7 of the game session this request belongs to. */
+  sessionId?: string;
   /** 1-based attempt number, set by the retry wrapper. */
   attempt?: number;
 }

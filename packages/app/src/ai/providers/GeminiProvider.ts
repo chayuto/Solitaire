@@ -204,6 +204,7 @@ export const geminiProvider: AIProvider = {
       recordAIInteraction({
         id: uuidv7(),
         requestId: request.requestId ?? uuidv7(),
+        sessionId: request.sessionId ?? '',
         attempt: request.attempt ?? 1,
         timestamp: Date.now(),
         provider: 'gemini',
@@ -223,6 +224,7 @@ export const geminiProvider: AIProvider = {
       recordAIInteraction({
         id: uuidv7(),
         requestId: request.requestId ?? uuidv7(),
+        sessionId: request.sessionId ?? '',
         attempt: request.attempt ?? 1,
         timestamp: Date.now(),
         provider: 'gemini',

@@ -15,6 +15,7 @@ import { AI_INTERACTION_LOG_LIMIT } from './constants';
 
 const base: AIInteraction = {
   id: 'id-1',
+  sessionId: 'session-abcdef12',
   requestId: 'req-abcdef12',
   attempt: 1,
   timestamp: 1,

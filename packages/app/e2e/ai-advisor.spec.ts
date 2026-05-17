@@ -148,6 +148,7 @@ test.describe('AI Move Advisor', () => {
       await page.evaluate(() => window.__solitaire!.exportState()),
     );
     expect(exported.seed).toBe(7);
+    expect(exported.gameSessionId).toBeTruthy();
     expect(exported.aiConfig?.model).toBeTruthy();
     expect(exported.aiDecisionLog).toHaveLength(1);
     expect(exported.aiDecisionLog[0].reasoning).toContain('export-log check');
@@ -179,6 +180,9 @@ test.describe('AI Move Advisor', () => {
     expect(last.requestId).toBeTruthy();
     expect(last.id).toBeTruthy();
     expect(last.prompt.length).toBeGreaterThan(0);
+    // The interaction is tagged with the game session id.
+    const sessionId = await page.evaluate(() => window.__solitaire!.getSummary().gameSessionId);
+    expect(last.sessionId).toBe(sessionId);
 
     // The interaction log exports as JSON for harvesting.
     const exported = JSON.parse(

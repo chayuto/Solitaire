@@ -46,6 +46,7 @@ export function createStubProvider(decide?: StubDecisionFn): AIProvider {
         recordAIInteraction({
           id: uuidv7(),
           requestId: request.requestId ?? uuidv7(),
+          sessionId: request.sessionId ?? '',
           attempt: request.attempt ?? 1,
           timestamp: Date.now(),
           provider: 'stub',
@@ -61,6 +62,7 @@ export function createStubProvider(decide?: StubDecisionFn): AIProvider {
         recordAIInteraction({
           id: uuidv7(),
           requestId: request.requestId ?? uuidv7(),
+          sessionId: request.sessionId ?? '',
           attempt: request.attempt ?? 1,
           timestamp: Date.now(),
           provider: 'stub',

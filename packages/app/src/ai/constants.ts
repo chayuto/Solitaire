@@ -31,6 +31,13 @@ export const AI_AUTO_MOVE_DELAY = 800;
 export const AI_AUTO_HISTORY_LIMIT = 60;
 
 /**
+ * How many times the same board position may recur during AI auto-play before
+ * it is treated as a stuck loop and stopped. A few repeats are allowed because
+ * the AI may legitimately unwind and retry a line of play.
+ */
+export const AI_AUTO_LOOP_LIMIT = 5;
+
+/**
  * How many times a single move request is attempted before giving up. LLM
  * endpoints are not perfectly stable; transient failures are retried with
  * exponential backoff (see `ai/retry`).
