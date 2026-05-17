@@ -9,7 +9,9 @@ import {
   getPerceivedDifficulty,
   getCompletionProgress,
   getValidTableauDestinations,
+  GameEngine,
 } from '@chayuto/solitaire-core';
+import type { MoveCommand } from '@chayuto/solitaire-core';
 import {
   hasAnyValidDestination as hasAnyValidDestinationHelper,
   hasAnyValidMoves,
@@ -20,6 +22,47 @@ import { uiToCore } from '../adapters/coreAdapter';
 import { initialGameConfig } from './urlConfig';
 import { DEFAULT_DIFFICULTY, TABLEAU_COLUMNS, AUTOPLAY_TIMING, AUTOPLAY_LOOP_DETECTION } from '../constants';
 import { collectPossibleMoves, scoreMoves, filterLoopingMoves } from '../autoplay';
+import {
+  AIError,
+  AI_DECISION_LOG_LIMIT,
+  AI_AUTO_MOVE_DELAY,
+  AI_AUTO_HISTORY_LIMIT,
+  DEFAULT_AI_CONFIG,
+  applyPreset,
+  buildContext,
+  buildSystemInstruction,
+  describeMoveCommand,
+  getEffectiveKey,
+  getProvider,
+} from '../ai';
+import type { AIConfig, AIDecisionRecord } from '../ai';
+
+/** Shared core engine instance — used for legal-move generation by the AI advisor. */
+const engine = new GameEngine();
+
+/**
+ * Abort controller for the in-flight AI request, kept at module scope because
+ * an `AbortController` is not serializable into Zustand state.
+ */
+let aiAbortController: AbortController | null = null;
+
+/**
+ * Board-state hashes seen during the current AI auto-play run, for loop
+ * detection. Reset each time AI auto-play is engaged.
+ */
+let aiAutoStateHistory: string[] = [];
+
+/** Keys in {@link AIConfig} that a context preset controls. */
+const AI_TOGGLE_KEYS: readonly (keyof AIConfig)[] = [
+  'includeMoveHistory',
+  'moveHistoryLimit',
+  'includeGameMetrics',
+  'includeStrategyGuidance',
+  'includeHeuristicScores',
+  'includeSeenDrawPileCards',
+  'includeReasoningTrail',
+  'reasoningTrailLimit',
+];
 
 /**
  * GameStore interface extending GameState with action methods
@@ -53,6 +96,24 @@ interface GameStore extends GameState {
   stepBackward: () => void;
   setReplaySpeed: (speed: number) => void;
   goToReplayIndex: (index: number) => void;
+  // --- AI Move Advisor ---
+  /** Apply a core {@link MoveCommand} through the normal move pathway. */
+  applyMoveCommand: (command: MoveCommand) => void;
+  /** Ask the configured LLM for the next best move and apply it. */
+  askAIForMove: () => Promise<void>;
+  /** Toggle AI auto-play: the LLM keeps playing move-by-move until the game
+   *  ends, a loop is detected, an error occurs, or the user stops it. */
+  toggleAIAutoPlay: () => void;
+  /** Internal: schedule the next AI auto-play move (with loop detection). */
+  continueAIAutoPlay: () => void;
+  /** Cancel an in-flight AI request. */
+  cancelAIRequest: () => void;
+  /** Update the AI advisor configuration (partial patch). */
+  setAIConfig: (patch: Partial<AIConfig>) => void;
+  /** Clear the last AI advisor error message. */
+  clearAIError: () => void;
+  /** Open or close the API key modal. */
+  setAIKeyModalOpen: (open: boolean) => void;
 }
 
 /**
@@ -125,6 +186,13 @@ const initializeGameState = (
     replayIndex: 0,
     replayPaused: false,
     replaySpeed: 1000, // 1 second per move
+    aiConfig: DEFAULT_AI_CONFIG,
+    aiThinking: false,
+    aiAutoPlay: false,
+    aiThinkingSince: undefined,
+    aiError: undefined,
+    aiDecisionLog: [],
+    aiKeyModalOpen: false,
   };
 
   // Calculate perceived difficulty after initialState is created
@@ -139,7 +207,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ...initializeGameState(initialGameConfig.difficulty, initialGameConfig.seed),
   initializeGame: (difficulty?: Difficulty, seed?: number) => {
     const currentDifficulty = difficulty ?? get().difficulty ?? 3;
-    set(initializeGameState(currentDifficulty, seed));
+    // A new game invalidates any in-flight AI request.
+    aiAbortController?.abort();
+    aiAbortController = null;
+    // The AI config is a session-level preference — preserve it across games.
+    const preservedConfig = get().aiConfig ?? DEFAULT_AI_CONFIG;
+    set({ ...initializeGameState(currentDifficulty, seed), aiConfig: preservedConfig });
   },
   setDifficulty: (difficulty: Difficulty) => set({ difficulty }),
   
@@ -982,5 +1055,263 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ...newState,
       completionProgress,
     });
+  },
+
+  // -------------------------------------------------------------------------
+  // AI Move Advisor
+  // -------------------------------------------------------------------------
+
+  applyMoveCommand: (command: MoveCommand) => {
+    // Translates a core MoveCommand into the store's existing move actions, so
+    // an AI-chosen move is recorded, flips cards, updates progress and triggers
+    // auto-complete exactly like a human move.
+    switch (command.type) {
+      case 'draw_card':
+      case 'recycle_stock':
+        // The store's drawCard recycles the waste when the stock is empty.
+        get().drawCard();
+        break;
+      case 'tableau_to_tableau':
+        if (command.from?.column === undefined || command.to?.column === undefined) return;
+        get().selectCard('tableau', command.from.column, command.from.cardIndex);
+        get().moveCardToTableau(command.to.column);
+        break;
+      case 'tableau_to_foundation':
+        if (command.from?.column === undefined || !command.to?.suit) return;
+        get().selectCard('tableau', command.from.column, command.from.cardIndex);
+        get().moveCardToFoundation(command.to.suit);
+        break;
+      case 'discard_to_tableau':
+        if (command.to?.column === undefined) return;
+        get().selectCard('discard');
+        get().moveCardToTableau(command.to.column);
+        break;
+      case 'discard_to_foundation':
+        if (!command.to?.suit) return;
+        get().selectCard('discard');
+        get().moveCardToFoundation(command.to.suit);
+        break;
+      case 'flip_card':
+        // Flips are produced automatically by other moves; nothing to do.
+        break;
+    }
+  },
+
+  askAIForMove: async () => {
+    const state = get();
+
+    // --- Guards ---
+    if (state.aiThinking) {
+      return; // a request is already in flight
+    }
+    if (state.gameWon) {
+      set({ aiError: 'The game is already won.', aiAutoPlay: false });
+      return;
+    }
+    if (state.replayMode) {
+      set({ aiError: 'Cannot ask the AI while in replay mode.', aiAutoPlay: false });
+      return;
+    }
+    if (state.autoPlayEnabled) {
+      set({ aiError: 'Cannot ask the AI while auto-play is running.', aiAutoPlay: false });
+      return;
+    }
+
+    const config = state.aiConfig ?? DEFAULT_AI_CONFIG;
+
+    // Resolve the provider.
+    let provider;
+    try {
+      provider = getProvider(config.provider);
+    } catch (err) {
+      set({
+        aiError: err instanceof AIError ? err.message : 'AI provider configuration error.',
+        aiAutoPlay: false,
+      });
+      return;
+    }
+
+    // Resolve the API key. No key => prompt for one instead of erroring.
+    const apiKey = provider.requiresKey ? getEffectiveKey(config.provider) : '';
+    if (provider.requiresKey && !apiKey) {
+      set({ aiError: undefined, aiKeyModalOpen: true, aiAutoPlay: false });
+      return;
+    }
+
+    // Generate the legal moves the AI must choose from.
+    const coreState = uiToCore(state);
+    const legalMoves = engine.getLegalMoves(coreState);
+    if (legalMoves.length === 0) {
+      set({
+        aiError: 'No legal moves are available — try drawing or starting a new game.',
+        aiAutoPlay: false,
+      });
+      return;
+    }
+
+    const context = buildContext(state, legalMoves, config, state.aiDecisionLog ?? []);
+    const systemInstruction = buildSystemInstruction(config);
+
+    // --- Begin the request ---
+    aiAbortController = new AbortController();
+    set({ aiThinking: true, aiThinkingSince: Date.now(), aiError: undefined });
+
+    try {
+      const decision = await provider.suggestMove({
+        apiKey: apiKey ?? '',
+        model: config.model,
+        systemInstruction,
+        context,
+        signal: aiAbortController.signal,
+      });
+
+      // Defensive: the provider already range-checked moveIndex, but never
+      // index a move list with an unverified value.
+      if (decision.moveIndex < 0 || decision.moveIndex >= legalMoves.length) {
+        throw new AIError('bad_response', 'AI chose a move outside the legal set.');
+      }
+      const command = legalMoves[decision.moveIndex];
+
+      // Re-validate against the *current* state before applying. The board is
+      // locked while aiThinking, so this should always pass.
+      if (!engine.canApplyMove(uiToCore(get()), command)) {
+        throw new AIError('bad_response', 'The chosen move is no longer valid.');
+      }
+
+      // Apply the move, then annotate the new move-history entry with the
+      // AI's reasoning so the Activity Log can surface it.
+      const beforeLen = get().moveHistory.length;
+      get().applyMoveCommand(command);
+      const afterMoves = get().moveHistory;
+      if (afterMoves.length > beforeLen) {
+        const annotated = [...afterMoves];
+        annotated[beforeLen] = {
+          ...annotated[beforeLen],
+          aiReasoning: decision.reasoning,
+          aiConfidence: decision.confidence,
+        };
+        set({ moveHistory: annotated });
+      }
+
+      // Record the decision (drives the advisor panel + the reasoning trail).
+      const record: AIDecisionRecord = {
+        timestamp: Date.now(),
+        moveType: command.type,
+        describe: describeMoveCommand(command, state),
+        reasoning: decision.reasoning,
+        confidence: decision.confidence,
+        alternativeDescribe:
+          decision.alternativeMoveIndex !== undefined
+            ? describeMoveCommand(legalMoves[decision.alternativeMoveIndex], state)
+            : undefined,
+        model: config.model,
+      };
+      const aiDecisionLog = [...(get().aiDecisionLog ?? []), record].slice(
+        -AI_DECISION_LOG_LIMIT,
+      );
+      set({ aiThinking: false, aiThinkingSince: undefined, aiDecisionLog, aiError: undefined });
+
+      // If AI auto-play is engaged, queue the next move.
+      if (get().aiAutoPlay) {
+        get().continueAIAutoPlay();
+      }
+    } catch (err) {
+      // A user-initiated cancel is not an error worth surfacing.
+      if (err instanceof AIError && err.kind === 'aborted') {
+        set({ aiThinking: false, aiThinkingSince: undefined, aiError: undefined });
+        return;
+      }
+      const message =
+        err instanceof AIError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Unexpected AI error.';
+      // Any error stops AI auto-play — never hammer the API on failure.
+      set({ aiThinking: false, aiThinkingSince: undefined, aiError: message, aiAutoPlay: false });
+    } finally {
+      aiAbortController = null;
+    }
+  },
+
+  toggleAIAutoPlay: () => {
+    const state = get();
+    if (state.aiAutoPlay) {
+      // Stop: abort any in-flight request so it halts immediately.
+      aiAbortController?.abort();
+      set({ aiAutoPlay: false });
+      return;
+    }
+    // Start.
+    if (state.gameWon) {
+      set({ aiError: 'The game is already won.' });
+      return;
+    }
+    if (state.replayMode || state.autoPlayEnabled) {
+      set({ aiError: 'Stop replay / auto-play before starting AI auto-play.' });
+      return;
+    }
+    aiAutoStateHistory = [];
+    set({ aiAutoPlay: true, aiError: undefined });
+    void get().askAIForMove();
+  },
+
+  continueAIAutoPlay: () => {
+    const state = get();
+    if (!state.aiAutoPlay) return;
+
+    // Stop cleanly when the game is won.
+    if (state.gameWon) {
+      set({ aiAutoPlay: false });
+      return;
+    }
+
+    // Loop detection: if the board returns to a previously seen position the
+    // AI is cycling — stop rather than burn API calls forever.
+    const hash = hashGameState(uiToCore(state));
+    if (aiAutoStateHistory.includes(hash)) {
+      set({
+        aiAutoPlay: false,
+        aiError: 'AI auto-play stopped: the board returned to an earlier position (loop).',
+      });
+      return;
+    }
+    aiAutoStateHistory = [...aiAutoStateHistory, hash].slice(-AI_AUTO_HISTORY_LIMIT);
+
+    setTimeout(() => {
+      if (get().aiAutoPlay && !get().aiThinking) {
+        void get().askAIForMove();
+      }
+    }, AI_AUTO_MOVE_DELAY);
+  },
+
+  cancelAIRequest: () => {
+    aiAbortController?.abort();
+    // Clear the thinking state immediately for responsive UI; the in-flight
+    // promise's catch handler will also run and is a no-op for 'aborted'.
+    set({ aiThinking: false, aiThinkingSince: undefined });
+  },
+
+  setAIConfig: (patch: Partial<AIConfig>) => {
+    const current = get().aiConfig ?? DEFAULT_AI_CONFIG;
+    let next: AIConfig = { ...current, ...patch };
+
+    if (patch.preset !== undefined && patch.preset !== 'custom') {
+      // Switching to a named preset applies its whole toggle bundle.
+      next = applyPreset(next, patch.preset);
+    } else if (patch.preset === undefined && AI_TOGGLE_KEYS.some((k) => k in patch)) {
+      // Changing an individual toggle moves the config into 'custom' mode.
+      next.preset = 'custom';
+    }
+
+    set({ aiConfig: next });
+  },
+
+  clearAIError: () => {
+    set({ aiError: undefined });
+  },
+
+  setAIKeyModalOpen: (open: boolean) => {
+    set({ aiKeyModalOpen: open });
   },
 }));

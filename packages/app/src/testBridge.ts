@@ -20,6 +20,8 @@
 
 import { useGameStore } from './store/gameStore';
 import { scenarios, scenarioNames, isScenarioName } from './testScenarios';
+import { createStubProvider, DEFAULT_AI_CONFIG, setProviderOverride } from './ai';
+import type { AIConfig, StubDecisionFn } from './ai';
 import type { Card, Difficulty, GameState, Suit } from './types';
 
 /** Compact, token-efficient game snapshot for agents. */
@@ -50,6 +52,26 @@ export interface GameSummary {
 export interface NewGameOptions {
   seed?: number;
   difficulty?: Difficulty;
+}
+
+/** Compact AI-advisor state snapshot for agents/tests. */
+export interface AIBridgeState {
+  /** Whether a suggestion request is currently in flight. */
+  thinking: boolean;
+  /** Whether the AI is auto-playing the whole game. */
+  autoPlay: boolean;
+  /** Last error message, or `null`. */
+  error: string | null;
+  /** Configured model id. */
+  model: string;
+  /** Active context preset. */
+  preset: string;
+  /** Whether the AI is allowed to see hidden cards. */
+  seeHiddenCards: boolean;
+  /** Number of decisions recorded so far. */
+  decisionCount: number;
+  /** The most recent decision, or `null`. */
+  lastDecision: { describe: string; reasoning: string; confidence: number } | null;
 }
 
 /** The `window.__solitaire` control surface. */
@@ -102,6 +124,27 @@ export interface SolitaireTestBridge {
    * the `testScenarios` module. Returns `false` for an unknown name.
    */
   loadScenario: (name: string) => boolean;
+
+  // --- AI Move Advisor ---
+  /** Compact AI-advisor state snapshot. */
+  getAIState: () => AIBridgeState;
+  /**
+   * Ask the AI advisor for a move. Resolves once the move is applied or the
+   * request fails (inspect `getAIState().error`).
+   */
+  askAI: () => Promise<void>;
+  /** Toggle AI auto-play (the AI keeps playing the whole game move-by-move). */
+  toggleAIAutoPlay: () => void;
+  /** Cancel an in-flight AI request. */
+  cancelAI: () => void;
+  /** Patch the AI advisor configuration (provider, model, preset, toggles). */
+  setAIConfig: (patch: Partial<AIConfig>) => void;
+  /**
+   * Install a deterministic AI provider stub — no network, no API key — for
+   * tests, or pass `null` to restore the real provider. The stub function
+   * receives the built context and returns the decision to apply.
+   */
+  setAIProviderStub: (decide: StubDecisionFn | null) => void;
 }
 
 declare global {
@@ -179,7 +222,7 @@ export function installTestBridge(): void {
   }
 
   const bridge: SolitaireTestBridge = {
-    version: 2,
+    version: 3,
     getState: () => useGameStore.getState(),
     getSummary: () => buildSummary(useGameStore.getState()),
     newGame: (options) =>
@@ -199,6 +242,31 @@ export function installTestBridge(): void {
     loadScenario: (name) =>
       isScenarioName(name) &&
       useGameStore.getState().importGameState(JSON.stringify(scenarios[name]())),
+
+    getAIState: () => {
+      const state = useGameStore.getState();
+      const config = state.aiConfig ?? DEFAULT_AI_CONFIG;
+      const log = state.aiDecisionLog ?? [];
+      const last = log[log.length - 1];
+      return {
+        thinking: state.aiThinking ?? false,
+        autoPlay: state.aiAutoPlay ?? false,
+        error: state.aiError ?? null,
+        model: config.model,
+        preset: config.preset,
+        seeHiddenCards: config.seeHiddenCards,
+        decisionCount: log.length,
+        lastDecision: last
+          ? { describe: last.describe, reasoning: last.reasoning, confidence: last.confidence }
+          : null,
+      };
+    },
+    askAI: () => useGameStore.getState().askAIForMove(),
+    toggleAIAutoPlay: () => useGameStore.getState().toggleAIAutoPlay(),
+    cancelAI: () => useGameStore.getState().cancelAIRequest(),
+    setAIConfig: (patch) => useGameStore.getState().setAIConfig(patch),
+    setAIProviderStub: (decide) =>
+      setProviderOverride(decide ? createStubProvider(decide) : null),
   };
 
   window.__solitaire = bridge;

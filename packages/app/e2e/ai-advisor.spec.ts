@@ -1,0 +1,152 @@
+import { test, expect } from '@playwright/test';
+import { waitForGame, summary } from './helpers';
+
+/**
+ * E2E coverage for the AI Move Advisor.
+ *
+ * Every test installs a deterministic provider stub via the test bridge
+ * (`setAIProviderStub`), so these tests never make a network call and never
+ * need a real API key.
+ */
+test.describe('AI Move Advisor', () => {
+  test('renders the AI advisor panel and Ask AI button', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    await expect(page.getByTestId('ai-advisor-panel')).toBeVisible();
+    await expect(page.getByTestId('ask-ai-btn')).toBeVisible();
+  });
+
+  test('asks the AI, applies the chosen move, and logs the reasoning', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    // Install a stub that always picks the first legal move.
+    await page.evaluate(() => {
+      window.__solitaire!.setAIProviderStub(() => ({
+        moveIndex: 0,
+        reasoning: 'E2E stub: opening the game.',
+        confidence: 0.83,
+      }));
+    });
+
+    const before = (await summary(page)).moveCount;
+    await page.getByTestId('ask-ai-btn').click();
+
+    // Wait for the decision to be recorded.
+    await page.waitForFunction(() => window.__solitaire!.getAIState().decisionCount === 1);
+
+    // A move was applied.
+    expect((await summary(page)).moveCount).toBeGreaterThan(before);
+
+    // The advisor panel shows the decision + reasoning.
+    await expect(page.getByTestId('ai-last-decision')).toBeVisible();
+    await expect(page.getByTestId('ai-reasoning')).toContainText('opening the game');
+
+    // The activity log surfaces the AI reasoning on the move entry.
+    await expect(page.getByTestId('activity-log-ai-reasoning').first()).toContainText(
+      'opening the game',
+    );
+
+    // No error, not stuck thinking.
+    const ai = await page.evaluate(() => window.__solitaire!.getAIState());
+    expect(ai.thinking).toBe(false);
+    expect(ai.error).toBeNull();
+  });
+
+  test('surfaces a provider error in the advisor panel', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    await page.evaluate(() => {
+      window.__solitaire!.setAIProviderStub(() => {
+        throw new Error('E2E stub failure');
+      });
+    });
+
+    const before = (await summary(page)).moveCount;
+    await page.getByTestId('ask-ai-btn').click();
+
+    await page.waitForFunction(() => window.__solitaire!.getAIState().error !== null);
+
+    await expect(page.getByTestId('ai-error')).toContainText('E2E stub failure');
+    // The board is untouched on failure.
+    expect((await summary(page)).moveCount).toBe(before);
+  });
+
+  test('opens and closes the API key modal', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    await page.getByTestId('ai-settings-toggle-btn').click();
+    await page.getByTestId('ai-key-settings-btn').click();
+
+    await expect(page.getByTestId('ai-key-modal')).toBeVisible();
+    await expect(page.getByTestId('ai-model-input')).toBeVisible();
+
+    await page.getByTestId('ai-key-modal-close-btn').click();
+    await expect(page.getByTestId('ai-key-modal')).toBeHidden();
+  });
+
+  test('applies a context preset chosen in AI settings', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    await page.getByTestId('ai-settings-toggle-btn').click();
+    await page.getByTestId('ai-preset-select').selectOption('minimal');
+
+    const ai = await page.evaluate(() => window.__solitaire!.getAIState());
+    expect(ai.preset).toBe('minimal');
+  });
+
+  test('AI auto-play keeps making moves until stopped', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    await page.evaluate(() => {
+      window.__solitaire!.setAIProviderStub(() => ({
+        moveIndex: 0,
+        reasoning: 'E2E stub: auto-play move.',
+        confidence: 0.5,
+      }));
+    });
+
+    // Start auto-play.
+    await page.getByTestId('ai-auto-play-btn').click();
+    await expect(page.getByTestId('ai-auto-badge')).toBeVisible();
+
+    // It keeps playing move after move on its own.
+    await page.waitForFunction(() => window.__solitaire!.getAIState().decisionCount >= 3, null, {
+      timeout: 15000,
+    });
+    expect(await page.evaluate(() => window.__solitaire!.getAIState().autoPlay)).toBe(true);
+
+    // Stop it.
+    await page.getByTestId('ai-auto-play-btn').click();
+    await expect(page.getByTestId('ai-auto-badge')).toBeHidden();
+    expect(await page.evaluate(() => window.__solitaire!.getAIState().autoPlay)).toBe(false);
+
+    // Every auto-play move is logged with its AI reasoning.
+    expect(await page.getByTestId('activity-log-ai-reasoning').count()).toBeGreaterThanOrEqual(2);
+  });
+
+  test('respects the chosen move index from the stub', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    // Pick the last legal move rather than the first.
+    await page.evaluate(() => {
+      window.__solitaire!.setAIProviderStub((ctx) => ({
+        moveIndex: ctx.legalMoves.length - 1,
+        reasoning: 'E2E stub: chose the last legal move.',
+        confidence: 0.5,
+      }));
+    });
+
+    await page.getByTestId('ask-ai-btn').click();
+    await page.waitForFunction(() => window.__solitaire!.getAIState().decisionCount === 1);
+
+    const ai = await page.evaluate(() => window.__solitaire!.getAIState());
+    expect(ai.lastDecision?.reasoning).toContain('last legal move');
+  });
+});

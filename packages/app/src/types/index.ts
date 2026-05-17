@@ -1,3 +1,5 @@
+import type { AIConfig, AIDecisionRecord } from '../ai/types';
+
 export type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades';
 
 export type Rank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
@@ -37,6 +39,10 @@ export interface Move {
     columnIndex?: number;
     suit?: Suit;
   };
+  /** Reasoning text, set when this move was chosen by the AI Move Advisor. */
+  aiReasoning?: string;
+  /** AI self-rated confidence (0-1), set when this move was AI-chosen. */
+  aiConfidence?: number;
 }
 
 export interface GameState {
@@ -80,4 +86,15 @@ export interface GameState {
   replayIndex: number; // Current index in move history during replay
   replayPaused: boolean; // True when replay is paused
   replaySpeed: number; // Speed of replay in ms per move (default 1000)
+
+  // --- AI Move Advisor ---
+  // Optional, like the other supplemental UI fields above: the store always
+  // populates them, but lightweight GameState fixtures need not.
+  aiConfig?: AIConfig; // User-configurable AI advisor settings (persists across new games)
+  aiThinking?: boolean; // True while an AI move suggestion is in flight
+  aiAutoPlay?: boolean; // True while the AI is auto-playing the whole game move-by-move
+  aiThinkingSince?: number; // Timestamp the in-flight request started (for the elapsed counter)
+  aiError?: string; // Last AI advisor error message, shown until the next request
+  aiDecisionLog?: AIDecisionRecord[]; // History of AI decisions (most recent last)
+  aiKeyModalOpen?: boolean; // True when the API key modal is open
 }
