@@ -10,6 +10,7 @@ import {
   getCompletionProgress,
   getValidTableauDestinations,
   GameEngine,
+  shuffle,
 } from '@chayuto/solitaire-core';
 import type { MoveCommand } from '@chayuto/solitaire-core';
 import {
@@ -1171,9 +1172,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // Generate the legal moves the AI must choose from.
+    // Generate the legal moves the AI must choose from. Shuffle them so the
+    // draw move is not always at index 0 — a fixed order biases the model
+    // toward index 0 and skews any harvested decision dataset.
     const coreState = uiToCore(state);
-    const legalMoves = engine.getLegalMoves(coreState);
+    const legalMoves = shuffle(engine.getLegalMoves(coreState));
     if (legalMoves.length === 0) {
       set({
         aiError: 'No legal moves are available — try drawing or starting a new game.',
@@ -1212,6 +1215,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
           signal: aiAbortController.signal,
           requestId,
           sessionId: get().gameSessionId,
+          seed: state.seed,
+          turnIndex: state.moveHistory.length,
         },
         {
           maxAttempts: AI_RETRY_MAX_ATTEMPTS,

@@ -29,6 +29,10 @@ export interface AIInteraction {
   provider: string;
   /** Model id. */
   model: string;
+  /** Deal seed of the game, when one was used. */
+  seed?: number;
+  /** Turn index within the game (move-history length at request time). */
+  turnIndex?: number;
   /** Whether the call succeeded. */
   outcome: 'success' | 'error';
   /** Wall-clock duration of the call, in ms. */
@@ -37,8 +41,12 @@ export interface AIInteraction {
   prompt: string;
   /** The raw response text from the model, when one was received. */
   rawResponse?: string;
+  /** The model's internal reasoning trace (thinking-model "thought" parts), when present. */
+  thinkingText?: string;
   /** The parsed, validated decision, on success. */
   decision?: AIMoveDecision;
+  /** HTTP status code of the response, when one was received. */
+  httpStatus?: number;
   /** Failure category, for `error` outcomes. */
   errorKind?: AIErrorKind;
   /** Failure message, for `error` outcomes. */
