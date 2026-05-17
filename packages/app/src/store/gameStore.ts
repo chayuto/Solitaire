@@ -1258,13 +1258,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         throw new AIError('bad_response', 'The chosen move is no longer valid.');
       }
 
-      // Apply the move, then annotate the new move-history entry with the
-      // AI's reasoning so the Activity Log can surface it.
+      // Apply the move, then annotate the new move-history entries: every
+      // entry of the move is flagged as an AI move (so a multi-card move
+      // reads as one AI action, not a mix), and the lead entry carries the
+      // reasoning the Activity Log surfaces.
       const beforeLen = get().moveHistory.length;
       get().applyMoveCommand(command);
       const afterMoves = get().moveHistory;
       if (afterMoves.length > beforeLen) {
-        const annotated = [...afterMoves];
+        const annotated = afterMoves.map((move, i) =>
+          i < beforeLen ? move : { ...move, aiMove: true },
+        );
         annotated[beforeLen] = {
           ...annotated[beforeLen],
           aiReasoning: decision.reasoning,
@@ -1343,17 +1347,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // run. The retries above are already exhausted, so cool down and
       // re-attempt the move. LLM endpoints are not always stable.
       if (get().aiAutoPlay && isTransientAIError(err)) {
+        // Honor a server-suggested wait (e.g. a 429 RetryInfo) so auto-play
+        // does not re-attempt before a rate-limit window has cleared.
+        const cooldownMs =
+          err instanceof AIError && err.retryAfterMs !== undefined
+            ? err.retryAfterMs
+            : AI_AUTO_RETRY_COOLDOWN;
         set({
           aiThinking: false,
           aiThinkingSince: undefined,
           aiStatus: undefined,
-          aiError: `${message} Auto-play retries in ${Math.round(AI_AUTO_RETRY_COOLDOWN / 1000)}s.`,
+          aiError: `${message} Auto-play retries in ${Math.round(cooldownMs / 1000)}s.`,
         });
         setTimeout(() => {
           if (get().aiAutoPlay && !get().aiThinking) {
             void get().askAIForMove();
           }
-        }, AI_AUTO_RETRY_COOLDOWN);
+        }, cooldownMs);
         return;
       }
 

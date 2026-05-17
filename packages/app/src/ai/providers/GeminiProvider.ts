@@ -17,7 +17,12 @@
  * @module ai/providers/GeminiProvider
  */
 
-import { AI_REQUEST_TIMEOUT_MS, AI_TEMPERATURE, GEMINI_API_BASE } from '../constants';
+import {
+  AI_RATE_LIMIT_FALLBACK_DELAY,
+  AI_REQUEST_TIMEOUT_MS,
+  AI_TEMPERATURE,
+  GEMINI_API_BASE,
+} from '../constants';
 import { parseDecision } from '../decision/schema';
 import { recordAIInteraction } from '../interactionLog';
 import { uuidv7 } from '../uuid';
@@ -45,7 +50,26 @@ interface GeminiResponse {
   }[];
   promptFeedback?: { blockReason?: string };
   usageMetadata?: GeminiUsage;
-  error?: { code?: number; message?: string; status?: string };
+  error?: { code?: number; message?: string; status?: string; details?: unknown[] };
+}
+
+/**
+ * Extract a server-suggested retry delay (ms) from an error body's
+ * `RetryInfo` detail (a protobuf Duration string like `"57s"`).
+ */
+function extractRetryDelayMs(body: GeminiResponse | null): number | undefined {
+  const details = body?.error?.details;
+  if (!Array.isArray(details)) return undefined;
+  for (const detail of details) {
+    if (detail && typeof detail === 'object' && 'retryDelay' in detail) {
+      const raw = (detail as { retryDelay?: unknown }).retryDelay;
+      if (typeof raw === 'string') {
+        const match = /^([\d.]+)s$/.exec(raw.trim());
+        if (match) return Math.round(parseFloat(match[1]) * 1000);
+      }
+    }
+  }
+  return undefined;
 }
 
 /** Map a non-OK HTTP response to a typed {@link AIError}. */
@@ -54,7 +78,14 @@ function errorFromHttp(status: number, body: GeminiResponse | null): AIError {
   const lower = message.toLowerCase();
 
   if (status === 429) {
-    return new AIError('rate_limited', 'Gemini rate limit reached. Wait a moment and try again.');
+    // Honor the server's RetryInfo; otherwise wait long enough to clear a
+    // per-minute window (a short retry would just hit the limit again).
+    const retryAfterMs = extractRetryDelayMs(body) ?? AI_RATE_LIMIT_FALLBACK_DELAY;
+    return new AIError(
+      'rate_limited',
+      `Gemini rate limit reached (retry in ~${Math.round(retryAfterMs / 1000)}s).`,
+      retryAfterMs,
+    );
   }
   if (status === 401 || status === 403) {
     return new AIError('invalid_key', 'Gemini rejected the API key. Check that it is valid.');

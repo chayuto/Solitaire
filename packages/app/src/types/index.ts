@@ -39,9 +39,11 @@ export interface Move {
     columnIndex?: number;
     suit?: Suit;
   };
-  /** Reasoning text, set when this move was chosen by the AI Move Advisor. */
+  /** True when this entry is part of a move the AI Move Advisor made. */
+  aiMove?: boolean;
+  /** Reasoning text, set on the lead entry of an AI-chosen move. */
   aiReasoning?: string;
-  /** AI self-rated confidence (0-1), set when this move was AI-chosen. */
+  /** AI self-rated confidence (0-1), set on the lead entry of an AI-chosen move. */
   aiConfidence?: number;
 }
 

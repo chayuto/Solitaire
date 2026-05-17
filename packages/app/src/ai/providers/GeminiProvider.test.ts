@@ -107,13 +107,41 @@ describe('geminiProvider.suggestMove', () => {
     });
   });
 
-  it('maps HTTP 429 to a rate_limited error', async () => {
+  it('maps HTTP 429 to a rate_limited error with a fallback retry delay', async () => {
     vi.mocked(fetch).mockResolvedValue(
       mockResponse(429, { error: { code: 429, message: 'Quota exceeded' } }),
     );
-    await expect(geminiProvider.suggestMove(request)).rejects.toMatchObject({
-      kind: 'rate_limited',
-    });
+    try {
+      await geminiProvider.suggestMove(request);
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(AIError);
+      expect((err as AIError).kind).toBe('rate_limited');
+      // No RetryInfo => a fallback delay long enough to clear a 1-minute window.
+      expect((err as AIError).retryAfterMs).toBeGreaterThanOrEqual(30_000);
+    }
+  });
+
+  it('honors the RetryInfo retry delay on a 429', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(429, {
+        error: {
+          code: 429,
+          status: 'RESOURCE_EXHAUSTED',
+          message: 'Quota exceeded',
+          details: [
+            { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '42s' },
+          ],
+        },
+      }),
+    );
+    try {
+      await geminiProvider.suggestMove(request);
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect((err as AIError).kind).toBe('rate_limited');
+      expect((err as AIError).retryAfterMs).toBe(42_000);
+    }
   });
 
   it('maps HTTP 404 to a config error', async () => {

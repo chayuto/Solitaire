@@ -146,7 +146,7 @@ const ActivityLog: React.FC = () => {
                 {[...visibleLogs].reverse().map((move, index) => {
                   const isAutoPlayEvent = move.type.startsWith('autoplay_');
                   const isDeadendOrLoop = move.type === 'autoplay_deadend' || move.type === 'autoplay_loop_detected';
-                  const isAIMove = typeof move.aiReasoning === 'string';
+                  const isAIMove = move.aiMove === true || typeof move.aiReasoning === 'string';
                   return (
                     <div
                       key={`${move.timestamp}-${index}`}

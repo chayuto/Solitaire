@@ -239,11 +239,17 @@ export type AIErrorKind =
 export class AIError extends Error {
   /** The categorized failure mode. */
   readonly kind: AIErrorKind;
+  /**
+   * Server-suggested wait before retrying, in ms (e.g. from a 429 `RetryInfo`).
+   * When set, the retry logic waits this long instead of its own backoff.
+   */
+  readonly retryAfterMs?: number;
 
-  constructor(kind: AIErrorKind, message: string) {
+  constructor(kind: AIErrorKind, message: string, retryAfterMs?: number) {
     super(message);
     this.name = 'AIError';
     this.kind = kind;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
