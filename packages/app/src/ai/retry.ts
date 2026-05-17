@@ -114,7 +114,8 @@ export async function suggestMoveWithRetry(
       throw new AIError('aborted', 'The AI request was cancelled.');
     }
     try {
-      return await provider.suggestMove(request);
+      // Tag each attempt so the interaction log records the attempt number.
+      return await provider.suggestMove({ ...request, attempt });
     } catch (err) {
       lastError = err;
       // Never retry a cancellation or a non-retryable error.

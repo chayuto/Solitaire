@@ -39,10 +39,17 @@ export const STRATEGY_GUIDANCE = `STRATEGY GUIDANCE (heuristics, not absolute ru
 /** Instructions describing the required JSON output. Always included. */
 export const OUTPUT_INSTRUCTION = `RESPONSE FORMAT:
 You will receive the current game as JSON, including a numbered array "legalMoves".
-Choose exactly ONE move from "legalMoves".
-Respond with ONLY a single JSON object — no prose, no markdown fences — of the form:
-{"moveIndex": <number>, "reasoning": <string>, "confidence": <number>, "alternativeMoveIndex": <number>}
-- moveIndex: the "index" of your chosen move from the legalMoves array.
-- reasoning: 1-3 concise sentences explaining why this move is best.
-- confidence: your confidence the move is best, a number from 0 to 1.
-- alternativeMoveIndex: optional; the index of your second-choice move.`;
+Reason step by step, then respond with ONLY a single JSON object containing exactly
+these three keys, in this order (no prose or markdown fences outside the object):
+{
+  "board_analysis": <string>,
+  "strategic_plan": <string>,
+  "final_decision": { "move_index": <number>, "confidence": <number>, "alternative_move_index": <number> }
+}
+- board_analysis: assess the current board — hidden cards, blocked columns, foundation
+  progress, and the opportunities each legal move opens or closes.
+- strategic_plan: explain your plan and why the chosen move is best, given that analysis.
+- final_decision.move_index: the "index" of your chosen move from the legalMoves array.
+- final_decision.confidence: your confidence the move is best, a number from 0 to 1.
+- final_decision.alternative_move_index: optional; the index of your second-choice move.
+Produce the keys in the order above: analyse the board first, then plan, then decide.`;

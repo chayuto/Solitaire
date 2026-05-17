@@ -142,3 +142,45 @@ describe('parseDecision', () => {
     }
   });
 });
+
+describe('validateDecision — three-key (board_analysis / strategic_plan / final_decision) shape', () => {
+  it('parses the nested three-key response', () => {
+    const result = validateDecision(
+      {
+        board_analysis: 'Two hidden cards in column 3.',
+        strategic_plan: 'Send the ace to free a column.',
+        final_decision: { move_index: 2, confidence: 0.9, alternative_move_index: 4 },
+      },
+      6,
+    );
+    expect(result.boardAnalysis).toBe('Two hidden cards in column 3.');
+    expect(result.reasoning).toBe('Send the ace to free a column.');
+    expect(result.moveIndex).toBe(2);
+    expect(result.confidence).toBeCloseTo(0.9);
+    expect(result.alternativeMoveIndex).toBe(4);
+  });
+
+  it('rejects an out-of-range move_index inside final_decision', () => {
+    expect(() =>
+      validateDecision(
+        { strategic_plan: 'x', final_decision: { move_index: 9, confidence: 1 } },
+        5,
+      ),
+    ).toThrow(/outside the valid range/);
+  });
+
+  it('leaves boardAnalysis undefined when the model omits it', () => {
+    const result = validateDecision(
+      { strategic_plan: 'plan', final_decision: { move_index: 0, confidence: 0.5 } },
+      3,
+    );
+    expect(result.boardAnalysis).toBeUndefined();
+    expect(result.reasoning).toBe('plan');
+  });
+
+  it('still tolerates a flat response shape', () => {
+    const result = validateDecision({ moveIndex: 1, reasoning: 'flat', confidence: 0.7 }, 3);
+    expect(result.moveIndex).toBe(1);
+    expect(result.reasoning).toBe('flat');
+  });
+});

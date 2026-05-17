@@ -157,23 +157,35 @@ test.describe('AI Move Advisor', () => {
     expect(aiMove?.aiReasoning).toContain('export-log check');
   });
 
-  test('records time/token diagnostics for AI calls', async ({ page }) => {
+  test('logs LLM interactions with prompts, ids and an export', async ({ page }) => {
     await page.goto('/?seed=1');
     await waitForGame(page);
 
     await page.evaluate(() => {
       window.__solitaire!.setAIProviderStub(() => ({
+        boardAnalysis: 'E2E stub: board analysis.',
         moveIndex: 0,
-        reasoning: 'E2E stub: diagnostics.',
+        reasoning: 'E2E stub: strategic plan.',
         confidence: 1,
       }));
     });
     await page.getByTestId('ask-ai-btn').click();
     await page.waitForFunction(() => window.__solitaire!.getAIState().decisionCount === 1);
 
-    const diagnostics = await page.evaluate(() => window.__solitaire!.getAIDiagnostics());
-    expect(diagnostics.length).toBeGreaterThanOrEqual(1);
-    expect(diagnostics[diagnostics.length - 1].outcome).toBe('success');
+    const interactions = await page.evaluate(() => window.__solitaire!.getAIInteractions());
+    expect(interactions.length).toBeGreaterThanOrEqual(1);
+    const last = interactions[interactions.length - 1];
+    expect(last.outcome).toBe('success');
+    expect(last.requestId).toBeTruthy();
+    expect(last.id).toBeTruthy();
+    expect(last.prompt.length).toBeGreaterThan(0);
+
+    // The interaction log exports as JSON for harvesting.
+    const exported = JSON.parse(
+      await page.evaluate(() => window.__solitaire!.exportAIInteractions()),
+    );
+    expect(exported.count).toBeGreaterThanOrEqual(1);
+    expect(exported.interactions[0].requestId).toBeTruthy();
   });
 
   test('replay surfaces which moves were made by the AI', async ({ page }) => {

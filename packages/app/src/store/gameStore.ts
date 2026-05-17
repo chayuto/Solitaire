@@ -34,11 +34,13 @@ import {
   buildContext,
   buildSystemInstruction,
   describeMoveCommand,
+  exportAIInteractions as serializeAIInteractions,
   getEffectiveKey,
-  getLastAIDiagnostics,
+  getLastAIInteraction,
   getProvider,
   isTransientAIError,
   suggestMoveWithRetry,
+  uuidv7,
 } from '../ai';
 import type { AIConfig, AIDecisionRecord } from '../ai';
 
@@ -119,6 +121,8 @@ interface GameStore extends GameState {
   clearAIError: () => void;
   /** Open or close the API key modal. */
   setAIKeyModalOpen: (open: boolean) => void;
+  /** Serialize the full LLM interaction log to a JSON string for export. */
+  exportAIInteractions: () => string;
 }
 
 /**
@@ -1176,6 +1180,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // --- Begin the request ---
     aiAbortController = new AbortController();
     const requestStartedAt = Date.now();
+    // UUIDv7 idempotency id for this logical request; retries reuse it and
+    // every interaction is logged under it.
+    const requestId = uuidv7();
     set({
       aiThinking: true,
       aiThinkingSince: requestStartedAt,
@@ -1195,6 +1202,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           systemInstruction,
           context,
           signal: aiAbortController.signal,
+          requestId,
         },
         {
           maxAttempts: AI_RETRY_MAX_ATTEMPTS,
@@ -1241,11 +1249,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // Record the decision. This drives the advisor panel and the reasoning
       // trail, is exported with the game, and carries enough cost/choice
       // detail to serve as a benchmarking dataset row.
-      const diag = getLastAIDiagnostics();
+      const interaction = getLastAIInteraction();
       const record: AIDecisionRecord = {
         timestamp: Date.now(),
         moveType: command.type,
         describe: describeMoveCommand(command, state),
+        boardAnalysis: decision.boardAnalysis,
         reasoning: decision.reasoning,
         confidence: decision.confidence,
         alternativeDescribe:
@@ -1253,14 +1262,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ? describeMoveCommand(legalMoves[decision.alternativeMoveIndex], state)
             : undefined,
         model: config.model,
+        requestId,
         moveIndex: decision.moveIndex,
         legalMoveCount: legalMoves.length,
         durationMs: Date.now() - requestStartedAt,
         retries: get().aiRetryCount ?? 0,
-        promptTokens: diag?.promptTokens,
-        thoughtTokens: diag?.thoughtTokens,
-        outputTokens: diag?.outputTokens,
-        totalTokens: diag?.totalTokens,
+        promptTokens: interaction?.promptTokens,
+        thoughtTokens: interaction?.thoughtTokens,
+        outputTokens: interaction?.outputTokens,
+        totalTokens: interaction?.totalTokens,
       };
       const aiDecisionLog = [...(get().aiDecisionLog ?? []), record].slice(
         -AI_DECISION_LOG_LIMIT,
@@ -1413,4 +1423,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setAIKeyModalOpen: (open: boolean) => {
     set({ aiKeyModalOpen: open });
   },
+
+  exportAIInteractions: () => serializeAIInteractions(),
 }));
