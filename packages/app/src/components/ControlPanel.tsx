@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { Difficulty } from '../types';
+import { downloadJson, gameIdTag } from '../utils/download';
 import AISettingsSection from './AISettingsSection';
 
 /**
@@ -30,18 +31,7 @@ const ControlPanel: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const handleExport = () => {
-    const jsonState = exportGameState();
-    const blob = new Blob([jsonState], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const idTag = gameSessionId ? `${gameSessionId.slice(-6)}-` : '';
-    link.download = `solitaire-game-${idTag}${Date.now()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
+    downloadJson(`solitaire-game-${gameIdTag(gameSessionId)}${Date.now()}.json`, exportGameState());
     setMessage({ type: 'success', text: 'Game exported successfully!' });
     setTimeout(() => setMessage(null), 3000);
   };

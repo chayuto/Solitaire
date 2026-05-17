@@ -72,6 +72,7 @@ export interface GameState {
   gameSessionId?: string; // UUIDv7 identifying this game session (new id per new game)
   gameStartedAt?: number; // Timestamp the session's deal was created
   gameWon: boolean; // True when all cards are in foundations
+  winModalDismissed?: boolean; // True when the user closed the win modal without starting a new game
   initialBoardSetup?: {
     drawPile: Card[];
     discardPile: Card[];

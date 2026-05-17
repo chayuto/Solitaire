@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { DEFAULT_AI_CONFIG } from '../ai';
+import { downloadJson, gameIdTag } from '../utils/download';
 import type { AIConfig, AIContextPreset } from '../ai';
 
 /** A boolean context toggle exposed in the Custom preset. */
@@ -35,17 +36,10 @@ const AISettingsSection: React.FC = () => {
 
   /** Download the full LLM interaction log as a JSON file. */
   const handleExportAILog = () => {
-    const json = exportAIInteractions();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const idTag = gameSessionId ? `${gameSessionId.slice(-6)}-` : '';
-    link.download = `solitaire-ai-log-${idTag}${Date.now()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadJson(
+      `solitaire-ai-log-${gameIdTag(gameSessionId)}${Date.now()}.json`,
+      exportAIInteractions(),
+    );
   };
 
   return (

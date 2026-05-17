@@ -52,4 +52,23 @@ test.describe('User journey: winning the game', () => {
     expect(s.foundationTotal).toBe(0);
     expect(s.tableauSizes).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
+
+  test('the win modal can be dismissed without starting a new game', async ({ page }) => {
+    await page.goto('/');
+    await waitForGame(page);
+    await loadScenario(page, 'oneMoveFromWinning');
+
+    await page.getByTestId('card-spades-K').click();
+    await page.getByTestId('foundation-spades').click();
+    await expect(page.getByTestId('win-modal')).toBeVisible();
+
+    // Closing the modal hides it but does NOT reset the game, so the won
+    // game (and its AI log) can still be exported.
+    await page.getByTestId('win-modal-close-btn').click();
+    await expect(page.getByTestId('win-modal')).toBeHidden();
+
+    const s = await summary(page);
+    expect(s.gameWon).toBe(true);
+    expect(s.foundationTotal).toBe(52);
+  });
 });
