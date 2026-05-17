@@ -13,6 +13,7 @@ import {
   setProviderOverride,
 } from '../ai';
 import type { AIMoveDecision } from '../ai';
+import { scenarios } from '../testScenarios';
 
 /** Install a stub provider that returns `decision`. */
 function useStub(decision: AIMoveDecision | (() => never)): void {
@@ -241,6 +242,30 @@ describe('setAIConfig', () => {
     useGameStore.getState().setAIConfig({ model: 'gemma-4-26b-a4b-it' });
     useGameStore.getState().initializeGame(2);
     expect(useGameStore.getState().aiConfig?.model).toBe('gemma-4-26b-a4b-it');
+  });
+});
+
+describe('heuristic auto-complete vs AI play', () => {
+  afterEach(() => {
+    useGameStore.setState({ autoPlayEnabled: false, aiAutoPlay: false, aiThinking: false });
+  });
+
+  it('does not let heuristic auto-complete hijack an AI-driven game', () => {
+    // An auto-completable board; without AI activity the heuristic engages.
+    useGameStore.getState().importGameState(JSON.stringify(scenarios.autoCompleteReady()));
+    useGameStore.setState({ aiAutoPlay: false, aiThinking: false });
+    useGameStore.getState().checkAndTriggerAutoComplete();
+    expect(useGameStore.getState().autoPlayEnabled).toBe(true);
+
+    // With AI play in progress, the heuristic must stand down.
+    useGameStore.getState().importGameState(JSON.stringify(scenarios.autoCompleteReady()));
+    useGameStore.setState({ autoPlayEnabled: false, aiAutoPlay: true });
+    useGameStore.getState().checkAndTriggerAutoComplete();
+    expect(useGameStore.getState().autoPlayEnabled).toBe(false);
+
+    useGameStore.setState({ aiAutoPlay: false, aiThinking: true });
+    useGameStore.getState().checkAndTriggerAutoComplete();
+    expect(useGameStore.getState().autoPlayEnabled).toBe(false);
   });
 });
 
