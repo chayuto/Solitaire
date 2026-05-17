@@ -17,6 +17,8 @@ import type { AIErrorKind, AIMoveDecision } from './types';
 export interface AIInteraction {
   /** UUIDv7 unique to this API call. */
   id: string;
+  /** UUIDv7 of the game session this call belongs to. */
+  sessionId: string;
   /** UUIDv7 of the parent request (one move decision). Retries share it. */
   requestId: string;
   /** 1-based attempt number within the parent request. */

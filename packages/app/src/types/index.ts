@@ -69,6 +69,8 @@ export interface GameState {
   autoPlayStateHistory?: string[]; // Track recent game states for loop detection
   difficulty: Difficulty; // Game difficulty level (1=Very Easy, 2=Easy, 3=Normal, 4=Hard, 5=Very Hard)
   seed?: number; // RNG seed for the deal, when one was used (enables a repeatable re-deal)
+  gameSessionId?: string; // UUIDv7 identifying this game session (new id per new game)
+  gameStartedAt?: number; // Timestamp the session's deal was created
   gameWon: boolean; // True when all cards are in foundations
   initialBoardSetup?: {
     drawPile: Card[];

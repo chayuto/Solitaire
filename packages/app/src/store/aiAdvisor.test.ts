@@ -157,20 +157,21 @@ describe('AI auto-play', () => {
     expect(useGameStore.getState().aiError).toBeTruthy();
   });
 
-  it('stops and flags a loop when the board position repeats', () => {
+  it('allows a few position repeats, then stops on a stuck loop', () => {
     useGameStore.setState({ aiAutoPlay: true, aiError: undefined });
-    const store = useGameStore.getState();
 
-    // First call records the position; a second call on the same position
-    // detects the repeat. (If the hash was already seen, the first call
-    // detects it — either way auto-play halts with a loop error.)
-    store.continueAIAutoPlay();
-    if (useGameStore.getState().aiAutoPlay) {
-      store.continueAIAutoPlay();
+    // The board does not change between calls, so the position recurs each
+    // time. A few repeats are tolerated; eventually auto-play halts.
+    let calls = 0;
+    for (let i = 0; i < 12 && useGameStore.getState().aiAutoPlay; i++) {
+      useGameStore.getState().continueAIAutoPlay();
+      calls++;
     }
 
     expect(useGameStore.getState().aiAutoPlay).toBe(false);
     expect(useGameStore.getState().aiError).toMatch(/loop/i);
+    // It did not stop on the very first repeat.
+    expect(calls).toBeGreaterThan(1);
   });
 
   it('stops auto-play when a non-transient provider error occurs', async () => {
@@ -240,5 +241,17 @@ describe('setAIConfig', () => {
     useGameStore.getState().setAIConfig({ model: 'gemma-4-26b-a4b-it' });
     useGameStore.getState().initializeGame(2);
     expect(useGameStore.getState().aiConfig?.model).toBe('gemma-4-26b-a4b-it');
+  });
+});
+
+describe('game session metadata', () => {
+  it('assigns a fresh UUIDv7 session id per game', () => {
+    useGameStore.getState().initializeGame(3, 42);
+    const first = useGameStore.getState().gameSessionId;
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    expect(typeof useGameStore.getState().gameStartedAt).toBe('number');
+
+    useGameStore.getState().initializeGame(3, 42);
+    expect(useGameStore.getState().gameSessionId).not.toBe(first);
   });
 });

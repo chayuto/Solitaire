@@ -87,6 +87,8 @@ export function coreToUI(coreState: CoreGameState, existingUIState: UIGameState)
     // Preserve UI-specific fields from existing state
     selectedCard: existingUIState.selectedCard,
     seed: existingUIState.seed,
+    gameSessionId: existingUIState.gameSessionId,
+    gameStartedAt: existingUIState.gameStartedAt,
     showValidMoves: existingUIState.showValidMoves,
     godMode: existingUIState.godMode,
     autoPlayEnabled: existingUIState.autoPlayEnabled,
@@ -118,6 +120,8 @@ export function getDefaultUIFields(): Pick<
   UIGameState,
   | 'selectedCard'
   | 'seed'
+  | 'gameSessionId'
+  | 'gameStartedAt'
   | 'showValidMoves'
   | 'godMode'
   | 'autoPlayEnabled'
@@ -140,6 +144,8 @@ export function getDefaultUIFields(): Pick<
   return {
     selectedCard: undefined,
     seed: undefined,
+    gameSessionId: undefined,
+    gameStartedAt: undefined,
     showValidMoves: false,
     godMode: false,
     autoPlayEnabled: false,

@@ -27,6 +27,7 @@ import {
   AI_DECISION_LOG_LIMIT,
   AI_AUTO_MOVE_DELAY,
   AI_AUTO_HISTORY_LIMIT,
+  AI_AUTO_LOOP_LIMIT,
   AI_AUTO_RETRY_COOLDOWN,
   AI_RETRY_MAX_ATTEMPTS,
   DEFAULT_AI_CONFIG,
@@ -188,6 +189,8 @@ const initializeGameState = (
     autoPlayStateHistory: [],
     difficulty,
     seed,
+    gameSessionId: uuidv7(),
+    gameStartedAt: Date.now(),
     gameWon: false,
     initialBoardSetup,
     perceivedDifficulty: undefined, // Will be calculated below
@@ -579,9 +582,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       autoPlayEnabled: state.autoPlayEnabled,
       autoPlayInProgress: state.autoPlayInProgress,
       difficulty: state.difficulty,
-      // Deal seed and AI config travel with the save so an exported game is
-      // repeatable (re-deal the same board) and self-describing (which model
-      // and settings played it).
+      // Session id, deal seed and AI config travel with the save so an
+      // exported game is identifiable, repeatable (re-deal the same board) and
+      // self-describing (which model and settings played it).
+      gameSessionId: state.gameSessionId,
+      gameStartedAt: state.gameStartedAt,
       seed: state.seed,
       aiConfig: state.aiConfig,
       gameWon: state.gameWon,
@@ -644,6 +649,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         autoPlayInProgress: false,
         difficulty: importedState.difficulty,
         seed: importedState.seed,
+        // Keep the imported session identity; older saves get a fresh one.
+        gameSessionId: importedState.gameSessionId ?? uuidv7(),
+        gameStartedAt: importedState.gameStartedAt,
         aiConfig: importedState.aiConfig ?? get().aiConfig ?? DEFAULT_AI_CONFIG,
         gameWon: false, // Always set to false to allow replay even for won games
         initialBoardSetup: importedState.initialBoardSetup,
@@ -1203,6 +1211,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           context,
           signal: aiAbortController.signal,
           requestId,
+          sessionId: get().gameSessionId,
         },
         {
           maxAttempts: AI_RETRY_MAX_ATTEMPTS,
@@ -1375,13 +1384,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // Loop detection: if the board returns to a previously seen position the
-    // AI is cycling — stop rather than burn API calls forever.
+    // Loop detection: a position recurring is allowed up to AI_AUTO_LOOP_LIMIT
+    // times — the AI may legitimately unwind and retry a line — but a position
+    // seen that many times means it is genuinely stuck, so stop.
     const hash = hashGameState(uiToCore(state));
-    if (aiAutoStateHistory.includes(hash)) {
+    const timesSeen = aiAutoStateHistory.filter((h) => h === hash).length;
+    if (timesSeen >= AI_AUTO_LOOP_LIMIT) {
       set({
         aiAutoPlay: false,
-        aiError: 'AI auto-play stopped: the board returned to an earlier position (loop).',
+        aiError:
+          `AI auto-play stopped: the board returned to the same position ` +
+          `${AI_AUTO_LOOP_LIMIT} times (stuck loop).`,
       });
       return;
     }
