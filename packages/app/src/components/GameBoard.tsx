@@ -26,9 +26,19 @@ const GameBoard: React.FC = () => {
     ? `#${shortId}${seed !== undefined ? ` · seed ${seed}` : ''}`
     : null;
 
+  // Tab-title status flag, so many unattended tabs can be triaged at a glance:
+  //  🏆 game won · ⚠️ AI stopped and needs attention · 🤖 AI auto-playing.
+  const gameWon = useGameStore((s) => s.gameWon);
+  const aiError = useGameStore((s) => s.aiError);
+  const aiThinking = useGameStore((s) => s.aiThinking);
+  const aiAutoPlay = useGameStore((s) => s.aiAutoPlay);
+  const aiStopped = Boolean(aiError) && !aiThinking && !aiAutoPlay;
+  const titlePrefix = gameWon ? '🏆 ' : aiStopped ? '⚠️ ' : aiAutoPlay ? '🤖 ' : '';
+
   useEffect(() => {
-    document.title = gameLabel ? `Solitaire ${gameLabel}` : 'Solitaire';
-  }, [gameLabel]);
+    const base = gameLabel ? `Solitaire ${gameLabel}` : 'Solitaire';
+    document.title = `${titlePrefix}${base}`;
+  }, [titlePrefix, gameLabel]);
 
   // Deal animation variants for tableau columns
   const dealVariants = shouldReduceMotion ? undefined : {

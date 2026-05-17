@@ -881,9 +881,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   checkAndTriggerAutoComplete: () => {
     const state = get();
-    
-    // Don't trigger if already won or if auto-play is already active
-    if (state.gameWon || state.autoPlayEnabled) {
+
+    // Don't trigger if already won, if auto-play is already active, or if the
+    // AI is driving the game. During AI play (a single Ask AI request or AI
+    // auto-play) the AI owns every move — the heuristic auto-complete must not
+    // hijack it, or AI auto-play stalls and end-game moves go unlogged.
+    if (state.gameWon || state.autoPlayEnabled || state.aiThinking || state.aiAutoPlay) {
       return;
     }
     
