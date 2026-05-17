@@ -180,9 +180,10 @@ test.describe('AI Move Advisor', () => {
     expect(last.requestId).toBeTruthy();
     expect(last.id).toBeTruthy();
     expect(last.prompt.length).toBeGreaterThan(0);
-    // The interaction is tagged with the game session id.
+    // The interaction is tagged with the game session id and turn metadata.
     const sessionId = await page.evaluate(() => window.__solitaire!.getSummary().gameSessionId);
     expect(last.sessionId).toBe(sessionId);
+    expect(typeof last.turnIndex).toBe('number');
 
     // The interaction log exports as JSON for harvesting.
     const exported = JSON.parse(

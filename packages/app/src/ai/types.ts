@@ -187,6 +187,10 @@ export interface AIRequest {
   requestId?: string;
   /** UUIDv7 of the game session this request belongs to. */
   sessionId?: string;
+  /** Deal seed of the game, when one was used. */
+  seed?: number;
+  /** Move-history length when the request was made (a turn index within the game). */
+  turnIndex?: number;
   /** 1-based attempt number, set by the retry wrapper. */
   attempt?: number;
 }

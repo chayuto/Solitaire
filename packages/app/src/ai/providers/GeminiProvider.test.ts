@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { geminiProvider } from './GeminiProvider';
+import { clearAIInteractions, getLastAIInteraction } from '../interactionLog';
 import { AIError, type AIMoveContext, type AIRequest } from '../types';
 
 const context: AIMoveContext = {
@@ -169,5 +170,49 @@ describe('geminiProvider.suggestMove', () => {
       }),
     );
     await expect(geminiProvider.suggestMove(request)).rejects.toBeInstanceOf(AIError);
+  });
+
+  it('captures the thinking trace and HTTP status in the interaction log', async () => {
+    clearAIInteractions();
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(200, {
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: 'Let me weigh the reveal moves...', thought: true },
+                {
+                  text:
+                    '{"strategic_plan":"Reveal a card.",' +
+                    '"final_decision":{"move_index":1,"confidence":0.9}}',
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+
+    await geminiProvider.suggestMove(request);
+    const last = getLastAIInteraction();
+    expect(last?.thinkingText).toBe('Let me weigh the reveal moves...');
+    expect(last?.httpStatus).toBe(200);
+    expect(last?.rawResponse).toContain('move_index');
+  });
+
+  it('treats an abort during the response-body read as an aborted error', async () => {
+    // The body read used to run after the timeout was cleared, so a stalled
+    // body could hang indefinitely. An abort during `.json()` must now surface.
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new DOMException('aborted', 'AbortError');
+      },
+    } as unknown as Response);
+
+    await expect(geminiProvider.suggestMove(request)).rejects.toMatchObject({
+      kind: 'aborted',
+    });
   });
 });

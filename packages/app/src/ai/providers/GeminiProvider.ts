@@ -77,8 +77,14 @@ function errorFromHttp(status: number, body: GeminiResponse | null): AIError {
   return new AIError('network', `Gemini request failed (HTTP ${status}). ${message}`.trim());
 }
 
-/** Extract the model's answer text from a successful response. */
-function extractAnswerText(data: GeminiResponse): string {
+/**
+ * Extract the model's answer and its internal reasoning trace from a response.
+ *
+ * Thinking models split their output into `thought: true` parts (the internal
+ * reasoning) and the final answer part. We return both: the answer to parse,
+ * and the thinking trace to log for distillation harvesting.
+ */
+function extractAnswer(data: GeminiResponse): { text: string; thinking: string } {
   const candidate = data.candidates?.[0];
   if (!candidate) {
     const block = data.promptFeedback?.blockReason;
@@ -91,13 +97,19 @@ function extractAnswerText(data: GeminiResponse): string {
   }
 
   const parts = candidate.content?.parts ?? [];
+  const thinking = parts
+    .filter((p) => p.thought === true && typeof p.text === 'string')
+    .map((p) => p.text as string)
+    .join('')
+    .trim();
+
   // Prefer non-"thought" parts (the final answer of a thinking model).
   const answer = parts
     .filter((p) => p.thought !== true && typeof p.text === 'string')
     .map((p) => p.text as string)
     .join('')
     .trim();
-  if (answer.length > 0) return answer;
+  if (answer.length > 0) return { text: answer, thinking };
 
   // Fallback: some models do not flag thought parts — use everything.
   const all = parts
@@ -105,7 +117,7 @@ function extractAnswerText(data: GeminiResponse): string {
     .map((p) => p.text as string)
     .join('')
     .trim();
-  if (all.length > 0) return all;
+  if (all.length > 0) return { text: all, thinking };
 
   throw new AIError(
     'bad_response',
@@ -135,6 +147,8 @@ export const geminiProvider: AIProvider = {
       `CURRENT GAME (JSON):\n${JSON.stringify(request.context)}\n\n` +
       'Now choose the best move and reply with only the JSON object.';
     let rawResponse: string | undefined;
+    let thinkingText: string | undefined;
+    let httpStatus: number | undefined;
 
     try {
       const body = {
@@ -156,7 +170,12 @@ export const geminiProvider: AIProvider = {
         `${GEMINI_API_BASE}/models/${encodeURIComponent(request.model)}:generateContent` +
         `?key=${encodeURIComponent(request.apiKey)}`;
 
-      let response: Response;
+      // The timeout must cover the *whole* operation — the fetch AND the
+      // response-body read. Reading a stalled body is otherwise unbounded
+      // (it once hung ~17 minutes), so `response.json()` stays inside the
+      // timed/abortable section and the timer is cleared only afterwards.
+      let response: Response | undefined;
+      let data: GeminiResponse | null = null;
       try {
         response = await fetch(url, {
           method: 'POST',
@@ -164,6 +183,17 @@ export const geminiProvider: AIProvider = {
           body: JSON.stringify(body),
           signal: controller.signal,
         });
+        httpStatus = response.status;
+        try {
+          data = (await response.json()) as GeminiResponse;
+        } catch (jsonErr) {
+          // An abort during the body read must surface as a timeout/cancel,
+          // not be swallowed as "malformed JSON".
+          if (jsonErr instanceof DOMException && jsonErr.name === 'AbortError') {
+            throw jsonErr;
+          }
+          data = null;
+        }
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') {
           throw new AIError(
@@ -179,13 +209,9 @@ export const geminiProvider: AIProvider = {
         request.signal?.removeEventListener('abort', onParentAbort);
       }
 
-      let data: GeminiResponse | null;
-      try {
-        data = (await response.json()) as GeminiResponse;
-      } catch {
-        data = null;
+      if (!response) {
+        throw new AIError('network', 'Could not reach Gemini.');
       }
-
       if (!response.ok) {
         throw errorFromHttp(response.status, data);
       }
@@ -196,10 +222,12 @@ export const geminiProvider: AIProvider = {
         throw errorFromHttp(data.error.code ?? 500, data);
       }
 
-      rawResponse = extractAnswerText(data);
+      const answer = extractAnswer(data);
+      rawResponse = answer.text;
+      thinkingText = answer.thinking || undefined;
       const decision = parseDecision(rawResponse, request.context.legalMoves.length);
 
-      // Log the full interaction: prompt, response, decision, time, tokens.
+      // Log the full interaction: prompt, response, thinking, decision, tokens.
       const usage = data.usageMetadata;
       recordAIInteraction({
         id: uuidv7(),
@@ -209,11 +237,15 @@ export const geminiProvider: AIProvider = {
         timestamp: Date.now(),
         provider: 'gemini',
         model: request.model,
+        seed: request.seed,
+        turnIndex: request.turnIndex,
         outcome: 'success',
         durationMs: Date.now() - startedAt,
         prompt,
         rawResponse,
+        thinkingText,
         decision,
+        httpStatus,
         promptTokens: usage?.promptTokenCount,
         thoughtTokens: usage?.thoughtsTokenCount,
         outputTokens: usage?.candidatesTokenCount,
@@ -229,10 +261,14 @@ export const geminiProvider: AIProvider = {
         timestamp: Date.now(),
         provider: 'gemini',
         model: request.model,
+        seed: request.seed,
+        turnIndex: request.turnIndex,
         outcome: 'error',
         durationMs: Date.now() - startedAt,
         prompt,
         rawResponse,
+        thinkingText,
+        httpStatus,
         errorKind: err instanceof AIError ? err.kind : 'network',
         errorMessage: err instanceof Error ? err.message : String(err),
       });
