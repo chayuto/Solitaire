@@ -48,13 +48,16 @@ test.describe('window.__solitaire test bridge', () => {
       keys: Object.keys(window.__solitaire!).sort(),
     }));
 
-    expect(info.version).toBe(2);
+    expect(info.version).toBe(3);
     expect(info.keys).toEqual(
       [
+        'askAI',
+        'cancelAI',
         'deselect',
         'draw',
         'exportState',
         'findCard',
+        'getAIState',
         'getState',
         'getSummary',
         'isWon',
@@ -65,6 +68,9 @@ test.describe('window.__solitaire test bridge', () => {
         'moveToTableau',
         'newGame',
         'select',
+        'setAIConfig',
+        'setAIProviderStub',
+        'toggleAIAutoPlay',
         'toggleAutoPlay',
         'version',
       ].sort(),

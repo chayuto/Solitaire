@@ -12,6 +12,7 @@
 
 import type { GameState as CoreGameState, Move as CoreMove } from '@chayuto/solitaire-core';
 import type { GameState as UIGameState, Card, Move } from '../types';
+import { DEFAULT_AI_CONFIG } from '../ai/context/presets';
 
 /**
  * Convert UI GameState to Core GameState
@@ -94,6 +95,15 @@ export function coreToUI(coreState: CoreGameState, existingUIState: UIGameState)
     replayIndex: existingUIState.replayIndex,
     replayPaused: existingUIState.replayPaused,
     replaySpeed: existingUIState.replaySpeed,
+
+    // Preserve AI advisor fields from existing state
+    aiConfig: existingUIState.aiConfig,
+    aiThinking: existingUIState.aiThinking,
+    aiAutoPlay: existingUIState.aiAutoPlay,
+    aiThinkingSince: existingUIState.aiThinkingSince,
+    aiError: existingUIState.aiError,
+    aiDecisionLog: existingUIState.aiDecisionLog,
+    aiKeyModalOpen: existingUIState.aiKeyModalOpen,
   };
 }
 
@@ -113,6 +123,13 @@ export function getDefaultUIFields(): Pick<
   | 'replayIndex'
   | 'replayPaused'
   | 'replaySpeed'
+  | 'aiConfig'
+  | 'aiThinking'
+  | 'aiAutoPlay'
+  | 'aiThinkingSince'
+  | 'aiError'
+  | 'aiDecisionLog'
+  | 'aiKeyModalOpen'
 > {
   return {
     selectedCard: undefined,
@@ -125,5 +142,12 @@ export function getDefaultUIFields(): Pick<
     replayIndex: -1,
     replayPaused: false,
     replaySpeed: 1000,
+    aiConfig: DEFAULT_AI_CONFIG,
+    aiThinking: false,
+    aiAutoPlay: false,
+    aiThinkingSince: undefined,
+    aiError: undefined,
+    aiDecisionLog: [],
+    aiKeyModalOpen: false,
   };
 }

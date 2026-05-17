@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { Difficulty } from '../types';
+import AISettingsSection from './AISettingsSection';
 
 /**
  * ControlPanel component - Main game controls and settings
@@ -12,11 +13,14 @@ import type { Difficulty } from '../types';
  * - Toggle features (valid moves, god mode, auto-play)
  */
 const ControlPanel: React.FC = () => {
-  const { exportGameState, importGameState, initializeGame, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty, startReplay } = useGameStore();
+  const { exportGameState, importGameState, initializeGame, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty, startReplay, askAIForMove, toggleAIAutoPlay } = useGameStore();
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
   const autoPlayEnabled = useGameStore((state) => state.autoPlayEnabled);
   const replayMode = useGameStore((state) => state.replayMode);
+  const aiThinking = useGameStore((state) => state.aiThinking);
+  const aiAutoPlay = useGameStore((state) => state.aiAutoPlay);
+  const gameWon = useGameStore((state) => state.gameWon);
   const moveCount = useGameStore((state) => state.moveHistory.length);
   const difficulty = useGameStore((state) => state.difficulty);
   const perceivedDifficulty = useGameStore((state) => state.perceivedDifficulty);
@@ -230,15 +234,53 @@ const ControlPanel: React.FC = () => {
         <button
           data-testid="auto-play-btn"
           onClick={toggleAutoPlay}
-          disabled={replayMode}
+          disabled={replayMode || aiAutoPlay}
           className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
             autoPlayEnabled
               ? 'bg-amber-600 hover:bg-amber-700 text-white'
               : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-          } ${replayMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+          } ${replayMode || aiAutoPlay ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {autoPlayEnabled ? '⏸️' : '▶️'} Auto Play
         </button>
+
+        <div className="border-t border-gray-300 my-2"></div>
+
+        <button
+          data-testid="ask-ai-btn"
+          onClick={() => { void askAIForMove(); }}
+          disabled={replayMode || autoPlayEnabled || gameWon || aiThinking || aiAutoPlay}
+          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+            aiThinking && !aiAutoPlay
+              ? 'bg-indigo-400 text-white cursor-wait'
+              : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+          } ${
+            replayMode || autoPlayEnabled || gameWon || aiAutoPlay
+              ? 'opacity-50 cursor-not-allowed'
+              : ''
+          }`}
+          title="Ask an LLM for the next best move"
+        >
+          {aiThinking && !aiAutoPlay ? '🤖 Thinking…' : '🤖 Ask AI'}
+        </button>
+
+        <button
+          data-testid="ai-auto-play-btn"
+          onClick={toggleAIAutoPlay}
+          disabled={replayMode || autoPlayEnabled || gameWon}
+          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+            aiAutoPlay
+              ? 'bg-indigo-700 hover:bg-indigo-800 text-white'
+              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+          } ${
+            replayMode || autoPlayEnabled || gameWon ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          title="Let the AI keep playing the whole game move-by-move"
+        >
+          {aiAutoPlay ? '⏹️ Stop AI Auto' : '🤖 AI Auto-Play'}
+        </button>
+
+        <AISettingsSection />
       </div>
 
       <input

@@ -138,6 +138,7 @@ const ActivityLog: React.FC = () => {
                 {[...visibleLogs].reverse().map((move, index) => {
                   const isAutoPlayEvent = move.type.startsWith('autoplay_');
                   const isDeadendOrLoop = move.type === 'autoplay_deadend' || move.type === 'autoplay_loop_detected';
+                  const isAIMove = typeof move.aiReasoning === 'string';
                   return (
                     <div
                       key={`${move.timestamp}-${index}`}
@@ -147,10 +148,28 @@ const ActivityLog: React.FC = () => {
                           ? 'bg-red-50 border-red-300 text-red-900 font-semibold'
                           : isAutoPlayEvent
                           ? 'bg-amber-50 border-amber-300 text-amber-900 font-semibold'
+                          : isAIMove
+                          ? 'bg-indigo-50 border-indigo-300 text-indigo-900'
                           : 'bg-white border-gray-200 hover:bg-gray-100'
                       }`}
                     >
-                      {formatMove(move)}
+                      <div>
+                        {isAIMove && <span className="mr-1" aria-label="AI move">🤖</span>}
+                        {formatMove(move)}
+                      </div>
+                      {isAIMove && (
+                        <div
+                          data-testid="activity-log-ai-reasoning"
+                          className="mt-1 pl-4 text-[11px] italic text-indigo-700 whitespace-pre-wrap break-words"
+                        >
+                          {move.aiConfidence !== undefined && (
+                            <span className="not-italic font-semibold">
+                              [{Math.round(move.aiConfidence * 100)}%]{' '}
+                            </span>
+                          )}
+                          {move.aiReasoning}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

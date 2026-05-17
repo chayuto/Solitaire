@@ -6,6 +6,8 @@ import FoundationPile from './FoundationPile';
 import TableauColumn from './TableauColumn';
 import ControlPanel from './ControlPanel';
 import ActivityLog from './ActivityLog';
+import AIAdvisorPanel from './AIAdvisorPanel';
+import AIKeyModal from './AIKeyModal';
 import WinModal from './WinModal';
 import ReplayControls from './ReplayControls';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
@@ -34,13 +36,15 @@ const GameBoard: React.FC = () => {
   return (
     <div data-testid="game-board" className="min-h-screen bg-gradient-to-br from-green-700 via-green-600 to-green-800">
       <WinModal />
-      
+      <AIKeyModal />
+
       {/* Desktop: side panels, Mobile: stacked layout */}
       <div className="flex flex-col lg:flex-row lg:items-start gap-4 p-2 sm:p-4 lg:p-6">
-        
-        {/* Left Panel - Activity Log (desktop: left side, mobile: top) */}
-        <div className="lg:sticky lg:top-4 lg:w-80 flex-shrink-0 order-2 lg:order-1">
+
+        {/* Left Panel - Activity Log + AI Advisor (desktop: left side, mobile: top) */}
+        <div className="lg:sticky lg:top-4 lg:w-80 flex-shrink-0 order-2 lg:order-1 flex flex-col gap-4">
           <ActivityLog />
+          <AIAdvisorPanel />
         </div>
 
         {/* Center - Game Area */}
