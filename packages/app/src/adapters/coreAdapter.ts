@@ -89,6 +89,7 @@ export function coreToUI(coreState: CoreGameState, existingUIState: UIGameState)
     seed: existingUIState.seed,
     gameSessionId: existingUIState.gameSessionId,
     gameStartedAt: existingUIState.gameStartedAt,
+    winModalDismissed: existingUIState.winModalDismissed,
     showValidMoves: existingUIState.showValidMoves,
     godMode: existingUIState.godMode,
     autoPlayEnabled: existingUIState.autoPlayEnabled,
@@ -122,6 +123,7 @@ export function getDefaultUIFields(): Pick<
   | 'seed'
   | 'gameSessionId'
   | 'gameStartedAt'
+  | 'winModalDismissed'
   | 'showValidMoves'
   | 'godMode'
   | 'autoPlayEnabled'
@@ -146,6 +148,7 @@ export function getDefaultUIFields(): Pick<
     seed: undefined,
     gameSessionId: undefined,
     gameStartedAt: undefined,
+    winModalDismissed: false,
     showValidMoves: false,
     godMode: false,
     autoPlayEnabled: false,

@@ -126,6 +126,8 @@ interface GameStore extends GameState {
   setAIKeyModalOpen: (open: boolean) => void;
   /** Serialize the full LLM interaction log to a JSON string for export. */
   exportAIInteractions: () => string;
+  /** Dismiss the win modal without starting a new game. */
+  dismissWinModal: () => void;
 }
 
 /**
@@ -194,6 +196,7 @@ const initializeGameState = (
     gameSessionId: uuidv7(),
     gameStartedAt: Date.now(),
     gameWon: false,
+    winModalDismissed: false,
     initialBoardSetup,
     perceivedDifficulty: undefined, // Will be calculated below
     completionProgress: 0, // Start at 0% completion
@@ -1453,4 +1456,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   exportAIInteractions: () => serializeAIInteractions(),
+
+  dismissWinModal: () => {
+    set({ winModalDismissed: true });
+  },
 }));
