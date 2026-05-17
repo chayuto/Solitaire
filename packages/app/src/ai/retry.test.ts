@@ -122,6 +122,25 @@ describe('suggestMoveWithRetry', () => {
     expect(onRetry.mock.calls[0][0]).toMatchObject({ attempt: 1, maxAttempts: 4 });
   });
 
+  it('waits the server-suggested delay instead of its own backoff', async () => {
+    vi.useFakeTimers();
+    const suggestMove = vi
+      .fn()
+      .mockRejectedValueOnce(new AIError('rate_limited', 'limited', 57_000))
+      .mockResolvedValueOnce(DECISION);
+    const onRetry = vi.fn();
+
+    const promise = suggestMoveWithRetry(fakeProvider(suggestMove), REQUEST, {
+      maxAttempts: 4,
+      onRetry,
+    });
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    await expect(promise).resolves.toBe(DECISION);
+    // The retry waited ~57s (the server's RetryInfo), not the ~2s backoff.
+    expect(onRetry.mock.calls[0][0].delayMs).toBeGreaterThanOrEqual(57_000);
+  });
+
   it('gives up after the maximum number of attempts', async () => {
     vi.useFakeTimers();
     const suggestMove = vi.fn().mockRejectedValue(new AIError('unavailable', 'down'));

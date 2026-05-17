@@ -36,7 +36,8 @@ const ReplayControls: React.FC = () => {
 
   // The move that was just applied at the current replay position.
   const currentMove = replayIndex > 0 ? moveHistory[replayIndex - 1] : undefined;
-  const currentIsAIMove = typeof currentMove?.aiReasoning === 'string';
+  const currentIsAIMove =
+    currentMove?.aiMove === true || typeof currentMove?.aiReasoning === 'string';
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

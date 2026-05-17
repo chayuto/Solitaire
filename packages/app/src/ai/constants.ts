@@ -57,6 +57,16 @@ export const AI_RETRY_MAX_DELAY = 30_000;
  */
 export const AI_AUTO_RETRY_COOLDOWN = 12_000;
 
+/**
+ * Fallback wait (ms) after an HTTP 429 when the response carries no
+ * `RetryInfo`. Long enough to clear a per-minute rate-limit window — a short
+ * retry would just hit the limit again.
+ */
+export const AI_RATE_LIMIT_FALLBACK_DELAY = 35_000;
+
+/** Hard cap (ms) on any server-suggested retry delay, against bogus values. */
+export const AI_RETRY_DELAY_CAP = 120_000;
+
 /** Sampling temperature for move suggestions — low, for consistent advice. */
 export const AI_TEMPERATURE = 0.3;
 

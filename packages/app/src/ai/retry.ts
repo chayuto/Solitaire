@@ -8,7 +8,7 @@
  * @module ai/retry
  */
 
-import { AI_RETRY_BASE_DELAY, AI_RETRY_MAX_DELAY } from './constants';
+import { AI_RETRY_BASE_DELAY, AI_RETRY_DELAY_CAP, AI_RETRY_MAX_DELAY } from './constants';
 import { AIError, type AIErrorKind, type AIMoveDecision, type AIProvider, type AIRequest } from './types';
 
 /**
@@ -122,8 +122,14 @@ export async function suggestMoveWithRetry(
       if (err instanceof AIError && err.kind === 'aborted') throw err;
       if (!isRetryableAIError(err) || attempt >= maxAttempts) throw err;
 
-      const delayMs = backoffDelay(attempt);
-      onRetry?.({ attempt, maxAttempts, error: err as AIError, delayMs });
+      const aiErr = err as AIError;
+      // Honor a server-suggested delay (e.g. a 429 RetryInfo) when present;
+      // otherwise fall back to exponential backoff.
+      const delayMs =
+        aiErr.retryAfterMs !== undefined
+          ? Math.min(aiErr.retryAfterMs, AI_RETRY_DELAY_CAP) + Math.floor(Math.random() * 500)
+          : backoffDelay(attempt);
+      onRetry?.({ attempt, maxAttempts, error: aiErr, delayMs });
       await abortableSleep(delayMs, signal);
     }
   }
