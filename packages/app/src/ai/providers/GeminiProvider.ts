@@ -19,12 +19,21 @@
 
 import { AI_REQUEST_TIMEOUT_MS, AI_TEMPERATURE, GEMINI_API_BASE } from '../constants';
 import { parseDecision } from '../decision/schema';
+import { recordAIDiagnostics } from '../diagnostics';
 import { AIError, type AIMoveDecision, type AIProvider, type AIRequest } from '../types';
 
 /** Shape of a single content part in a Gemini API response. */
 interface GeminiPart {
   text?: string;
   thought?: boolean;
+}
+
+/** Token-usage block from a Gemini response. */
+interface GeminiUsage {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  thoughtsTokenCount?: number;
+  totalTokenCount?: number;
 }
 
 /** Minimal shape of the Gemini `generateContent` response we rely on. */
@@ -34,6 +43,7 @@ interface GeminiResponse {
     finishReason?: string;
   }[];
   promptFeedback?: { blockReason?: string };
+  usageMetadata?: GeminiUsage;
   error?: { code?: number; message?: string; status?: string };
 }
 
@@ -108,12 +118,7 @@ export const geminiProvider: AIProvider = {
   displayName: 'Google Gemini / Gemma',
   requiresKey: true,
   defaultModel: 'gemma-4-31b-it',
-  availableModels: [
-    'gemma-4-31b-it',
-    'gemma-4-26b-a4b-it',
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
-  ],
+  availableModels: ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.1-flash-lite'],
   apiKeyUrl: 'https://aistudio.google.com/apikey',
 
   async suggestMove(request: AIRequest): Promise<AIMoveDecision> {
@@ -121,73 +126,99 @@ export const geminiProvider: AIProvider = {
       throw new AIError('no_key', 'No Gemini API key configured.');
     }
 
-    // Single user message: system instruction + game context + (output rules
-    // are already inside the system instruction).
-    const prompt =
-      `${request.systemInstruction}\n\n` +
-      `CURRENT GAME (JSON):\n${JSON.stringify(request.context)}\n\n` +
-      'Now choose the best move and reply with only the JSON object.';
-
-    const body = {
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: AI_TEMPERATURE },
-    };
-
-    // Combine our timeout with any caller-supplied abort signal.
-    const controller = new AbortController();
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, AI_REQUEST_TIMEOUT_MS);
-    const onParentAbort = () => controller.abort();
-    request.signal?.addEventListener('abort', onParentAbort);
-
-    const url =
-      `${GEMINI_API_BASE}/models/${encodeURIComponent(request.model)}:generateContent` +
-      `?key=${encodeURIComponent(request.apiKey)}`;
-
-    let response: Response;
+    const startedAt = Date.now();
     try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        throw new AIError(
-          timedOut ? 'timeout' : 'aborted',
-          timedOut
-            ? `The model did not respond within ${Math.round(AI_REQUEST_TIMEOUT_MS / 1000)}s.`
-            : 'The AI request was cancelled.',
-        );
+      // Single user message: system instruction + game context (the output
+      // rules are already inside the system instruction).
+      const prompt =
+        `${request.systemInstruction}\n\n` +
+        `CURRENT GAME (JSON):\n${JSON.stringify(request.context)}\n\n` +
+        'Now choose the best move and reply with only the JSON object.';
+
+      const body = {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: AI_TEMPERATURE },
+      };
+
+      // Combine our timeout with any caller-supplied abort signal.
+      const controller = new AbortController();
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, AI_REQUEST_TIMEOUT_MS);
+      const onParentAbort = () => controller.abort();
+      request.signal?.addEventListener('abort', onParentAbort);
+
+      const url =
+        `${GEMINI_API_BASE}/models/${encodeURIComponent(request.model)}:generateContent` +
+        `?key=${encodeURIComponent(request.apiKey)}`;
+
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          throw new AIError(
+            timedOut ? 'timeout' : 'aborted',
+            timedOut
+              ? `The model did not respond within ${Math.round(AI_REQUEST_TIMEOUT_MS / 1000)}s.`
+              : 'The AI request was cancelled.',
+          );
+        }
+        throw new AIError('network', 'Could not reach Gemini. Check your network connection.');
+      } finally {
+        clearTimeout(timer);
+        request.signal?.removeEventListener('abort', onParentAbort);
       }
-      throw new AIError('network', 'Could not reach Gemini. Check your network connection.');
-    } finally {
-      clearTimeout(timer);
-      request.signal?.removeEventListener('abort', onParentAbort);
-    }
 
-    let data: GeminiResponse | null;
-    try {
-      data = (await response.json()) as GeminiResponse;
-    } catch {
-      data = null;
-    }
+      let data: GeminiResponse | null;
+      try {
+        data = (await response.json()) as GeminiResponse;
+      } catch {
+        data = null;
+      }
 
-    if (!response.ok) {
-      throw errorFromHttp(response.status, data);
-    }
-    if (!data) {
-      throw new AIError('bad_response', 'Gemini returned a response that was not JSON.');
-    }
-    if (data.error) {
-      throw errorFromHttp(data.error.code ?? 500, data);
-    }
+      if (!response.ok) {
+        throw errorFromHttp(response.status, data);
+      }
+      if (!data) {
+        throw new AIError('bad_response', 'Gemini returned a response that was not JSON.');
+      }
+      if (data.error) {
+        throw errorFromHttp(data.error.code ?? 500, data);
+      }
 
-    const text = extractAnswerText(data);
-    return parseDecision(text, request.context.legalMoves.length);
+      const text = extractAnswerText(data);
+      const decision = parseDecision(text, request.context.legalMoves.length);
+
+      // Diagnostics: time taken and token cost for this API call.
+      const usage = data.usageMetadata;
+      recordAIDiagnostics({
+        timestamp: Date.now(),
+        model: request.model,
+        outcome: 'success',
+        durationMs: Date.now() - startedAt,
+        promptTokens: usage?.promptTokenCount,
+        thoughtTokens: usage?.thoughtsTokenCount,
+        outputTokens: usage?.candidatesTokenCount,
+        totalTokens: usage?.totalTokenCount,
+      });
+      return decision;
+    } catch (err) {
+      recordAIDiagnostics({
+        timestamp: Date.now(),
+        model: request.model,
+        outcome: 'error',
+        durationMs: Date.now() - startedAt,
+        errorKind: err instanceof AIError ? err.kind : 'network',
+      });
+      throw err;
+    }
   },
 };

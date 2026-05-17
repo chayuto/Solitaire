@@ -20,8 +20,13 @@
 
 import { useGameStore } from './store/gameStore';
 import { scenarios, scenarioNames, isScenarioName } from './testScenarios';
-import { createStubProvider, DEFAULT_AI_CONFIG, setProviderOverride } from './ai';
-import type { AIConfig, StubDecisionFn } from './ai';
+import {
+  createStubProvider,
+  DEFAULT_AI_CONFIG,
+  getAIDiagnostics as readAIDiagnostics,
+  setProviderOverride,
+} from './ai';
+import type { AIConfig, AIDiagnostics, StubDecisionFn } from './ai';
 import type { Card, Difficulty, GameState, Suit } from './types';
 
 /** Compact, token-efficient game snapshot for agents. */
@@ -128,6 +133,8 @@ export interface SolitaireTestBridge {
   // --- AI Move Advisor ---
   /** Compact AI-advisor state snapshot. */
   getAIState: () => AIBridgeState;
+  /** Time/token diagnostics for recent AI API calls (most recent last). */
+  getAIDiagnostics: () => AIDiagnostics[];
   /**
    * Ask the AI advisor for a move. Resolves once the move is applied or the
    * request fails (inspect `getAIState().error`).
@@ -262,6 +269,7 @@ export function installTestBridge(): void {
       };
     },
     askAI: () => useGameStore.getState().askAIForMove(),
+    getAIDiagnostics: () => [...readAIDiagnostics()],
     toggleAIAutoPlay: () => useGameStore.getState().toggleAIAutoPlay(),
     cancelAI: () => useGameStore.getState().cancelAIRequest(),
     setAIConfig: (patch) => useGameStore.getState().setAIConfig(patch),

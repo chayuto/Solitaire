@@ -98,8 +98,8 @@ const AIKeyModalContent: React.FC = () => {
         </datalist>
         <p className="text-xs text-gray-500 mb-4">
           Default <code>gemma-4-31b-it</code> is a thinking model — a suggestion can take
-          up to ~3 minutes. Pick a faster model (e.g. <code>gemini-2.5-flash</code>) for
-          quicker, lower-quality advice.
+          up to ~3 minutes. Pick a faster model (e.g.{' '}
+          <code>gemini-3.1-flash-lite</code>) for quicker, lower-quality advice.
         </p>
 
         {/* API key */}

@@ -8,7 +8,8 @@
  * @module ai/providers/stubProvider
  */
 
-import type { AIMoveContext, AIMoveDecision, AIProvider } from '../types';
+import { recordAIDiagnostics } from '../diagnostics';
+import { AIError, type AIMoveContext, type AIMoveDecision, type AIProvider } from '../types';
 
 /** A function that turns a game context into a decision. */
 export type StubDecisionFn = (
@@ -37,7 +38,26 @@ export function createStubProvider(decide?: StubDecisionFn): AIProvider {
     availableModels: ['stub'],
     apiKeyUrl: '',
     async suggestMove(request): Promise<AIMoveDecision> {
-      return fn(request.context);
+      const startedAt = Date.now();
+      try {
+        const decision = await fn(request.context);
+        recordAIDiagnostics({
+          timestamp: Date.now(),
+          model: request.model,
+          outcome: 'success',
+          durationMs: Date.now() - startedAt,
+        });
+        return decision;
+      } catch (err) {
+        recordAIDiagnostics({
+          timestamp: Date.now(),
+          model: request.model,
+          outcome: 'error',
+          durationMs: Date.now() - startedAt,
+          errorKind: err instanceof AIError ? err.kind : 'bad_response',
+        });
+        throw err;
+      }
     },
   };
 }

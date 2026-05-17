@@ -26,6 +26,8 @@ const AIAdvisorPanel: React.FC = () => {
   const aiThinking = useGameStore((s) => s.aiThinking) ?? false;
   const aiAutoPlay = useGameStore((s) => s.aiAutoPlay) ?? false;
   const aiThinkingSince = useGameStore((s) => s.aiThinkingSince);
+  const aiStatus = useGameStore((s) => s.aiStatus);
+  const aiRetryCount = useGameStore((s) => s.aiRetryCount) ?? 0;
   const aiError = useGameStore((s) => s.aiError);
   const aiDecisionLog = useGameStore((s) => s.aiDecisionLog);
   const cancelAIRequest = useGameStore((s) => s.cancelAIRequest);
@@ -96,7 +98,7 @@ const AIAdvisorPanel: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="inline-block w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
               <span className="text-sm font-semibold text-indigo-800">
-                {aiAutoPlay ? 'Auto-playing…' : 'Thinking…'}
+                {aiAutoPlay ? 'Auto-playing...' : 'Thinking...'}
               </span>
               <span
                 data-testid="ai-elapsed"
@@ -106,9 +108,23 @@ const AIAdvisorPanel: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-indigo-700 mt-2">
-              A thinking model can take a while — up to ~{Math.round(timeoutSeconds / 60)} minutes
-              on a hard board. The board is locked until it answers.
+              A thinking model can take a while, up to about{' '}
+              {Math.round(timeoutSeconds / 60)} minutes on a hard board. The board is
+              locked until it answers.
             </p>
+            {aiRetryCount > 0 && (
+              <p
+                data-testid="ai-retry-count"
+                className="text-xs font-semibold text-amber-700 mt-2"
+              >
+                Retries this request: {aiRetryCount}
+              </p>
+            )}
+            {aiStatus && (
+              <p data-testid="ai-status" className="text-xs text-amber-700 mt-1">
+                {aiStatus}
+              </p>
+            )}
             <button
               data-testid="ai-cancel-btn"
               onClick={aiAutoPlay ? toggleAIAutoPlay : cancelAIRequest}

@@ -130,6 +130,73 @@ test.describe('AI Move Advisor', () => {
     expect(await page.getByTestId('activity-log-ai-reasoning').count()).toBeGreaterThanOrEqual(2);
   });
 
+  test('exports the AI decision log, seed and config for repeatability', async ({ page }) => {
+    await page.goto('/?seed=7');
+    await waitForGame(page);
+
+    await page.evaluate(() => {
+      window.__solitaire!.setAIProviderStub(() => ({
+        moveIndex: 0,
+        reasoning: 'E2E stub: export-log check.',
+        confidence: 0.6,
+      }));
+    });
+    await page.getByTestId('ask-ai-btn').click();
+    await page.waitForFunction(() => window.__solitaire!.getAIState().decisionCount === 1);
+
+    const exported = JSON.parse(
+      await page.evaluate(() => window.__solitaire!.exportState()),
+    );
+    expect(exported.seed).toBe(7);
+    expect(exported.aiConfig?.model).toBeTruthy();
+    expect(exported.aiDecisionLog).toHaveLength(1);
+    expect(exported.aiDecisionLog[0].reasoning).toContain('export-log check');
+    const aiMove = exported.moveHistory.find(
+      (m: { aiReasoning?: string }) => m.aiReasoning,
+    );
+    expect(aiMove?.aiReasoning).toContain('export-log check');
+  });
+
+  test('records time/token diagnostics for AI calls', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    await page.evaluate(() => {
+      window.__solitaire!.setAIProviderStub(() => ({
+        moveIndex: 0,
+        reasoning: 'E2E stub: diagnostics.',
+        confidence: 1,
+      }));
+    });
+    await page.getByTestId('ask-ai-btn').click();
+    await page.waitForFunction(() => window.__solitaire!.getAIState().decisionCount === 1);
+
+    const diagnostics = await page.evaluate(() => window.__solitaire!.getAIDiagnostics());
+    expect(diagnostics.length).toBeGreaterThanOrEqual(1);
+    expect(diagnostics[diagnostics.length - 1].outcome).toBe('success');
+  });
+
+  test('replay surfaces which moves were made by the AI', async ({ page }) => {
+    await page.goto('/?seed=1');
+    await waitForGame(page);
+
+    await page.evaluate(() => {
+      window.__solitaire!.setAIProviderStub(() => ({
+        moveIndex: 0,
+        reasoning: 'E2E stub: replay reasoning.',
+        confidence: 0.7,
+      }));
+    });
+    await page.getByTestId('ask-ai-btn').click();
+    await page.waitForFunction(() => window.__solitaire!.getAIState().decisionCount === 1);
+
+    await page.getByTestId('replay-btn').click();
+    await page.getByTestId('replay-forward-btn').click();
+
+    await expect(page.getByTestId('replay-current-move')).toBeVisible();
+    await expect(page.getByTestId('replay-ai-reasoning')).toContainText('replay reasoning');
+  });
+
   test('respects the chosen move index from the stub', async ({ page }) => {
     await page.goto('/?seed=1');
     await waitForGame(page);

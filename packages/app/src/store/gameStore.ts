@@ -27,13 +27,18 @@ import {
   AI_DECISION_LOG_LIMIT,
   AI_AUTO_MOVE_DELAY,
   AI_AUTO_HISTORY_LIMIT,
+  AI_AUTO_RETRY_COOLDOWN,
+  AI_RETRY_MAX_ATTEMPTS,
   DEFAULT_AI_CONFIG,
   applyPreset,
   buildContext,
   buildSystemInstruction,
   describeMoveCommand,
   getEffectiveKey,
+  getLastAIDiagnostics,
   getProvider,
+  isTransientAIError,
+  suggestMoveWithRetry,
 } from '../ai';
 import type { AIConfig, AIDecisionRecord } from '../ai';
 
@@ -178,6 +183,7 @@ const initializeGameState = (
     autoPlayInProgress: false,
     autoPlayStateHistory: [],
     difficulty,
+    seed,
     gameWon: false,
     initialBoardSetup,
     perceivedDifficulty: undefined, // Will be calculated below
@@ -190,6 +196,8 @@ const initializeGameState = (
     aiThinking: false,
     aiAutoPlay: false,
     aiThinkingSince: undefined,
+    aiStatus: undefined,
+    aiRetryCount: 0,
     aiError: undefined,
     aiDecisionLog: [],
     aiKeyModalOpen: false,
@@ -567,6 +575,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       autoPlayEnabled: state.autoPlayEnabled,
       autoPlayInProgress: state.autoPlayInProgress,
       difficulty: state.difficulty,
+      // Deal seed and AI config travel with the save so an exported game is
+      // repeatable (re-deal the same board) and self-describing (which model
+      // and settings played it).
+      seed: state.seed,
+      aiConfig: state.aiConfig,
       gameWon: state.gameWon,
       initialBoardSetup: state.initialBoardSetup,
       perceivedDifficulty: state.perceivedDifficulty,
@@ -575,6 +588,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       replayIndex: state.replayIndex,
       replayPaused: state.replayPaused,
       replaySpeed: state.replaySpeed,
+      // The AI decision log travels with the save so an exported game is a
+      // complete record of how the AI played, for replay and benchmarking.
+      aiDecisionLog: state.aiDecisionLog,
     };
     return JSON.stringify(exportState, null, 2);
   },
@@ -623,6 +639,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         autoPlayEnabled: importedState.autoPlayEnabled,
         autoPlayInProgress: false,
         difficulty: importedState.difficulty,
+        seed: importedState.seed,
+        aiConfig: importedState.aiConfig ?? get().aiConfig ?? DEFAULT_AI_CONFIG,
         gameWon: false, // Always set to false to allow replay even for won games
         initialBoardSetup: importedState.initialBoardSetup,
         perceivedDifficulty,
@@ -631,8 +649,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         replayIndex: 0,
         replayPaused: false,
         replaySpeed: importedState.replaySpeed ?? 1000,
+        // Restore the AI decision log if the save carries one (older saves
+        // and non-AI games simply have none).
+        aiDecisionLog: importedState.aiDecisionLog ?? [],
       });
-      
+
       return true;
     } catch (error) {
       console.error('Error importing game state:', error);
@@ -1154,16 +1175,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // --- Begin the request ---
     aiAbortController = new AbortController();
-    set({ aiThinking: true, aiThinkingSince: Date.now(), aiError: undefined });
+    const requestStartedAt = Date.now();
+    set({
+      aiThinking: true,
+      aiThinkingSince: requestStartedAt,
+      aiStatus: undefined,
+      aiRetryCount: 0,
+      aiError: undefined,
+    });
 
     try {
-      const decision = await provider.suggestMove({
-        apiKey: apiKey ?? '',
-        model: config.model,
-        systemInstruction,
-        context,
-        signal: aiAbortController.signal,
-      });
+      // Retry transient failures (flaky network, rate limits, 5xx responses,
+      // the occasional unparseable answer) with exponential backoff.
+      const decision = await suggestMoveWithRetry(
+        provider,
+        {
+          apiKey: apiKey ?? '',
+          model: config.model,
+          systemInstruction,
+          context,
+          signal: aiAbortController.signal,
+        },
+        {
+          maxAttempts: AI_RETRY_MAX_ATTEMPTS,
+          signal: aiAbortController.signal,
+          onRetry: ({ attempt, maxAttempts, error, delayMs }) => {
+            set({
+              aiRetryCount: attempt,
+              aiStatus:
+                `${error.message} Retrying ${attempt + 1}/${maxAttempts} ` +
+                `in ${Math.round(delayMs / 1000)}s.`,
+            });
+          },
+        },
+      );
 
       // Defensive: the provider already range-checked moveIndex, but never
       // index a move list with an unverified value.
@@ -1193,7 +1238,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ moveHistory: annotated });
       }
 
-      // Record the decision (drives the advisor panel + the reasoning trail).
+      // Record the decision. This drives the advisor panel and the reasoning
+      // trail, is exported with the game, and carries enough cost/choice
+      // detail to serve as a benchmarking dataset row.
+      const diag = getLastAIDiagnostics();
       const record: AIDecisionRecord = {
         timestamp: Date.now(),
         moveType: command.type,
@@ -1205,11 +1253,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ? describeMoveCommand(legalMoves[decision.alternativeMoveIndex], state)
             : undefined,
         model: config.model,
+        moveIndex: decision.moveIndex,
+        legalMoveCount: legalMoves.length,
+        durationMs: Date.now() - requestStartedAt,
+        retries: get().aiRetryCount ?? 0,
+        promptTokens: diag?.promptTokens,
+        thoughtTokens: diag?.thoughtTokens,
+        outputTokens: diag?.outputTokens,
+        totalTokens: diag?.totalTokens,
       };
       const aiDecisionLog = [...(get().aiDecisionLog ?? []), record].slice(
         -AI_DECISION_LOG_LIMIT,
       );
-      set({ aiThinking: false, aiThinkingSince: undefined, aiDecisionLog, aiError: undefined });
+      set({
+        aiThinking: false,
+        aiThinkingSince: undefined,
+        aiStatus: undefined,
+        aiDecisionLog,
+        aiError: undefined,
+      });
+
+      // Diagnostic: total time for this move, including any retries.
+      const retries = get().aiRetryCount ?? 0;
+      console.info(
+        `[AI] move applied in ${((Date.now() - requestStartedAt) / 1000).toFixed(1)}s` +
+          (retries > 0 ? ` after ${retries} retr${retries === 1 ? 'y' : 'ies'}` : ''),
+      );
 
       // If AI auto-play is engaged, queue the next move.
       if (get().aiAutoPlay) {
@@ -1218,7 +1287,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } catch (err) {
       // A user-initiated cancel is not an error worth surfacing.
       if (err instanceof AIError && err.kind === 'aborted') {
-        set({ aiThinking: false, aiThinkingSince: undefined, aiError: undefined });
+        set({
+          aiThinking: false,
+          aiThinkingSince: undefined,
+          aiStatus: undefined,
+          aiError: undefined,
+        });
         return;
       }
       const message =
@@ -1227,8 +1301,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
           : err instanceof Error
             ? err.message
             : 'Unexpected AI error.';
-      // Any error stops AI auto-play — never hammer the API on failure.
-      set({ aiThinking: false, aiThinkingSince: undefined, aiError: message, aiAutoPlay: false });
+
+      // In auto-play, a transient (infrastructure) failure must not stop the
+      // run. The retries above are already exhausted, so cool down and
+      // re-attempt the move. LLM endpoints are not always stable.
+      if (get().aiAutoPlay && isTransientAIError(err)) {
+        set({
+          aiThinking: false,
+          aiThinkingSince: undefined,
+          aiStatus: undefined,
+          aiError: `${message} Auto-play retries in ${Math.round(AI_AUTO_RETRY_COOLDOWN / 1000)}s.`,
+        });
+        setTimeout(() => {
+          if (get().aiAutoPlay && !get().aiThinking) {
+            void get().askAIForMove();
+          }
+        }, AI_AUTO_RETRY_COOLDOWN);
+        return;
+      }
+
+      // Otherwise stop: a non-transient error, or a manual single request.
+      set({
+        aiThinking: false,
+        aiThinkingSince: undefined,
+        aiStatus: undefined,
+        aiError: message,
+        aiAutoPlay: false,
+      });
     } finally {
       aiAbortController = null;
     }

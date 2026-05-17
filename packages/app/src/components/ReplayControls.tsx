@@ -1,4 +1,5 @@
 import { useGameStore } from '../store/gameStore';
+import { summarizeHistoryMove } from '../ai';
 
 /**
  * ReplayControls component - Controls for replay mode
@@ -32,6 +33,10 @@ const ReplayControls: React.FC = () => {
   const progressPercentage = totalMoves > 0 ? (replayIndex / totalMoves) * 100 : 0;
   const isAtStart = replayIndex === 0;
   const isAtEnd = replayIndex >= totalMoves;
+
+  // The move that was just applied at the current replay position.
+  const currentMove = replayIndex > 0 ? moveHistory[replayIndex - 1] : undefined;
+  const currentIsAIMove = typeof currentMove?.aiReasoning === 'string';
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -79,6 +84,40 @@ const ReplayControls: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Current move, with the AI marker and reasoning when AI-played */}
+      {currentMove && (
+        <div
+          data-testid="replay-current-move"
+          className={`mb-3 text-sm rounded p-2 border ${
+            currentIsAIMove
+              ? 'bg-indigo-50 border-indigo-300'
+              : 'bg-gray-50 border-gray-200'
+          }`}
+        >
+          <div className={currentIsAIMove ? 'text-indigo-900' : 'text-gray-800'}>
+            {currentIsAIMove && (
+              <span className="mr-1" aria-label="AI move">
+                🤖
+              </span>
+            )}
+            {summarizeHistoryMove(currentMove)}
+          </div>
+          {currentIsAIMove && (
+            <div
+              data-testid="replay-ai-reasoning"
+              className="mt-1 text-xs italic text-indigo-700"
+            >
+              {currentMove.aiConfidence !== undefined && (
+                <span className="not-italic font-semibold">
+                  [{Math.round(currentMove.aiConfidence * 100)}%]{' '}
+                </span>
+              )}
+              {currentMove.aiReasoning}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Control Buttons */}
       <div className="flex items-center justify-center gap-2 mb-3">

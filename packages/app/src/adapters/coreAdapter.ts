@@ -86,6 +86,7 @@ export function coreToUI(coreState: CoreGameState, existingUIState: UIGameState)
     
     // Preserve UI-specific fields from existing state
     selectedCard: existingUIState.selectedCard,
+    seed: existingUIState.seed,
     showValidMoves: existingUIState.showValidMoves,
     godMode: existingUIState.godMode,
     autoPlayEnabled: existingUIState.autoPlayEnabled,
@@ -101,6 +102,8 @@ export function coreToUI(coreState: CoreGameState, existingUIState: UIGameState)
     aiThinking: existingUIState.aiThinking,
     aiAutoPlay: existingUIState.aiAutoPlay,
     aiThinkingSince: existingUIState.aiThinkingSince,
+    aiStatus: existingUIState.aiStatus,
+    aiRetryCount: existingUIState.aiRetryCount,
     aiError: existingUIState.aiError,
     aiDecisionLog: existingUIState.aiDecisionLog,
     aiKeyModalOpen: existingUIState.aiKeyModalOpen,
@@ -114,6 +117,7 @@ export function coreToUI(coreState: CoreGameState, existingUIState: UIGameState)
 export function getDefaultUIFields(): Pick<
   UIGameState,
   | 'selectedCard'
+  | 'seed'
   | 'showValidMoves'
   | 'godMode'
   | 'autoPlayEnabled'
@@ -127,12 +131,15 @@ export function getDefaultUIFields(): Pick<
   | 'aiThinking'
   | 'aiAutoPlay'
   | 'aiThinkingSince'
+  | 'aiStatus'
+  | 'aiRetryCount'
   | 'aiError'
   | 'aiDecisionLog'
   | 'aiKeyModalOpen'
 > {
   return {
     selectedCard: undefined,
+    seed: undefined,
     showValidMoves: false,
     godMode: false,
     autoPlayEnabled: false,
@@ -146,6 +153,8 @@ export function getDefaultUIFields(): Pick<
     aiThinking: false,
     aiAutoPlay: false,
     aiThinkingSince: undefined,
+    aiStatus: undefined,
+    aiRetryCount: 0,
     aiError: undefined,
     aiDecisionLog: [],
     aiKeyModalOpen: false,

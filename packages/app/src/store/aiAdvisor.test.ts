@@ -3,9 +3,9 @@
  * deterministic stub provider (no network, no API key).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useGameStore } from './gameStore';
-import { createStubProvider, setProviderOverride } from '../ai';
+import { AIError, createStubProvider, setProviderOverride } from '../ai';
 import type { AIMoveDecision } from '../ai';
 
 /** Install a stub provider that returns `decision`. */
@@ -144,15 +144,37 @@ describe('AI auto-play', () => {
     expect(useGameStore.getState().aiError).toMatch(/loop/i);
   });
 
-  it('stops auto-play when a provider error occurs', async () => {
+  it('stops auto-play when a non-transient provider error occurs', async () => {
     useStub(() => {
-      throw new Error('provider down');
+      throw new AIError('invalid_key', 'bad key');
     });
     useGameStore.setState({ aiAutoPlay: true });
     await useGameStore.getState().askAIForMove();
 
     expect(useGameStore.getState().aiAutoPlay).toBe(false);
-    expect(useGameStore.getState().aiError).toContain('provider down');
+    expect(useGameStore.getState().aiError).toContain('bad key');
+  });
+
+  it('keeps auto-play going through a transient error', async () => {
+    vi.useFakeTimers();
+    useStub(() => {
+      throw new AIError('unavailable', 'Gemini temporarily unavailable.');
+    });
+    useGameStore.setState({ aiAutoPlay: true });
+
+    const promise = useGameStore.getState().askAIForMove();
+    // Advance past the in-call retry backoffs (~15s) but not as far as the
+    // auto-play re-attempt cooldown (~12s after the failure), so we observe
+    // the post-failure state cleanly.
+    await vi.advanceTimersByTimeAsync(20_000);
+    await promise;
+
+    // A transient failure must NOT stop auto-play: it schedules a re-attempt.
+    expect(useGameStore.getState().aiAutoPlay).toBe(true);
+    expect(useGameStore.getState().aiError).toMatch(/retr/i);
+
+    vi.useRealTimers();
+    useGameStore.getState().toggleAIAutoPlay(); // stop the loop + pending timer
   });
 });
 
@@ -178,16 +200,16 @@ describe('setAIConfig', () => {
   });
 
   it('keeps provider, model and seeHiddenCards when applying a preset', () => {
-    useGameStore.getState().setAIConfig({ model: 'gemini-2.5-flash', seeHiddenCards: true });
+    useGameStore.getState().setAIConfig({ model: 'gemini-3.1-flash-lite', seeHiddenCards: true });
     useGameStore.getState().setAIConfig({ preset: 'detailed' });
     const config = useGameStore.getState().aiConfig!;
-    expect(config.model).toBe('gemini-2.5-flash');
+    expect(config.model).toBe('gemini-3.1-flash-lite');
     expect(config.seeHiddenCards).toBe(true);
   });
 
   it('preserves the AI config across a new game', () => {
-    useGameStore.getState().setAIConfig({ model: 'gemini-2.5-pro' });
+    useGameStore.getState().setAIConfig({ model: 'gemma-4-26b-a4b-it' });
     useGameStore.getState().initializeGame(2);
-    expect(useGameStore.getState().aiConfig?.model).toBe('gemini-2.5-pro');
+    expect(useGameStore.getState().aiConfig?.model).toBe('gemma-4-26b-a4b-it');
   });
 });

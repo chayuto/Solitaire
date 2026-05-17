@@ -13,6 +13,7 @@ export const RULES_PRIMER = `You are an expert Klondike Solitaire strategist act
 
 KLONDIKE SOLITAIRE RULES (this variant):
 - There are 7 tableau columns, 4 foundations (one per suit), a stock (draw) pile and a waste (discard) pile.
+- Tableau columns are numbered 1 to 7. Always refer to a column by that 1-based number, never 0-based.
 - Foundations are built UP by suit, starting from the Ace: A, 2, 3, ... up to King.
 - Tableau columns are built DOWN in alternating colors (red on black, black on red). Example: a black 7 can go on a red 8.
 - Only a King (or a valid sequence headed by a King) may be moved onto an EMPTY tableau column.

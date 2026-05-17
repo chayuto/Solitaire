@@ -61,6 +61,9 @@ describe('buildContext', () => {
     expect(ctx.drawPileCount).toBe(1);
     expect(ctx.tableau[0].faceDownCount).toBe(1);
     expect(ctx.tableau[0].faceUp).toEqual(['8H']);
+    // Columns carry an explicit 1-based number.
+    expect(ctx.tableau[0].column).toBe(1);
+    expect(ctx.tableau[6].column).toBe(7);
     expect(ctx.legalMoves).toHaveLength(2);
     expect(ctx.legalMoves[0].index).toBe(0);
     expect(ctx.legalMoves[1].index).toBe(1);

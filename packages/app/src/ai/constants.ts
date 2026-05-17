@@ -27,6 +27,26 @@ export const AI_AUTO_MOVE_DELAY = 800;
 /** Board-state hashes retained for AI auto-play loop detection. */
 export const AI_AUTO_HISTORY_LIMIT = 60;
 
+/**
+ * How many times a single move request is attempted before giving up. LLM
+ * endpoints are not perfectly stable; transient failures are retried with
+ * exponential backoff (see `ai/retry`).
+ */
+export const AI_RETRY_MAX_ATTEMPTS = 4;
+
+/** Base backoff delay (ms) before the first retry. Doubles each attempt. */
+export const AI_RETRY_BASE_DELAY = 2000;
+
+/** Maximum backoff delay (ms) between retries. */
+export const AI_RETRY_MAX_DELAY = 30_000;
+
+/**
+ * Cooldown (ms) before AI auto-play re-attempts a move after a request
+ * exhausted its retries with a transient (infrastructure) error. Auto-play
+ * keeps going rather than stopping on a flaky API.
+ */
+export const AI_AUTO_RETRY_COOLDOWN = 12_000;
+
 /** Sampling temperature for move suggestions — low, for consistent advice. */
 export const AI_TEMPERATURE = 0.3;
 
