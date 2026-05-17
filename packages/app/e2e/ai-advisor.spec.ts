@@ -15,6 +15,8 @@ test.describe('AI Move Advisor', () => {
 
     await expect(page.getByTestId('ai-advisor-panel')).toBeVisible();
     await expect(page.getByTestId('ask-ai-btn')).toBeVisible();
+    // The title shows a short game id for traceability.
+    await expect(page.getByTestId('game-id')).toContainText('Game #');
   });
 
   test('asks the AI, applies the chosen move, and logs the reasoning', async ({ page }) => {
@@ -149,6 +151,7 @@ test.describe('AI Move Advisor', () => {
     );
     expect(exported.seed).toBe(7);
     expect(exported.gameSessionId).toBeTruthy();
+    expect(exported.appCommit).toBeTruthy();
     expect(exported.aiConfig?.model).toBeTruthy();
     expect(exported.aiDecisionLog).toHaveLength(1);
     expect(exported.aiDecisionLog[0].reasoning).toContain('export-log check');
@@ -191,6 +194,8 @@ test.describe('AI Move Advisor', () => {
     );
     expect(exported.count).toBeGreaterThanOrEqual(1);
     expect(exported.interactions[0].requestId).toBeTruthy();
+    expect(exported.appCommit).toBeTruthy();
+    expect(exported.interactions[0].appCommit).toBeTruthy();
   });
 
   test('replay surfaces which moves were made by the AI', async ({ page }) => {

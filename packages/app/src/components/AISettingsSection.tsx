@@ -30,6 +30,7 @@ const AISettingsSection: React.FC = () => {
   const setAIConfig = useGameStore((s) => s.setAIConfig);
   const setAIKeyModalOpen = useGameStore((s) => s.setAIKeyModalOpen);
   const exportAIInteractions = useGameStore((s) => s.exportAIInteractions);
+  const gameSessionId = useGameStore((s) => s.gameSessionId);
   const [expanded, setExpanded] = useState(false);
 
   /** Download the full LLM interaction log as a JSON file. */
@@ -39,7 +40,8 @@ const AISettingsSection: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `solitaire-ai-log-${Date.now()}.json`;
+    const idTag = gameSessionId ? `${gameSessionId.slice(-6)}-` : '';
+    link.download = `solitaire-ai-log-${idTag}${Date.now()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

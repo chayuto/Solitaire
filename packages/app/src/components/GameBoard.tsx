@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useGameStore } from '../store/gameStore';
 import DrawPile from './DrawPile';
 import DiscardPile from './DiscardPile';
 import FoundationPile from './FoundationPile';
@@ -15,6 +16,19 @@ import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 const GameBoard: React.FC = () => {
   // Check for reduced motion preference
   const shouldReduceMotion = useMemo(() => checkReducedMotion(), []);
+
+  // Short game identifier: the seed (when the deal was seeded) and the last 6
+  // characters of the session UUID. Shown under the title and in the tab.
+  const gameSessionId = useGameStore((s) => s.gameSessionId);
+  const seed = useGameStore((s) => s.seed);
+  const shortId = gameSessionId ? gameSessionId.slice(-6) : null;
+  const gameLabel = shortId
+    ? `#${shortId}${seed !== undefined ? ` · seed ${seed}` : ''}`
+    : null;
+
+  useEffect(() => {
+    document.title = gameLabel ? `Solitaire ${gameLabel}` : 'Solitaire';
+  }, [gameLabel]);
 
   // Deal animation variants for tableau columns
   const dealVariants = shouldReduceMotion ? undefined : {
@@ -50,15 +64,25 @@ const GameBoard: React.FC = () => {
         {/* Center - Game Area */}
         <div className="flex-1 min-w-0 order-1 lg:order-2">
           <div className="max-w-5xl mx-auto">
-            <motion.h1 
-              className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white text-center mb-4 lg:mb-6"
+            <motion.div
+              className="text-center mb-4 lg:mb-6"
               initial={shouldReduceMotion ? {} : { opacity: 0, y: -20 }}
               animate={shouldReduceMotion ? {} : { opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              Solitaire
-            </motion.h1>
-            
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
+                Solitaire
+              </h1>
+              {gameLabel && (
+                <p
+                  data-testid="game-id"
+                  className="text-xs sm:text-sm font-mono text-green-200/80 mt-0.5"
+                >
+                  Game {gameLabel}
+                </p>
+              )}
+            </motion.div>
+
             {/* Replay Controls */}
             <ReplayControls />
             

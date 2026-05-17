@@ -38,9 +38,12 @@ describe('interactionLog', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
-  it('records and returns an interaction', () => {
+  it('records an interaction, stamped with the build commit', () => {
     recordAIInteraction(base);
-    expect(getAIInteractions()).toEqual([base]);
+    const stored = getAIInteractions();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject(base);
+    expect(stored[0].appCommit).toBeTruthy();
   });
 
   it('getLastAIInteraction returns the most recent entry', () => {
@@ -76,13 +79,16 @@ describe('interactionLog', () => {
     expect(getLastAIInteraction()?.timestamp).toBe(AI_INTERACTION_LOG_LIMIT + 24);
   });
 
-  it('exportAIInteractions returns JSON with a count and the entries', () => {
+  it('exportAIInteractions returns JSON with metadata and the entries', () => {
     recordAIInteraction(base);
     const parsed = JSON.parse(exportAIInteractions());
     expect(parsed.count).toBe(1);
     expect(parsed.interactions).toHaveLength(1);
     expect(parsed.interactions[0].requestId).toBe('req-abcdef12');
     expect(typeof parsed.exportedAt).toBe('string');
+    // The export is stamped with the build commit for traceability.
+    expect(typeof parsed.appCommit).toBe('string');
+    expect(typeof parsed.appBuildTime).toBe('string');
   });
 
   it('clearAIInteractions empties the buffer', () => {

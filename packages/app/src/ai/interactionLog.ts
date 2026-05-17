@@ -10,6 +10,7 @@
  * @module ai/interactionLog
  */
 
+import { APP_BUILD_TIME, APP_COMMIT } from '../buildInfo';
 import { AI_INTERACTION_LOG_LIMIT } from './constants';
 import type { AIErrorKind, AIMoveDecision } from './types';
 
@@ -29,6 +30,8 @@ export interface AIInteraction {
   provider: string;
   /** Model id. */
   model: string;
+  /** Git commit hash of the build that produced this interaction. */
+  appCommit?: string;
   /** Deal seed of the game, when one was used. */
   seed?: number;
   /** Turn index within the game (move-history length at request time). */
@@ -65,7 +68,11 @@ const buffer: AIInteraction[] = [];
 
 /** Record an interaction: append to the ring buffer and log a console summary. */
 export function recordAIInteraction(entry: AIInteraction): void {
-  buffer.push(entry);
+  // Stamp the build commit so a harvested row traces back to its code revision.
+  const stamped: AIInteraction = entry.appCommit
+    ? entry
+    : { ...entry, appCommit: APP_COMMIT };
+  buffer.push(stamped);
   if (buffer.length > AI_INTERACTION_LOG_LIMIT) buffer.shift();
 
   const seconds = (entry.durationMs / 1000).toFixed(1);
@@ -105,6 +112,8 @@ export function exportAIInteractions(): string {
   return JSON.stringify(
     {
       exportedAt: new Date().toISOString(),
+      appCommit: APP_COMMIT,
+      appBuildTime: APP_BUILD_TIME,
       count: buffer.length,
       interactions: buffer,
     },
