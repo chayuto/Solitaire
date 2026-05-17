@@ -23,6 +23,7 @@ const ControlPanel: React.FC = () => {
   const aiAutoPlay = useGameStore((state) => state.aiAutoPlay);
   const gameWon = useGameStore((state) => state.gameWon);
   const gameSessionId = useGameStore((state) => state.gameSessionId);
+  const seed = useGameStore((state) => state.seed);
   const moveCount = useGameStore((state) => state.moveHistory.length);
   const difficulty = useGameStore((state) => state.difficulty);
   const perceivedDifficulty = useGameStore((state) => state.perceivedDifficulty);
@@ -69,6 +70,24 @@ const ControlPanel: React.FC = () => {
   const handleNewGame = () => {
     initializeGame();
     setMessage({ type: 'success', text: 'New game started!' });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  /**
+   * Open an independent game session in a new window — same seed (so the same
+   * board, when seeded) and difficulty — for running models in parallel. The
+   * new window gets its own session id; the API key carries over via the
+   * copied sessionStorage.
+   */
+  const handleParallelSession = () => {
+    const params = new URLSearchParams();
+    if (seed !== undefined) params.set('seed', String(seed));
+    params.set('difficulty', String(difficulty));
+    window.open(`${window.location.pathname}?${params.toString()}`, '_blank');
+    setMessage({
+      type: 'success',
+      text: seed !== undefined ? 'Parallel session opened (same board).' : 'Parallel session opened.',
+    });
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -168,7 +187,16 @@ const ControlPanel: React.FC = () => {
         >
           New Game
         </button>
-        
+
+        <button
+          data-testid="parallel-session-btn"
+          onClick={handleParallelSession}
+          className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+          title="Open an independent session in a new window (same board) to run models in parallel"
+        >
+          🔀 Parallel Window
+        </button>
+
         <button
           data-testid="import-btn"
           onClick={handleImport}
