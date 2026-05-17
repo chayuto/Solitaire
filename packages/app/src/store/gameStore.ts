@@ -45,6 +45,7 @@ import {
   uuidv7,
 } from '../ai';
 import type { AIConfig, AIDecisionRecord } from '../ai';
+import { APP_BUILD_TIME, APP_COMMIT } from '../buildInfo';
 
 /** Shared core engine instance — used for legal-move generation by the AI advisor. */
 const engine = new GameEngine();
@@ -602,7 +603,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // complete record of how the AI played, for replay and benchmarking.
       aiDecisionLog: state.aiDecisionLog,
     };
-    return JSON.stringify(exportState, null, 2);
+    // Stamp the build commit so an exported game traces back to its code
+    // revision (the GameState fields are unchanged for import compatibility).
+    return JSON.stringify(
+      { ...exportState, appCommit: APP_COMMIT, appBuildTime: APP_BUILD_TIME },
+      null,
+      2,
+    );
   },
   
   importGameState: (jsonString: string) => {

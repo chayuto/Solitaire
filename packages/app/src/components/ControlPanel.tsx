@@ -21,6 +21,7 @@ const ControlPanel: React.FC = () => {
   const aiThinking = useGameStore((state) => state.aiThinking);
   const aiAutoPlay = useGameStore((state) => state.aiAutoPlay);
   const gameWon = useGameStore((state) => state.gameWon);
+  const gameSessionId = useGameStore((state) => state.gameSessionId);
   const moveCount = useGameStore((state) => state.moveHistory.length);
   const difficulty = useGameStore((state) => state.difficulty);
   const perceivedDifficulty = useGameStore((state) => state.perceivedDifficulty);
@@ -34,7 +35,8 @@ const ControlPanel: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `solitaire-game-${Date.now()}.json`;
+    const idTag = gameSessionId ? `${gameSessionId.slice(-6)}-` : '';
+    link.download = `solitaire-game-${idTag}${Date.now()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
