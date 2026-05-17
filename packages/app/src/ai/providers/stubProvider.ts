@@ -3,12 +3,13 @@
  *
  * Wraps a caller-supplied decision function so tests (unit and E2E via the
  * test bridge) can exercise the full advisor pipeline without a network call
- * or a real API key.
+ * or a real API key. It records interactions like a real provider.
  *
  * @module ai/providers/stubProvider
  */
 
-import { recordAIDiagnostics } from '../diagnostics';
+import { recordAIInteraction } from '../interactionLog';
+import { uuidv7 } from '../uuid';
 import { AIError, type AIMoveContext, type AIMoveDecision, type AIProvider } from '../types';
 
 /** A function that turns a game context into a decision. */
@@ -39,22 +40,36 @@ export function createStubProvider(decide?: StubDecisionFn): AIProvider {
     apiKeyUrl: '',
     async suggestMove(request): Promise<AIMoveDecision> {
       const startedAt = Date.now();
+      const prompt = `${request.systemInstruction}\n\n${JSON.stringify(request.context)}`;
       try {
         const decision = await fn(request.context);
-        recordAIDiagnostics({
+        recordAIInteraction({
+          id: uuidv7(),
+          requestId: request.requestId ?? uuidv7(),
+          attempt: request.attempt ?? 1,
           timestamp: Date.now(),
+          provider: 'stub',
           model: request.model,
           outcome: 'success',
           durationMs: Date.now() - startedAt,
+          prompt,
+          rawResponse: JSON.stringify(decision),
+          decision,
         });
         return decision;
       } catch (err) {
-        recordAIDiagnostics({
+        recordAIInteraction({
+          id: uuidv7(),
+          requestId: request.requestId ?? uuidv7(),
+          attempt: request.attempt ?? 1,
           timestamp: Date.now(),
+          provider: 'stub',
           model: request.model,
           outcome: 'error',
           durationMs: Date.now() - startedAt,
+          prompt,
           errorKind: err instanceof AIError ? err.kind : 'bad_response',
+          errorMessage: err instanceof Error ? err.message : String(err),
         });
         throw err;
       }

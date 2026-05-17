@@ -144,15 +144,23 @@ export interface AIMoveContext {
 // Decision (what the LLM returns)
 // ---------------------------------------------------------------------------
 
-/** The structured decision an LLM must return. Validated before use. */
+/**
+ * The structured decision parsed from an LLM response. Validated before use.
+ *
+ * The model emits a three-key JSON object — `board_analysis`, `strategic_plan`,
+ * `final_decision` — in that order, so it analyses the board and plans before
+ * committing to a move. This is the normalized, flattened form.
+ */
 export interface AIMoveDecision {
-  /** Index into the supplied legal-moves list. */
-  moveIndex: number;
-  /** The LLM's explanation of why this move is best. */
+  /** The model's analysis of the board (the `board_analysis` output key). */
+  boardAnalysis?: string;
+  /** The model's strategic plan / reasoning (the `strategic_plan` output key). */
   reasoning: string;
-  /** The LLM's self-rated confidence, 0–1. */
+  /** Chosen move index into the legal-moves list (from `final_decision`). */
+  moveIndex: number;
+  /** The LLM's self-rated confidence, 0–1 (from `final_decision`). */
   confidence: number;
-  /** Optional runner-up move index. */
+  /** Optional runner-up move index (from `final_decision`). */
   alternativeMoveIndex?: number;
 }
 
@@ -172,6 +180,13 @@ export interface AIRequest {
   context: AIMoveContext;
   /** Optional abort signal for cancellation / timeout. */
   signal?: AbortSignal;
+  /**
+   * UUIDv7 idempotency id for the logical request (one move decision).
+   * Retries of the same request reuse it; each interaction is logged under it.
+   */
+  requestId?: string;
+  /** 1-based attempt number, set by the retry wrapper. */
+  attempt?: number;
 }
 
 /**
@@ -242,7 +257,9 @@ export interface AIDecisionRecord {
   moveType: MoveCommand['type'];
   /** Human-readable description of the chosen move. */
   describe: string;
-  /** The LLM's reasoning. */
+  /** The LLM's board analysis (the `board_analysis` output key). */
+  boardAnalysis?: string;
+  /** The LLM's strategic plan / reasoning. */
   reasoning: string;
   /** The LLM's confidence, 0–1. */
   confidence: number;
@@ -250,6 +267,8 @@ export interface AIDecisionRecord {
   alternativeDescribe?: string;
   /** Model that produced the decision. */
   model: string;
+  /** UUIDv7 of the request that produced this decision (joins the interaction log). */
+  requestId?: string;
   /** Index the model chose, within the legal-move list it was shown. */
   moveIndex?: number;
   /** Number of legal moves the model chose from. */

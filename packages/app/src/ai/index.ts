@@ -29,14 +29,18 @@ export {
 } from './retry';
 export type { RetryInfo, SuggestMoveRetryOptions } from './retry';
 
-// Diagnostics
+// LLM interaction log (harvesting / diagnostics)
 export {
-  recordAIDiagnostics,
-  getAIDiagnostics,
-  getLastAIDiagnostics,
-  clearAIDiagnostics,
-} from './diagnostics';
-export type { AIDiagnostics } from './diagnostics';
+  recordAIInteraction,
+  getAIInteractions,
+  getLastAIInteraction,
+  clearAIInteractions,
+  exportAIInteractions,
+} from './interactionLog';
+export type { AIInteraction } from './interactionLog';
+
+// Identifiers
+export { uuidv7 } from './uuid';
 
 // Configuration / presets
 export { DEFAULT_AI_CONFIG, PRESET_FIELDS, applyPreset } from './context/presets';

@@ -29,7 +29,22 @@ const AISettingsSection: React.FC = () => {
   const aiConfig = useGameStore((s) => s.aiConfig) ?? DEFAULT_AI_CONFIG;
   const setAIConfig = useGameStore((s) => s.setAIConfig);
   const setAIKeyModalOpen = useGameStore((s) => s.setAIKeyModalOpen);
+  const exportAIInteractions = useGameStore((s) => s.exportAIInteractions);
   const [expanded, setExpanded] = useState(false);
+
+  /** Download the full LLM interaction log as a JSON file. */
+  const handleExportAILog = () => {
+    const json = exportAIInteractions();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `solitaire-ai-log-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div data-testid="ai-settings-section" className="bg-indigo-50 rounded p-2">
@@ -110,6 +125,14 @@ const AISettingsSection: React.FC = () => {
               className="w-full bg-indigo-200 hover:bg-indigo-300 text-indigo-900 font-semibold py-1.5 px-2 rounded text-xs"
             >
               🔑 API Key &amp; Model
+            </button>
+            <button
+              data-testid="export-ai-log-btn"
+              onClick={handleExportAILog}
+              className="w-full mt-1 bg-indigo-200 hover:bg-indigo-300 text-indigo-900 font-semibold py-1.5 px-2 rounded text-xs"
+              title="Download the full LLM interaction log (prompts, responses, tokens, timing)"
+            >
+              ⬇️ Export AI Log
             </button>
           </div>
         </div>

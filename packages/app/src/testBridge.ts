@@ -23,10 +23,11 @@ import { scenarios, scenarioNames, isScenarioName } from './testScenarios';
 import {
   createStubProvider,
   DEFAULT_AI_CONFIG,
-  getAIDiagnostics as readAIDiagnostics,
+  exportAIInteractions as serializeAIInteractions,
+  getAIInteractions as readAIInteractions,
   setProviderOverride,
 } from './ai';
-import type { AIConfig, AIDiagnostics, StubDecisionFn } from './ai';
+import type { AIConfig, AIInteraction, StubDecisionFn } from './ai';
 import type { Card, Difficulty, GameState, Suit } from './types';
 
 /** Compact, token-efficient game snapshot for agents. */
@@ -133,8 +134,10 @@ export interface SolitaireTestBridge {
   // --- AI Move Advisor ---
   /** Compact AI-advisor state snapshot. */
   getAIState: () => AIBridgeState;
-  /** Time/token diagnostics for recent AI API calls (most recent last). */
-  getAIDiagnostics: () => AIDiagnostics[];
+  /** Full LLM interaction log — prompts, responses, tokens, timing (most recent last). */
+  getAIInteractions: () => AIInteraction[];
+  /** Serialize the full LLM interaction log to a JSON string for harvesting. */
+  exportAIInteractions: () => string;
   /**
    * Ask the AI advisor for a move. Resolves once the move is applied or the
    * request fails (inspect `getAIState().error`).
@@ -269,7 +272,8 @@ export function installTestBridge(): void {
       };
     },
     askAI: () => useGameStore.getState().askAIForMove(),
-    getAIDiagnostics: () => [...readAIDiagnostics()],
+    getAIInteractions: () => [...readAIInteractions()],
+    exportAIInteractions: () => serializeAIInteractions(),
     toggleAIAutoPlay: () => useGameStore.getState().toggleAIAutoPlay(),
     cancelAI: () => useGameStore.getState().cancelAIRequest(),
     setAIConfig: (patch) => useGameStore.getState().setAIConfig(patch),

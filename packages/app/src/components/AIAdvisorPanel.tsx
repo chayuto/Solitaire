@@ -182,6 +182,20 @@ const AIAdvisorPanel: React.FC = () => {
               {lastDecision.reasoning}
             </p>
 
+            {lastDecision.boardAnalysis && (
+              <details className="mt-2">
+                <summary className="text-[11px] font-semibold text-gray-500 cursor-pointer">
+                  Board analysis
+                </summary>
+                <p
+                  data-testid="ai-board-analysis"
+                  className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-words"
+                >
+                  {lastDecision.boardAnalysis}
+                </p>
+              </details>
+            )}
+
             {lastDecision.alternativeDescribe && (
               <p className="mt-2 text-xs text-gray-500">
                 Alternative considered: {lastDecision.alternativeDescribe}

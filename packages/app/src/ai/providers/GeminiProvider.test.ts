@@ -50,7 +50,7 @@ describe('geminiProvider.suggestMove', () => {
     });
   });
 
-  it('parses a thinking-model response, ignoring "thought" parts', async () => {
+  it('parses a thinking-model three-key response, ignoring "thought" parts', async () => {
     vi.mocked(fetch).mockResolvedValue(
       mockResponse(200, {
         candidates: [
@@ -58,7 +58,12 @@ describe('geminiProvider.suggestMove', () => {
             content: {
               parts: [
                 { text: 'Internal reasoning about the board...', thought: true },
-                { text: '{"moveIndex":1,"reasoning":"Bank the card.","confidence":0.9}' },
+                {
+                  text:
+                    '{"board_analysis":"An ace is playable.",' +
+                    '"strategic_plan":"Bank the card.",' +
+                    '"final_decision":{"move_index":1,"confidence":0.9}}',
+                },
               ],
             },
             finishReason: 'STOP',
@@ -70,6 +75,7 @@ describe('geminiProvider.suggestMove', () => {
     const decision = await geminiProvider.suggestMove(request);
     expect(decision.moveIndex).toBe(1);
     expect(decision.reasoning).toBe('Bank the card.');
+    expect(decision.boardAnalysis).toBe('An ace is playable.');
     expect(decision.confidence).toBeCloseTo(0.9);
   });
 

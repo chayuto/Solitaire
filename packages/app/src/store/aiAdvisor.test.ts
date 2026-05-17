@@ -5,7 +5,13 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useGameStore } from './gameStore';
-import { AIError, createStubProvider, setProviderOverride } from '../ai';
+import {
+  AIError,
+  clearAIInteractions,
+  createStubProvider,
+  getAIInteractions,
+  setProviderOverride,
+} from '../ai';
 import type { AIMoveDecision } from '../ai';
 
 /** Install a stub provider that returns `decision`. */
@@ -84,6 +90,29 @@ describe('AI Move Advisor store actions', () => {
     await useGameStore.getState().askAIForMove();
     expect(useGameStore.getState().aiThinking).toBe(false);
     expect(useGameStore.getState().aiThinkingSince).toBeUndefined();
+  });
+
+  it('logs the interaction and records boardAnalysis + requestId on the decision', async () => {
+    clearAIInteractions();
+    useStub({
+      boardAnalysis: 'Two aces are buried in column 5.',
+      moveIndex: 0,
+      reasoning: 'Draw to dig toward the aces.',
+      confidence: 0.6,
+    });
+
+    await useGameStore.getState().askAIForMove();
+
+    const decision = useGameStore.getState().aiDecisionLog?.[0];
+    expect(decision?.boardAnalysis).toBe('Two aces are buried in column 5.');
+    expect(decision?.requestId).toBeTruthy();
+
+    // The interaction log records the call under the same request id.
+    const interactions = getAIInteractions();
+    expect(interactions.length).toBeGreaterThanOrEqual(1);
+    const last = interactions[interactions.length - 1];
+    expect(last.requestId).toBe(decision?.requestId);
+    expect(last.outcome).toBe('success');
   });
 
   it('clearAIError clears the last error', async () => {

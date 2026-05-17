@@ -17,6 +17,9 @@ export const AI_REQUEST_TIMEOUT_MS = 210_000;
 /** Maximum number of past AI decisions retained in the store's decision log. */
 export const AI_DECISION_LOG_LIMIT = 30;
 
+/** Maximum number of LLM interactions retained in the in-memory harvest log. */
+export const AI_INTERACTION_LOG_LIMIT = 200;
+
 /**
  * Pause between moves while the AI is auto-playing the whole game. The LLM
  * round-trip dominates the pacing; this is just a brief visible beat so the

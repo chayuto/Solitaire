@@ -19,7 +19,8 @@
 
 import { AI_REQUEST_TIMEOUT_MS, AI_TEMPERATURE, GEMINI_API_BASE } from '../constants';
 import { parseDecision } from '../decision/schema';
-import { recordAIDiagnostics } from '../diagnostics';
+import { recordAIInteraction } from '../interactionLog';
+import { uuidv7 } from '../uuid';
 import { AIError, type AIMoveDecision, type AIProvider, type AIRequest } from '../types';
 
 /** Shape of a single content part in a Gemini API response. */
@@ -127,14 +128,15 @@ export const geminiProvider: AIProvider = {
     }
 
     const startedAt = Date.now();
-    try {
-      // Single user message: system instruction + game context (the output
-      // rules are already inside the system instruction).
-      const prompt =
-        `${request.systemInstruction}\n\n` +
-        `CURRENT GAME (JSON):\n${JSON.stringify(request.context)}\n\n` +
-        'Now choose the best move and reply with only the JSON object.';
+    // Single user message: system instruction + game context (the output
+    // rules are already inside the system instruction).
+    const prompt =
+      `${request.systemInstruction}\n\n` +
+      `CURRENT GAME (JSON):\n${JSON.stringify(request.context)}\n\n` +
+      'Now choose the best move and reply with only the JSON object.';
+    let rawResponse: string | undefined;
 
+    try {
       const body = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { temperature: AI_TEMPERATURE },
@@ -194,16 +196,23 @@ export const geminiProvider: AIProvider = {
         throw errorFromHttp(data.error.code ?? 500, data);
       }
 
-      const text = extractAnswerText(data);
-      const decision = parseDecision(text, request.context.legalMoves.length);
+      rawResponse = extractAnswerText(data);
+      const decision = parseDecision(rawResponse, request.context.legalMoves.length);
 
-      // Diagnostics: time taken and token cost for this API call.
+      // Log the full interaction: prompt, response, decision, time, tokens.
       const usage = data.usageMetadata;
-      recordAIDiagnostics({
+      recordAIInteraction({
+        id: uuidv7(),
+        requestId: request.requestId ?? uuidv7(),
+        attempt: request.attempt ?? 1,
         timestamp: Date.now(),
+        provider: 'gemini',
         model: request.model,
         outcome: 'success',
         durationMs: Date.now() - startedAt,
+        prompt,
+        rawResponse,
+        decision,
         promptTokens: usage?.promptTokenCount,
         thoughtTokens: usage?.thoughtsTokenCount,
         outputTokens: usage?.candidatesTokenCount,
@@ -211,12 +220,19 @@ export const geminiProvider: AIProvider = {
       });
       return decision;
     } catch (err) {
-      recordAIDiagnostics({
+      recordAIInteraction({
+        id: uuidv7(),
+        requestId: request.requestId ?? uuidv7(),
+        attempt: request.attempt ?? 1,
         timestamp: Date.now(),
+        provider: 'gemini',
         model: request.model,
         outcome: 'error',
         durationMs: Date.now() - startedAt,
+        prompt,
+        rawResponse,
         errorKind: err instanceof AIError ? err.kind : 'network',
+        errorMessage: err instanceof Error ? err.message : String(err),
       });
       throw err;
     }

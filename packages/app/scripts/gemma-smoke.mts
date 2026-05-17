@@ -56,6 +56,7 @@ geminiProvider
     console.log(`OK in ${((Date.now() - started) / 1000).toFixed(1)}s`);
     console.log(JSON.stringify(decision, null, 2));
     const chosen = context.legalMoves[decision.moveIndex];
+    console.log(`Board analysis: ${decision.boardAnalysis ?? '(none)'}`);
     console.log(`Chosen move: ${chosen?.describe}`);
   })
   .catch((err) => {
