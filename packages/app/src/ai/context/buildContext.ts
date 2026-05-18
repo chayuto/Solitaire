@@ -10,8 +10,10 @@
  */
 
 import type { MoveCommand } from '@chayuto/solitaire-core';
+import { getPerceivedDifficulty } from '@chayuto/solitaire-core';
 import type { GameState, Suit } from '../../types';
 import type { AIConfig, AIDecisionRecord, AILegalMove, AIMoveContext } from '../types';
+import { uiToCore } from '../../adapters/coreAdapter';
 import { cardShort } from '../cardNotation';
 import { describeMoveCommand, summarizeHistoryMove } from './describeMove';
 import { collectPossibleMoves, scoreMoves } from '../../autoplay';
@@ -161,10 +163,13 @@ export function buildContext(
 
   // --- Optional: game metrics ---
   if (config.includeGameMetrics) {
+    // `perceivedDifficulty` is recomputed from the *current* board, not the
+    // game-start value carried in `state.perceivedDifficulty` — a static figure
+    // repeated every turn carries no per-turn signal. `moveCount` is omitted
+    // here: it duplicates the interaction log's `turnIndex` exactly.
     context.metrics = {
       completionProgress: Math.round(state.completionProgress),
-      perceivedDifficulty: state.perceivedDifficulty,
-      moveCount: state.moveHistory.length,
+      perceivedDifficulty: getPerceivedDifficulty(uiToCore(state)),
       difficulty: state.difficulty,
     };
   }

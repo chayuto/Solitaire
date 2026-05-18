@@ -136,14 +136,21 @@ interface GameStore extends GameState {
  * @param difficulty - Game difficulty level (default: 3 = Normal)
  * @param seed - Optional RNG seed for a reproducible deal. Same seed => the
  *   exact same board every time — required for deterministic, high-fidelity
- *   automated/agentic testing. When omitted, the deal is random.
+ *   automated/agentic testing. When omitted, a fresh random seed is generated
+ *   so every game is still reproducible (and the Parallel Window can carry the
+ *   exact board to a new session).
  * @returns Complete initial game state
  */
 const initializeGameState = (
   difficulty: Difficulty = DEFAULT_DIFFICULTY,
   seed?: number,
 ): GameState => {
-  const deck = arrangeDeckByDifficulty(difficulty, seed);
+  // Every game gets a seed. An explicit one comes from the launch URL or a
+  // loaded save; otherwise generate a random 32-bit seed so the deal is still
+  // reproducible — without this, a normally-started game has no seed and the
+  // Parallel Window opens a different board.
+  const resolvedSeed = seed ?? Math.floor(Math.random() * 0x1_0000_0000);
+  const deck = arrangeDeckByDifficulty(difficulty, resolvedSeed);
   const tableau: Card[][] = Array(TABLEAU_COLUMNS).fill(null).map(() => []);
   
   // Deal cards to tableau (1 card to first column, 2 to second, etc.)
@@ -192,7 +199,7 @@ const initializeGameState = (
     autoPlayInProgress: false,
     autoPlayStateHistory: [],
     difficulty,
-    seed,
+    seed: resolvedSeed,
     gameSessionId: uuidv7(),
     gameStartedAt: Date.now(),
     gameWon: false,
@@ -695,8 +702,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleAutoPlay: () => {
     const state = get();
     const newAutoPlayEnabled = !state.autoPlayEnabled;
-    
+
     if (newAutoPlayEnabled) {
+      // Heuristic auto-play must never run while the AI is driving the game.
+      // An AI session has to stay pure AI — no human or heuristic intervention —
+      // or harvested games are contaminated with non-AI moves.
+      if (state.aiThinking || state.aiAutoPlay) {
+        set({ aiError: 'Stop AI play before starting auto-play.' });
+        return;
+      }
       // Log auto-play start event
       const move: Move = {
         type: 'autoplay_start',
@@ -1465,7 +1479,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ aiKeyModalOpen: open });
   },
 
-  exportAIInteractions: () => serializeAIInteractions(),
+  exportAIInteractions: () => {
+    // Stamp the export with the current game's outcome so a harvested dataset
+    // can be filtered for quality games (e.g. wins only) on its own.
+    const state = get();
+    const outcome: 'won' | 'lost' | 'incomplete' = state.gameWon
+      ? 'won'
+      : engine.getLegalMoves(uiToCore(state)).length === 0
+        ? 'lost'
+        : 'incomplete';
+    return serializeAIInteractions({
+      sessionId: state.gameSessionId ?? '',
+      seed: state.seed,
+      model: (state.aiConfig ?? DEFAULT_AI_CONFIG).model,
+      outcome,
+      finalProgress: Math.round(state.completionProgress),
+      moveCount: state.moveHistory.length,
+    });
+  },
 
   dismissWinModal: () => {
     set({ winModalDismissed: true });

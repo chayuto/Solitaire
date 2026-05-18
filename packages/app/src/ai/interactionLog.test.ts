@@ -91,6 +91,34 @@ describe('interactionLog', () => {
     expect(typeof parsed.appBuildTime).toBe('string');
   });
 
+  it('exportAIInteractions embeds the session outcome summary when supplied', () => {
+    recordAIInteraction(base);
+    const parsed = JSON.parse(
+      exportAIInteractions({
+        sessionId: 'session-abcdef12',
+        seed: 12345,
+        model: 'gemma-4-31b-it',
+        outcome: 'won',
+        finalProgress: 100,
+        moveCount: 142,
+      }),
+    );
+    expect(parsed.session).toEqual({
+      sessionId: 'session-abcdef12',
+      seed: 12345,
+      model: 'gemma-4-31b-it',
+      outcome: 'won',
+      finalProgress: 100,
+      moveCount: 142,
+    });
+  });
+
+  it('exportAIInteractions omits the session summary when none is supplied', () => {
+    recordAIInteraction(base);
+    const parsed = JSON.parse(exportAIInteractions());
+    expect(parsed.session).toBeUndefined();
+  });
+
   it('clearAIInteractions empties the buffer', () => {
     recordAIInteraction(base);
     clearAIInteractions();

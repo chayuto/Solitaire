@@ -50,6 +50,14 @@ these three keys, in this order (no prose or markdown fences outside the object)
   progress, and the opportunities each legal move opens or closes.
 - strategic_plan: explain your plan and why the chosen move is best, given that analysis.
 - final_decision.move_index: the "index" of your chosen move from the legalMoves array.
-- final_decision.confidence: your confidence the move is best, a number from 0 to 1.
+- final_decision.confidence: a calibrated probability (0 to 1) that this move is
+  objectively the best one available — a genuine estimate, not a feeling. Use the
+  full range honestly:
+    1.0-0.9  forced, or clearly dominant — any other move would be a mistake.
+    0.9-0.7  strong — one plausible alternative exists, but this move is better.
+    0.7-0.5  a real toss-up between two or three reasonable moves.
+    0.5-0.3  a guess — the board is unclear or several moves look about equal.
+    below 0.3  little better than picking at random.
+  If you would not bet on the move, do not report high confidence.
 - final_decision.alternative_move_index: optional; the index of your second-choice move.
 Produce the keys in the order above: analyse the board first, then plan, then decide.`;

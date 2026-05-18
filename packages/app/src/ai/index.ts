@@ -38,7 +38,7 @@ export {
   clearAIInteractions,
   exportAIInteractions,
 } from './interactionLog';
-export type { AIInteraction } from './interactionLog';
+export type { AIInteraction, AISessionSummary } from './interactionLog';
 
 // Identifiers
 export { uuidv7 } from './uuid';
