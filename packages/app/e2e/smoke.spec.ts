@@ -74,4 +74,27 @@ test.describe('Smoke Tests', () => {
 
     await popup.close();
   });
+
+  test('Parallel Window carries the board even for a fresh game with no URL seed', async ({
+    page,
+    context,
+  }) => {
+    // Regression: a normally-started game (no ?seed= param) used to have an
+    // undefined seed, so the Parallel Window opened a different random board.
+    await page.goto('/');
+    await expect(page.getByTestId('game-board')).toBeVisible();
+
+    const popupPromise = context.waitForEvent('page');
+    await page.getByTestId('parallel-session-btn').click();
+    const popup = await popupPromise;
+
+    await expect(popup.getByTestId('game-board')).toBeVisible();
+    await popup.waitForFunction(() => typeof window.__solitaire !== 'undefined');
+
+    // The fresh game still has a (generated) seed, and it travels to the popup.
+    expect(popup.url()).toContain('seed=');
+    expect(await tableauFingerprint(popup)).toEqual(await tableauFingerprint(page));
+
+    await popup.close();
+  });
 });

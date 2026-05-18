@@ -64,6 +64,29 @@ export interface AIInteraction {
   totalTokens?: number;
 }
 
+/**
+ * Session-level outcome of the game active at export time. Lets a consumer
+ * filter a harvested dataset for quality games (e.g. only wins) without a
+ * separate win-record file.
+ */
+export interface AISessionSummary {
+  /** UUIDv7 of the game session (joins {@link AIInteraction.sessionId}). */
+  sessionId: string;
+  /** Deal seed of the game, when one was used. */
+  seed?: number;
+  /** Model that drove the session. */
+  model: string;
+  /**
+   * How the game ended: `won` (all 52 cards home), `lost` (no legal moves
+   * remain), or `incomplete` (exported mid-game — i.e. abandoned).
+   */
+  outcome: 'won' | 'lost' | 'incomplete';
+  /** Completion progress at export time (0–100). */
+  finalProgress: number;
+  /** Total move-history length at export time. */
+  moveCount: number;
+}
+
 const buffer: AIInteraction[] = [];
 
 /** Record an interaction: append to the ring buffer and log a console summary. */
@@ -107,13 +130,20 @@ export function clearAIInteractions(): void {
   buffer.length = 0;
 }
 
-/** Serialize the full interaction log to a JSON string for export/harvesting. */
-export function exportAIInteractions(): string {
+/**
+ * Serialize the full interaction log to a JSON string for export/harvesting.
+ *
+ * @param session - Outcome summary of the game active at export time, when
+ *   available. Describes the current session only; individual interactions
+ *   carry their own `sessionId` for multi-game buffers.
+ */
+export function exportAIInteractions(session?: AISessionSummary): string {
   return JSON.stringify(
     {
       exportedAt: new Date().toISOString(),
       appCommit: APP_COMMIT,
       appBuildTime: APP_BUILD_TIME,
+      session,
       count: buffer.length,
       interactions: buffer,
     },

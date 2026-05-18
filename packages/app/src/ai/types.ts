@@ -44,7 +44,7 @@ export interface AIConfig {
   includeMoveHistory: boolean;
   /** How many recent moves to include when {@link includeMoveHistory} is on. */
   moveHistoryLimit: number;
-  /** Include completion progress, perceived difficulty, move count, difficulty. */
+  /** Include completion progress, perceived difficulty, and the deal difficulty. */
   includeGameMetrics: boolean;
   /** Include a static block of Klondike strategy heuristics in the prompt. */
   includeStrategyGuidance: boolean;
@@ -119,9 +119,11 @@ export interface AIMoveContext {
 
   /** Game metrics (when `includeGameMetrics`). */
   metrics?: {
+    /** Completion progress (0–100). */
     completionProgress: number;
-    perceivedDifficulty: number | undefined;
-    moveCount: number;
+    /** Perceived difficulty (0–100) of the *current* board — recomputed each turn. */
+    perceivedDifficulty: number;
+    /** Deal difficulty setting. */
     difficulty: number;
   };
   /** Recent moves, most-recent last (when `includeMoveHistory`). */

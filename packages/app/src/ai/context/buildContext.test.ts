@@ -87,10 +87,12 @@ describe('buildContext', () => {
     });
     const ctx = buildContext(state, LEGAL_MOVES, applyPreset(DEFAULT_AI_CONFIG, 'standard'));
 
+    // perceivedDifficulty is recomputed from the current board (all seven
+    // tableau columns empty here => -3 each, clamped to 0), not the static
+    // game-start value carried in state.perceivedDifficulty.
     expect(ctx.metrics).toEqual({
       completionProgress: 25,
-      perceivedDifficulty: 50,
-      moveCount: 2,
+      perceivedDifficulty: 0,
       difficulty: 3,
     });
     expect(ctx.recentMoves).toEqual(['draw 4C', 'draw 7S']);
