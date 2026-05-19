@@ -46,6 +46,22 @@ import {
 } from '../ai';
 import type { AIConfig, AIDecisionRecord } from '../ai';
 import { APP_BUILD_TIME, APP_COMMIT } from '../buildInfo';
+import {
+  resolveActiveSessionId,
+  setActiveSessionId,
+  wasCleanVisit,
+} from './activeSession';
+import {
+  loadSession,
+  saveSession,
+  deleteSession,
+  listSessions,
+  type PersistedGameState,
+  type SessionMeta,
+} from './sessionPersistence';
+
+/** Debounce window (ms) for autosaving the active game after a change. */
+const SESSION_AUTOSAVE_DELAY = 500;
 
 /** Shared core engine instance — used for legal-move generation by the AI advisor. */
 const engine = new GameEngine();
@@ -128,6 +144,14 @@ interface GameStore extends GameState {
   exportAIInteractions: () => string;
   /** Dismiss the win modal without starting a new game. */
   dismissWinModal: () => void;
+  /** Restore a previously saved game by its session id. Returns success. */
+  loadSavedSession: (sessionId: string) => boolean;
+  /** Delete a saved game from storage. */
+  deleteSavedSession: (sessionId: string) => void;
+  /** Every saved game's metadata, most recently played first. */
+  listSavedSessions: () => SessionMeta[];
+  /** Open or close the saved-games manager modal. */
+  setSessionManagerOpen: (open: boolean) => void;
 }
 
 /**
@@ -220,6 +244,7 @@ const initializeGameState = (
     aiError: undefined,
     aiDecisionLog: [],
     aiKeyModalOpen: false,
+    sessionManagerOpen: false,
   };
 
   // Calculate perceived difficulty after initialState is created
@@ -228,10 +253,98 @@ const initializeGameState = (
   return initialState;
 };
 
+/**
+ * Whether a persisted snapshot has the structural shape of a real game and is
+ * safe to restore (seven tableau columns, the four foundations, card arrays).
+ */
+function isRestorable(p: PersistedGameState | null): p is PersistedGameState {
+  return (
+    p != null &&
+    Array.isArray(p.tableau) &&
+    p.tableau.length === 7 &&
+    Array.isArray(p.drawPile) &&
+    Array.isArray(p.discardPile) &&
+    Array.isArray(p.moveHistory) &&
+    p.foundations != null &&
+    Array.isArray(p.foundations.hearts) &&
+    Array.isArray(p.foundations.diamonds) &&
+    Array.isArray(p.foundations.clubs) &&
+    Array.isArray(p.foundations.spades)
+  );
+}
+
+/**
+ * Reconstitute a full {@link GameState} from a persisted snapshot. All
+ * transient state — selection, in-flight AI, replay and auto-play progress —
+ * is reset; only the game itself is restored.
+ */
+function hydratePersisted(p: PersistedGameState): GameState {
+  return {
+    drawPile: p.drawPile,
+    discardPile: p.discardPile,
+    foundations: p.foundations,
+    tableau: p.tableau,
+    selectedCard: undefined,
+    moveHistory: p.moveHistory,
+    showValidMoves: p.showValidMoves,
+    godMode: p.godMode,
+    autoPlayEnabled: false,
+    autoPlayInProgress: false,
+    autoPlayStateHistory: [],
+    difficulty: p.difficulty,
+    seed: p.seed,
+    gameSessionId: p.gameSessionId,
+    gameStartedAt: p.gameStartedAt,
+    gameWon: p.gameWon,
+    winModalDismissed: p.winModalDismissed,
+    initialBoardSetup: p.initialBoardSetup,
+    perceivedDifficulty: p.perceivedDifficulty,
+    completionProgress: p.completionProgress,
+    replayMode: false,
+    replayIndex: 0,
+    replayPaused: false,
+    replaySpeed: p.replaySpeed ?? 1000,
+    aiConfig: p.aiConfig ?? DEFAULT_AI_CONFIG,
+    aiThinking: false,
+    aiAutoPlay: false,
+    aiThinkingSince: undefined,
+    aiStatus: undefined,
+    aiRetryCount: 0,
+    aiError: undefined,
+    aiDecisionLog: p.aiDecisionLog ?? [],
+    aiKeyModalOpen: false,
+    sessionManagerOpen: false,
+  };
+}
+
+/**
+ * Resolve the state the store starts with: a restored saved game when this tab
+ * is anchored to one, otherwise a fresh deal. On a plain first visit with
+ * saved games available, the saved-games picker is opened over the fresh deal.
+ */
+function buildInitialState(): GameState {
+  const activeId = resolveActiveSessionId();
+  if (activeId) {
+    const persisted = loadSession(activeId);
+    if (isRestorable(persisted)) {
+      return hydratePersisted(persisted);
+    }
+  }
+
+  const fresh = initializeGameState(
+    initialGameConfig.difficulty,
+    initialGameConfig.seed,
+  );
+  if (wasCleanVisit() && listSessions().length > 0) {
+    fresh.sessionManagerOpen = true;
+  }
+  return fresh;
+}
+
 
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  ...initializeGameState(initialGameConfig.difficulty, initialGameConfig.seed),
+  ...buildInitialState(),
   initializeGame: (difficulty?: Difficulty, seed?: number) => {
     const currentDifficulty = difficulty ?? get().difficulty ?? 3;
     // A new game invalidates any in-flight AI request.
@@ -1501,4 +1614,65 @@ export const useGameStore = create<GameStore>((set, get) => ({
   dismissWinModal: () => {
     set({ winModalDismissed: true });
   },
+
+  loadSavedSession: (sessionId: string) => {
+    const persisted = loadSession(sessionId);
+    if (!isRestorable(persisted)) return false;
+    // Restoring a game invalidates any in-flight AI request.
+    aiAbortController?.abort();
+    aiAbortController = null;
+    set({ ...hydratePersisted(persisted), sessionManagerOpen: false });
+    return true;
+  },
+
+  deleteSavedSession: (sessionId: string) => {
+    deleteSession(sessionId);
+  },
+
+  listSavedSessions: () => listSessions(),
+
+  setSessionManagerOpen: (open: boolean) => {
+    set({ sessionManagerOpen: open });
+  },
 }));
+
+// ---------------------------------------------------------------------------
+// Session persistence: anchor the tab to its game, and autosave on change.
+// ---------------------------------------------------------------------------
+
+if (typeof window !== 'undefined') {
+  const firstId = useGameStore.getState().gameSessionId;
+  if (firstId) setActiveSessionId(firstId);
+  // Persist the starting game so even an immediate reload restores it. (An
+  // untouched, move-free deal is skipped by saveSession — nothing to lose.)
+  saveSession(useGameStore.getState());
+
+  let anchoredId = firstId;
+  let lastSignature = '';
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  useGameStore.subscribe((state) => {
+    // Re-anchor the tab whenever the game identity changes — a New Game, or
+    // resuming a save — so a reload restores the game now on screen.
+    if (state.gameSessionId && state.gameSessionId !== anchoredId) {
+      anchoredId = state.gameSessionId;
+      setActiveSessionId(state.gameSessionId);
+    }
+
+    // Debounced autosave, skipped when nothing persisted actually changed
+    // (e.g. an AI "thinking" flag toggling does not touch the saved game).
+    const signature =
+      `${state.gameSessionId}|${state.moveHistory.length}|${state.gameWon}` +
+      `|${Math.round(state.completionProgress)}|${state.godMode}` +
+      `|${state.showValidMoves}|${state.replaySpeed}` +
+      `|${state.winModalDismissed}|${state.aiDecisionLog?.length ?? 0}`;
+    if (signature === lastSignature) return;
+    lastSignature = signature;
+
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      saveSession(useGameStore.getState());
+    }, SESSION_AUTOSAVE_DELAY);
+  });
+}
