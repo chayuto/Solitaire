@@ -12,10 +12,14 @@ import AIKeyModal from './AIKeyModal';
 import WinModal from './WinModal';
 import ReplayControls from './ReplayControls';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
+import { useUnloadGuard } from '../hooks/useUnloadGuard';
 
 const GameBoard: React.FC = () => {
   // Check for reduced motion preference
   const shouldReduceMotion = useMemo(() => checkReducedMotion(), []);
+
+  // Warn before an accidental navigation discards an unfinished game.
+  useUnloadGuard();
 
   // Short game identifier: the seed (when the deal was seeded) and the last 6
   // characters of the session UUID. Shown under the title and in the tab.

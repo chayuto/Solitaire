@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+/*
+ * Disable the browser's swipe-to-navigate gesture (two-finger horizontal
+ * swipe on a macOS trackpad). Without this, an accidental swipe triggers
+ * a back/forward navigation that unloads the page and discards the
+ * in-memory game state. `none` also removes horizontal rubber-banding;
+ * vertical scrolling and the keyboard/back button are unaffected.
+ */
+html,
+body {
+  overscroll-behavior-x: none;
+}
