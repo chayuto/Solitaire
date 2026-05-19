@@ -105,4 +105,5 @@ export interface GameState {
   aiError?: string; // Last AI advisor error message, shown until the next request
   aiDecisionLog?: AIDecisionRecord[]; // History of AI decisions (most recent last)
   aiKeyModalOpen?: boolean; // True when the API key modal is open
+  sessionManagerOpen?: boolean; // True when the saved-games manager modal is open
 }

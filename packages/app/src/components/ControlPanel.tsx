@@ -15,6 +15,7 @@ import AISettingsSection from './AISettingsSection';
  */
 const ControlPanel: React.FC = () => {
   const { exportGameState, importGameState, initializeGame, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty, startReplay, askAIForMove, toggleAIAutoPlay } = useGameStore();
+  const setSessionManagerOpen = useGameStore((state) => state.setSessionManagerOpen);
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
   const autoPlayEnabled = useGameStore((state) => state.autoPlayEnabled);
@@ -83,6 +84,10 @@ const ControlPanel: React.FC = () => {
     const params = new URLSearchParams();
     if (seed !== undefined) params.set('seed', String(seed));
     params.set('difficulty', String(difficulty));
+    // `fork=1` tells the new tab it is a fresh Parallel Window: it must start
+    // its own saved session and ignore the sessionStorage copied from this
+    // tab, so the two boards autosave independently without clobbering.
+    params.set('fork', '1');
     window.open(`${window.location.pathname}?${params.toString()}`, '_blank');
     setMessage({
       type: 'success',
@@ -186,6 +191,15 @@ const ControlPanel: React.FC = () => {
           className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
           New Game
+        </button>
+
+        <button
+          data-testid="session-manager-btn"
+          onClick={() => setSessionManagerOpen(true)}
+          className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+          title="Browse, resume, or delete games saved automatically in this browser"
+        >
+          📂 Saved Games
         </button>
 
         <button

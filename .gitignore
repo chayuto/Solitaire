@@ -39,3 +39,6 @@ dist-ssr
 
 # Claude Code local (personal) settings
 .claude/settings.local.json
+
+# Playwright MCP screenshot output
+.playwright-mcp/

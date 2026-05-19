@@ -10,6 +10,7 @@ import ActivityLog from './ActivityLog';
 import AIAdvisorPanel from './AIAdvisorPanel';
 import AIKeyModal from './AIKeyModal';
 import WinModal from './WinModal';
+import SessionManagerModal from './SessionManagerModal';
 import ReplayControls from './ReplayControls';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 import { useUnloadGuard } from '../hooks/useUnloadGuard';
@@ -65,6 +66,7 @@ const GameBoard: React.FC = () => {
     <div data-testid="game-board" className="min-h-screen bg-gradient-to-br from-green-700 via-green-600 to-green-800">
       <WinModal />
       <AIKeyModal />
+      <SessionManagerModal />
 
       {/* Desktop: side panels, Mobile: stacked layout */}
       <div className="flex flex-col lg:flex-row lg:items-start gap-4 p-2 sm:p-4 lg:p-6">
