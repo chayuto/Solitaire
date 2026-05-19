@@ -90,10 +90,16 @@ describe('buildContext', () => {
     // perceivedDifficulty is recomputed from the current board (all seven
     // tableau columns empty here => -3 each, clamped to 0), not the static
     // game-start value carried in state.perceivedDifficulty.
+    // foundationCards/faceDownTotal/progressScore are raw progress components
+    // (this fixture has empty tableau columns => no face-down cards, so all 21
+    // deal cards read as "revealed" and progressScore is 0.35 * 100 = 35).
     expect(ctx.metrics).toEqual({
       completionProgress: 25,
       perceivedDifficulty: 0,
       difficulty: 3,
+      foundationCards: 0,
+      faceDownTotal: 0,
+      progressScore: 35,
     });
     expect(ctx.recentMoves).toEqual(['draw 4C', 'draw 7S']);
   });

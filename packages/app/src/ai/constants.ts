@@ -38,6 +38,17 @@ export const AI_AUTO_HISTORY_LIMIT = 60;
 export const AI_AUTO_LOOP_LIMIT = 5;
 
 /**
+ * How many consecutive AI auto-play turns may pass with no progress — neither a
+ * card reaching a foundation nor a face-down tableau card revealed — before the
+ * run is treated as stalled and stopped.
+ *
+ * Distinct from {@link AI_AUTO_LOOP_LIMIT}, which catches an *exactly* repeating
+ * board position. A stall is flat progress while the board still churns (e.g.
+ * cycling the stock), which loop detection never catches.
+ */
+export const AI_AUTO_STALL_LIMIT = 25;
+
+/**
  * How many times a single move request is attempted before giving up. LLM
  * endpoints are not perfectly stable; transient failures are retried with
  * exponential backoff (see `ai/retry`).

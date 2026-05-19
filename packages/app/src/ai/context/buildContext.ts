@@ -16,6 +16,7 @@ import type { AIConfig, AIDecisionRecord, AILegalMove, AIMoveContext } from '../
 import { uiToCore } from '../../adapters/coreAdapter';
 import { cardShort } from '../cardNotation';
 import { describeMoveCommand, summarizeHistoryMove } from './describeMove';
+import { computeProgressComponents } from '../progressMetric';
 import { collectPossibleMoves, scoreMoves } from '../../autoplay';
 import type { PossibleMove } from '../../autoplay';
 
@@ -167,10 +168,14 @@ export function buildContext(
     // game-start value carried in `state.perceivedDifficulty` — a static figure
     // repeated every turn carries no per-turn signal. `moveCount` is omitted
     // here: it duplicates the interaction log's `turnIndex` exactly.
+    const progress = computeProgressComponents(state);
     context.metrics = {
       completionProgress: Math.round(state.completionProgress),
       perceivedDifficulty: getPerceivedDifficulty(uiToCore(state)),
       difficulty: state.difficulty,
+      foundationCards: progress.foundationCards,
+      faceDownTotal: progress.faceDownTotal,
+      progressScore: progress.progressScore,
     };
   }
 

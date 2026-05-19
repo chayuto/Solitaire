@@ -13,6 +13,7 @@ import {
   setProviderOverride,
 } from '../ai';
 import type { AIMoveDecision } from '../ai';
+import type { Card, GameState, Rank, Suit } from '../types';
 import { scenarios } from '../testScenarios';
 
 /** Install a stub provider that returns `decision`. */
@@ -22,6 +23,39 @@ function useStub(decision: AIMoveDecision | (() => never)): void {
   } else {
     setProviderOverride(createStubProvider(() => decision));
   }
+}
+
+const RANKS: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
+
+/**
+ * A board whose only legal move is to draw from the stock. Each of the seven
+ * tableau columns is topped with a distinct non-ace club: black never stacks on
+ * black, and with empty foundations no ace play exists either — so no tableau
+ * move is legal. Every other card sits in the stock.
+ */
+function forcedDrawBoard(): Partial<GameState> {
+  const topRanks: Rank[] = ['2', '3', '4', '5', '6', '7', '8'];
+  const topIds = new Set(topRanks.map((r) => `clubs-${r}`));
+  const tableau = topRanks.map((r) => [
+    { suit: 'clubs', rank: r, faceUp: true, id: `clubs-${r}` } as Card,
+  ]);
+  const drawPile: Card[] = [];
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      const id = `${suit}-${rank}`;
+      if (!topIds.has(id)) drawPile.push({ suit, rank, faceUp: false, id });
+    }
+  }
+  return {
+    drawPile,
+    discardPile: [],
+    foundations: { hearts: [], diamonds: [], clubs: [], spades: [] },
+    tableau,
+    moveHistory: [],
+    gameWon: false,
+    completionProgress: 0,
+  };
 }
 
 describe('AI Move Advisor store actions', () => {
@@ -206,6 +240,123 @@ describe('AI auto-play', () => {
 
     vi.useRealTimers();
     useGameStore.getState().toggleAIAutoPlay(); // stop the loop + pending timer
+  });
+});
+
+describe('forced-position auto-play', () => {
+  beforeEach(() => {
+    useGameStore.getState().initializeGame(3, 42);
+    clearAIInteractions();
+  });
+
+  afterEach(() => {
+    setProviderOverride(null);
+  });
+
+  it('auto-plays a forced position without calling the provider', async () => {
+    // The stub throws if consulted — a forced position must never reach it.
+    useStub(() => {
+      throw new Error('provider must not run on a forced position');
+    });
+    useGameStore.setState(forcedDrawBoard());
+
+    const before = useGameStore.getState().moveHistory.length;
+    await useGameStore.getState().askAIForMove();
+    const state = useGameStore.getState();
+
+    expect(state.aiError).toBeUndefined(); // stub never threw => never called
+    expect(state.moveHistory.length).toBeGreaterThan(before); // the move was applied
+    expect(state.aiThinking).toBe(false);
+  });
+
+  it('logs a forced_move interaction so the move sequence stays complete', async () => {
+    useStub(() => {
+      throw new Error('provider must not run on a forced position');
+    });
+    useGameStore.setState(forcedDrawBoard());
+
+    await useGameStore.getState().askAIForMove();
+
+    const interactions = getAIInteractions();
+    const last = interactions[interactions.length - 1];
+    expect(last.event).toBe('forced_move');
+    expect(last.outcome).toBe('success');
+    expect(last.config).toBeDefined();
+    expect(last.movesApplied?.length).toBeGreaterThan(0);
+  });
+
+  it('does not auto-play when more than one move is legal', async () => {
+    // A fresh deal offers many moves — the provider must be consulted.
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.6 });
+    await useGameStore.getState().askAIForMove();
+
+    const last = getAIInteractions().slice(-1)[0];
+    expect(last.event).toBeUndefined(); // a real API call, not a forced_move
+    expect(useGameStore.getState().aiDecisionLog).toHaveLength(1);
+  });
+});
+
+describe('harvest instrumentation', () => {
+  beforeEach(() => {
+    useGameStore.getState().initializeGame(3, 42);
+    clearAIInteractions();
+  });
+
+  afterEach(() => {
+    setProviderOverride(null);
+  });
+
+  it('stamps the active AI config on every interaction', async () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.6 });
+    await useGameStore.getState().askAIForMove();
+
+    const last = getAIInteractions().slice(-1)[0];
+    expect(last.config).toBeDefined();
+    expect(last.config?.model).toBe(useGameStore.getState().aiConfig?.model);
+    expect(last.config?.preset).toBe(useGameStore.getState().aiConfig?.preset);
+  });
+
+  it('records the move-history entry types a decision produced', async () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.6 });
+    await useGameStore.getState().askAIForMove();
+
+    const last = getAIInteractions().slice(-1)[0];
+    expect(Array.isArray(last.movesApplied)).toBe(true);
+    expect(last.movesApplied?.length).toBeGreaterThan(0);
+  });
+});
+
+describe('AI auto-play stall terminator', () => {
+  beforeEach(() => {
+    useGameStore.getState().initializeGame(3, 42);
+  });
+
+  afterEach(() => {
+    setProviderOverride(null);
+    if (useGameStore.getState().aiAutoPlay) {
+      useGameStore.getState().toggleAIAutoPlay();
+    }
+  });
+
+  it('stops auto-play when progress is flat for too long', () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
+    useGameStore.setState({ aiAutoPlay: true, aiError: undefined });
+
+    // Drive continueAIAutoPlay with a board that changes every turn (rotating
+    // the stock => a distinct position hash, so loop detection never fires) but
+    // makes no real progress (foundations and face-down counts stay flat). The
+    // stall guard must eventually halt the run.
+    for (let i = 0; i < 60 && useGameStore.getState().aiAutoPlay; i++) {
+      const dp = useGameStore.getState().drawPile;
+      if (dp.length > 1) {
+        useGameStore.setState({ drawPile: [...dp.slice(1), dp[0]] });
+      }
+      useGameStore.getState().continueAIAutoPlay();
+    }
+
+    const state = useGameStore.getState();
+    expect(state.aiAutoPlay).toBe(false);
+    expect(state.aiError).toMatch(/progress/i);
   });
 });
 
