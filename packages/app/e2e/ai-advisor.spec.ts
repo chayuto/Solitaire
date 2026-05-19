@@ -20,7 +20,9 @@ test.describe('AI Move Advisor', () => {
   });
 
   test('asks the AI, applies the chosen move, and logs the reasoning', async ({ page }) => {
-    await page.goto('/?seed=1');
+    // seed=7 is known to open with >1 legal move, so the AI is consulted
+    // rather than the position being auto-played as a forced single move.
+    await page.goto('/?seed=7');
     await waitForGame(page);
 
     // Install a stub that always picks the first legal move.
@@ -45,10 +47,13 @@ test.describe('AI Move Advisor', () => {
     await expect(page.getByTestId('ai-last-decision')).toBeVisible();
     await expect(page.getByTestId('ai-reasoning')).toContainText('opening the game');
 
-    // The activity log surfaces the AI reasoning on the move entry.
-    await expect(page.getByTestId('activity-log-ai-reasoning').first()).toContainText(
-      'opening the game',
-    );
+    // The activity log surfaces the AI reasoning on the move entry. Use a
+    // text filter rather than .first(): an AI move that flips a card renders
+    // a consequence entry (with no reasoning) ahead of the lead entry, so the
+    // first activity-log-ai-reasoning element is empty.
+    await expect(
+      page.getByTestId('activity-log-ai-reasoning').filter({ hasText: 'opening the game' }),
+    ).toBeVisible();
 
     // No error, not stuck thinking.
     const ai = await page.evaluate(() => window.__solitaire!.getAIState());
@@ -57,7 +62,7 @@ test.describe('AI Move Advisor', () => {
   });
 
   test('surfaces a provider error in the advisor panel', async ({ page }) => {
-    await page.goto('/?seed=1');
+    await page.goto('/?seed=7');
     await waitForGame(page);
 
     await page.evaluate(() => {
@@ -162,7 +167,7 @@ test.describe('AI Move Advisor', () => {
   });
 
   test('logs LLM interactions with prompts, ids and an export', async ({ page }) => {
-    await page.goto('/?seed=1');
+    await page.goto('/?seed=7');
     await waitForGame(page);
 
     await page.evaluate(() => {
@@ -199,7 +204,7 @@ test.describe('AI Move Advisor', () => {
   });
 
   test('replay surfaces which moves were made by the AI', async ({ page }) => {
-    await page.goto('/?seed=1');
+    await page.goto('/?seed=7');
     await waitForGame(page);
 
     await page.evaluate(() => {
@@ -220,7 +225,7 @@ test.describe('AI Move Advisor', () => {
   });
 
   test('respects the chosen move index from the stub', async ({ page }) => {
-    await page.goto('/?seed=1');
+    await page.goto('/?seed=7');
     await waitForGame(page);
 
     // Pick the last legal move rather than the first.

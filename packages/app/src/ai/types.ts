@@ -119,12 +119,18 @@ export interface AIMoveContext {
 
   /** Game metrics (when `includeGameMetrics`). */
   metrics?: {
-    /** Completion progress (0–100). */
+    /** Completion progress (0–100): foundation cards / 52. */
     completionProgress: number;
     /** Perceived difficulty (0–100) of the *current* board — recomputed each turn. */
     perceivedDifficulty: number;
     /** Deal difficulty setting. */
     difficulty: number;
+    /** Cards on the four foundations (0–52) — raw component of `progressScore`. */
+    foundationCards: number;
+    /** Face-down tableau cards (21 down to 0) — raw component of `progressScore`. */
+    faceDownTotal: number;
+    /** Blended progress score (0–100): weighted foundations + revealed cards. */
+    progressScore: number;
   };
   /** Recent moves, most-recent last (when `includeMoveHistory`). */
   recentMoves?: string[];
@@ -195,6 +201,12 @@ export interface AIRequest {
   turnIndex?: number;
   /** 1-based attempt number, set by the retry wrapper. */
   attempt?: number;
+  /**
+   * Snapshot of the {@link AIConfig} in effect for this request. Stamped onto
+   * every logged interaction so a harvested dataset is attributable to the
+   * exact config that produced it (preset, limits, fairness toggle).
+   */
+  config?: AIConfig;
 }
 
 /**

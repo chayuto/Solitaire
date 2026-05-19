@@ -29,18 +29,22 @@ import {
   AI_AUTO_MOVE_DELAY,
   AI_AUTO_HISTORY_LIMIT,
   AI_AUTO_LOOP_LIMIT,
+  AI_AUTO_STALL_LIMIT,
   AI_AUTO_RETRY_COOLDOWN,
   AI_RETRY_MAX_ATTEMPTS,
   DEFAULT_AI_CONFIG,
   applyPreset,
   buildContext,
   buildSystemInstruction,
+  computeProgressComponents,
   describeMoveCommand,
   exportAIInteractions as serializeAIInteractions,
   getEffectiveKey,
   getLastAIInteraction,
   getProvider,
   isTransientAIError,
+  recordAIInteraction,
+  setLastInteractionMovesApplied,
   suggestMoveWithRetry,
   uuidv7,
 } from '../ai';
@@ -77,6 +81,14 @@ let aiAbortController: AbortController | null = null;
  * detection. Reset each time AI auto-play is engaged.
  */
 let aiAutoStateHistory: string[] = [];
+
+/**
+ * Progress components ({foundationCards, faceDownTotal}) at the previous AI
+ * auto-play turn, and how many consecutive turns since either changed. Drives
+ * stall detection. Reset each time AI auto-play is engaged.
+ */
+let aiAutoLastProgress: { f: number; d: number } | null = null;
+let aiAutoStallCount = 0;
 
 /** Keys in {@link AIConfig} that a context preset controls. */
 const AI_TOGGLE_KEYS: readonly (keyof AIConfig)[] = [
@@ -1325,6 +1337,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
+    // Forced position: exactly one legal move. There is no decision to make, so
+    // auto-play it without spending an API call, and log a synthetic interaction
+    // (`event: 'forced_move'`) so the harvested move sequence stays complete.
+    // This path lives entirely inside the advisor flow — a person playing by
+    // hand is never auto-advanced; manual play stays natural.
+    if (legalMoves.length === 1) {
+      const command = legalMoves[0];
+      const beforeLen = get().moveHistory.length;
+      get().applyMoveCommand(command);
+      const afterMoves = get().moveHistory;
+      const applied = afterMoves.slice(beforeLen);
+      if (applied.length > 0) {
+        const annotated = afterMoves.map((move, i) =>
+          i < beforeLen ? move : { ...move, aiMove: true },
+        );
+        annotated[beforeLen] = {
+          ...annotated[beforeLen],
+          aiReasoning: 'Only one legal move — auto-played.',
+        };
+        set({ moveHistory: annotated });
+      }
+      recordAIInteraction({
+        id: uuidv7(),
+        requestId: uuidv7(),
+        sessionId: get().gameSessionId ?? '',
+        attempt: 1,
+        timestamp: Date.now(),
+        provider: config.provider,
+        model: config.model,
+        seed: state.seed,
+        turnIndex: beforeLen,
+        config,
+        event: 'forced_move',
+        movesApplied: applied.map((m) => m.type),
+        outcome: 'success',
+        durationMs: 0,
+        prompt: '',
+      });
+      set({ aiError: undefined, aiStatus: undefined });
+      if (get().aiAutoPlay) get().continueAIAutoPlay();
+      return;
+    }
+
     const context = buildContext(state, legalMoves, config, state.aiDecisionLog ?? []);
     const systemInstruction = buildSystemInstruction(config);
 
@@ -1357,6 +1412,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           sessionId: get().gameSessionId,
           seed: state.seed,
           turnIndex: state.moveHistory.length,
+          config,
         },
         {
           maxAttempts: AI_RETRY_MAX_ATTEMPTS,
@@ -1403,6 +1459,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         };
         set({ moveHistory: annotated });
       }
+
+      // Attach the move-history entry types this decision produced to its
+      // interaction, so a consequence entry (e.g. an automatic `flip_card`) is
+      // not misread as a turn with a missing log entry.
+      setLastInteractionMovesApplied(
+        afterMoves.slice(beforeLen).map((m) => m.type),
+      );
 
       // Record the decision. This drives the advisor panel and the reasoning
       // trail, is exported with the game, and carries enough cost/choice
@@ -1525,6 +1588,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     aiAutoStateHistory = [];
+    aiAutoLastProgress = null;
+    aiAutoStallCount = 0;
     set({ aiAutoPlay: true, aiError: undefined });
     void get().askAIForMove();
   },
@@ -1554,6 +1619,50 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     aiAutoStateHistory = [...aiAutoStateHistory, hash].slice(-AI_AUTO_HISTORY_LIMIT);
+
+    // Stall detection: a turn is "flat" when neither a card reached a foundation
+    // nor a face-down card was revealed. A few flat turns are normal (cycling
+    // the stock to reach a card); AI_AUTO_STALL_LIMIT in a row means the run is
+    // genuinely stuck. Loop detection above misses this — the board keeps
+    // changing — so it is a separate guard. Log it so a harvested game reads as
+    // auto-terminated, not abandoned.
+    const { foundationCards, faceDownTotal } = computeProgressComponents(state);
+    if (
+      aiAutoLastProgress &&
+      aiAutoLastProgress.f === foundationCards &&
+      aiAutoLastProgress.d === faceDownTotal
+    ) {
+      aiAutoStallCount += 1;
+    } else {
+      aiAutoStallCount = 0;
+    }
+    aiAutoLastProgress = { f: foundationCards, d: faceDownTotal };
+    if (aiAutoStallCount >= AI_AUTO_STALL_LIMIT) {
+      const stallConfig = state.aiConfig ?? DEFAULT_AI_CONFIG;
+      recordAIInteraction({
+        id: uuidv7(),
+        requestId: uuidv7(),
+        sessionId: state.gameSessionId ?? '',
+        attempt: 1,
+        timestamp: Date.now(),
+        provider: stallConfig.provider,
+        model: stallConfig.model,
+        seed: state.seed,
+        turnIndex: state.moveHistory.length,
+        config: stallConfig,
+        event: 'stall_terminated',
+        outcome: 'success',
+        durationMs: 0,
+        prompt: '',
+      });
+      set({
+        aiAutoPlay: false,
+        aiError:
+          `AI auto-play stopped: no progress for ${AI_AUTO_STALL_LIMIT} turns ` +
+          `(foundations and revealed cards both unchanged).`,
+      });
+      return;
+    }
 
     setTimeout(() => {
       if (get().aiAutoPlay && !get().aiThinking) {

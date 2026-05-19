@@ -15,6 +15,7 @@ export {
   AI_AUTO_MOVE_DELAY,
   AI_AUTO_HISTORY_LIMIT,
   AI_AUTO_LOOP_LIMIT,
+  AI_AUTO_STALL_LIMIT,
   AI_RETRY_MAX_ATTEMPTS,
   AI_AUTO_RETRY_COOLDOWN,
 } from './constants';
@@ -37,8 +38,13 @@ export {
   getLastAIInteraction,
   clearAIInteractions,
   exportAIInteractions,
+  setLastInteractionMovesApplied,
 } from './interactionLog';
 export type { AIInteraction, AISessionSummary } from './interactionLog';
+
+// Progress metric (harvesting / stall detection)
+export { computeProgressComponents } from './progressMetric';
+export type { ProgressComponents } from './progressMetric';
 
 // Identifiers
 export { uuidv7 } from './uuid';

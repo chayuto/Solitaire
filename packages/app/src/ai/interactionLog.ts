@@ -12,7 +12,7 @@
 
 import { APP_BUILD_TIME, APP_COMMIT } from '../buildInfo';
 import { AI_INTERACTION_LOG_LIMIT } from './constants';
-import type { AIErrorKind, AIMoveDecision } from './types';
+import type { AIConfig, AIErrorKind, AIMoveDecision } from './types';
 
 /** A complete record of one LLM API call. */
 export interface AIInteraction {
@@ -36,6 +36,27 @@ export interface AIInteraction {
   seed?: number;
   /** Turn index within the game (move-history length at request time). */
   turnIndex?: number;
+  /**
+   * Snapshot of the AI config that produced this interaction. Lets a harvested
+   * dataset be segmented by the exact config (preset, history/trail limits,
+   * fairness toggle) without inferring it from prompt structure.
+   */
+  config?: AIConfig;
+  /**
+   * Set on entries that are *not* a real API call: a move the advisor flow
+   * resolved itself. `forced_move` — the position had a single legal move, so
+   * it was auto-played without consulting the model. `stall_terminated` — AI
+   * auto-play was stopped because the game made no progress. Absent on a normal
+   * API call.
+   */
+  event?: 'forced_move' | 'stall_terminated';
+  /**
+   * Move-history entry types this interaction's move produced (e.g. a
+   * `tableau_to_foundation` followed by a `flip_card`). Lets a consumer
+   * reconstruct the full move sequence and see why `turnIndex` advances by
+   * more than one between calls.
+   */
+  movesApplied?: string[];
   /** Whether the call succeeded. */
   outcome: 'success' | 'error';
   /** Wall-clock duration of the call, in ms. */
@@ -113,6 +134,16 @@ export function recordAIInteraction(entry: AIInteraction): void {
         ` (req ${entry.requestId.slice(0, 8)} #${entry.attempt})`,
     );
   }
+}
+
+/**
+ * Attach to the most recent interaction the move-history entry types its move
+ * produced. Called after the chosen move is applied, so a consumer can tell a
+ * decision's consequence entries (e.g. `flip_card`) apart from missing turns.
+ */
+export function setLastInteractionMovesApplied(moveTypes: string[]): void {
+  const last = buffer[buffer.length - 1];
+  if (last) last.movesApplied = moveTypes;
 }
 
 /** A snapshot of the interaction log, most recent last. */
