@@ -16,9 +16,17 @@ export {
   AI_AUTO_HISTORY_LIMIT,
   AI_AUTO_LOOP_LIMIT,
   AI_AUTO_STALL_LIMIT,
+  AI_AUTO_STALL_SHUFFLE_FRACTION,
   AI_RETRY_MAX_ATTEMPTS,
   AI_AUTO_RETRY_COOLDOWN,
 } from './constants';
+
+// Stall detection (two-gate rule)
+export {
+  STALL_SHUFFLE_MOVE_TYPES,
+  shuffleFraction,
+  shouldTerminateOnStall,
+} from './stallDetection';
 
 // Retry / resilience
 export {

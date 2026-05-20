@@ -10,7 +10,10 @@ import {
   clearAIInteractions,
   createStubProvider,
   getAIInteractions,
+  getLastAIInteraction,
+  recordAIInteraction,
   setProviderOverride,
+  uuidv7,
 } from '../ai';
 import type { AIMoveDecision } from '../ai';
 import type { Card, GameState, Rank, Suit } from '../types';
@@ -329,6 +332,7 @@ describe('harvest instrumentation', () => {
 describe('AI auto-play stall terminator', () => {
   beforeEach(() => {
     useGameStore.getState().initializeGame(3, 42);
+    clearAIInteractions();
   });
 
   afterEach(() => {
@@ -338,25 +342,125 @@ describe('AI auto-play stall terminator', () => {
     }
   });
 
-  it('stops auto-play when progress is flat for too long', () => {
-    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
-    useGameStore.setState({ aiAutoPlay: true, aiError: undefined });
-
-    // Drive continueAIAutoPlay with a board that changes every turn (rotating
-    // the stock => a distinct position hash, so loop detection never fires) but
-    // makes no real progress (foundations and face-down counts stay flat). The
-    // stall guard must eventually halt the run.
-    for (let i = 0; i < 60 && useGameStore.getState().aiAutoPlay; i++) {
+  /**
+   * Drive `continueAIAutoPlay` for `iterations` cycles. Each iteration:
+   *   - records a synthetic interaction tagged with `moveType` so the stall
+   *     tracker reads the move type from the last interaction,
+   *   - rotates the stock one card so the position hash is fresh (otherwise
+   *     loop detection trips before the stall threshold is reached).
+   *
+   * Stops early if the store turned auto-play off (the terminator fired).
+   */
+  function driveFlatTurns(moveType: string, iterations: number): void {
+    const sessionId = useGameStore.getState().gameSessionId ?? '';
+    for (let i = 0; i < iterations && useGameStore.getState().aiAutoPlay; i++) {
       const dp = useGameStore.getState().drawPile;
       if (dp.length > 1) {
         useGameStore.setState({ drawPile: [...dp.slice(1), dp[0]] });
       }
+      recordAIInteraction({
+        id: uuidv7(),
+        requestId: uuidv7(),
+        sessionId,
+        attempt: 1,
+        timestamp: Date.now() + i,
+        provider: 'stub',
+        model: 'stub',
+        outcome: 'success',
+        durationMs: 0,
+        prompt: '',
+        movesApplied: [moveType],
+      });
       useGameStore.getState().continueAIAutoPlay();
     }
+  }
+
+  it('stops auto-play on a long shuffle-dominated plateau (doom-loop)', () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
+    useGameStore.setState({ aiAutoPlay: true, aiError: undefined });
+
+    driveFlatTurns('tableau_to_tableau', 60);
 
     const state = useGameStore.getState();
     expect(state.aiAutoPlay).toBe(false);
-    expect(state.aiError).toMatch(/progress/i);
+    expect(state.aiError).toMatch(/no progress/i);
+    expect(state.aiError).toMatch(/shuffle/i);
+  });
+
+  it('records a stall_terminated event with shuffle-fraction telemetry', () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
+    useGameStore.setState({ aiAutoPlay: true, aiError: undefined });
+
+    driveFlatTurns('tableau_to_tableau', 60);
+
+    // Find the most recent stall_terminated interaction; production code stamps
+    // shuffle fraction, plateau length, and the move-type window onto it.
+    const stall = [...getAIInteractions()]
+      .reverse()
+      .find((entry) => entry.event === 'stall_terminated');
+    expect(stall).toBeTruthy();
+    expect(stall?.shuffleFraction).toBe(1);
+    expect(stall?.plateauLength).toBeGreaterThanOrEqual(25);
+    expect(stall?.moveTypeWindow?.every((mt) => mt === 'tableau_to_tableau')).toBe(true);
+  });
+
+  it('does NOT terminate a draw-dominated plateau (honest Ace-hunt)', () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
+    useGameStore.setState({ aiAutoPlay: true, aiError: undefined });
+
+    // 40 flat turns of pure information-gathering draws — well beyond the
+    // plateau gate but with shuffle fraction 0. Must not fire.
+    driveFlatTurns('draw_card', 40);
+
+    expect(useGameStore.getState().aiAutoPlay).toBe(true);
+    const stall = getAIInteractions().find((e) => e.event === 'stall_terminated');
+    expect(stall).toBeUndefined();
+  });
+
+  it('marks the session outcome as stalled_auto_terminated after a doom-loop', () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
+    useGameStore.setState({ aiAutoPlay: true, aiError: undefined });
+
+    driveFlatTurns('tableau_to_tableau', 60);
+    expect(useGameStore.getState().aiAutoPlay).toBe(false);
+
+    const parsed = JSON.parse(useGameStore.getState().exportAIInteractions());
+    expect(parsed.session.outcome).toBe('stalled_auto_terminated');
+  });
+
+  // Sanity: the previous interaction's movesApplied field is the source of
+  // truth for the rolling window. If it is absent, the stall tracker must
+  // still progress its counter (the plateau gate) and simply skip the push.
+  it('tolerates an unstamped previous interaction without crashing', () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
+    useGameStore.setState({ aiAutoPlay: true, aiError: undefined });
+
+    const sessionId = useGameStore.getState().gameSessionId ?? '';
+    for (let i = 0; i < 30 && useGameStore.getState().aiAutoPlay; i++) {
+      const dp = useGameStore.getState().drawPile;
+      if (dp.length > 1) {
+        useGameStore.setState({ drawPile: [...dp.slice(1), dp[0]] });
+      }
+      // No movesApplied — simulates a leftover interaction with missing tags.
+      recordAIInteraction({
+        id: uuidv7(),
+        requestId: uuidv7(),
+        sessionId,
+        attempt: 1,
+        timestamp: Date.now() + i,
+        provider: 'stub',
+        model: 'stub',
+        outcome: 'success',
+        durationMs: 0,
+        prompt: '',
+      });
+      useGameStore.getState().continueAIAutoPlay();
+    }
+
+    // The plateau gate is satisfied, but no shuffle entries got into the
+    // window, so the second gate fails and termination does not fire.
+    expect(useGameStore.getState().aiAutoPlay).toBe(true);
+    expect(getLastAIInteraction()?.event).not.toBe('stall_terminated');
   });
 });
 

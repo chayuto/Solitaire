@@ -119,6 +119,37 @@ describe('interactionLog', () => {
     expect(parsed.session).toBeUndefined();
   });
 
+  it('accepts stalled_auto_terminated as a session outcome', () => {
+    recordAIInteraction(base);
+    const parsed = JSON.parse(
+      exportAIInteractions({
+        sessionId: 'session-abcdef12',
+        seed: 99,
+        model: 'gemma-4-31b-it',
+        outcome: 'stalled_auto_terminated',
+        finalProgress: 42,
+        moveCount: 88,
+      }),
+    );
+    expect(parsed.session.outcome).toBe('stalled_auto_terminated');
+  });
+
+  it('carries stall-trigger telemetry on a stall_terminated event entry', () => {
+    recordAIInteraction({
+      ...base,
+      id: 'id-stall',
+      event: 'stall_terminated',
+      plateauLength: 25,
+      shuffleFraction: 0.72,
+      moveTypeWindow: Array.from({ length: 25 }, () => 'tableau_to_tableau'),
+    });
+    const last = getLastAIInteraction();
+    expect(last?.event).toBe('stall_terminated');
+    expect(last?.plateauLength).toBe(25);
+    expect(last?.shuffleFraction).toBe(0.72);
+    expect(last?.moveTypeWindow).toHaveLength(25);
+  });
+
   it('clearAIInteractions empties the buffer', () => {
     recordAIInteraction(base);
     clearAIInteractions();
