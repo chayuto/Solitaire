@@ -29,7 +29,7 @@ import {
   AI_AUTO_MOVE_DELAY,
   AI_AUTO_HISTORY_LIMIT,
   AI_AUTO_LOOP_LIMIT,
-  AI_AUTO_STALL_LIMIT,
+  AI_AUTO_STALL_SHUFFLE_FRACTION,
   AI_AUTO_RETRY_COOLDOWN,
   AI_RETRY_MAX_ATTEMPTS,
   DEFAULT_AI_CONFIG,
@@ -45,6 +45,8 @@ import {
   isTransientAIError,
   recordAIInteraction,
   setLastInteractionMovesApplied,
+  shouldTerminateOnStall,
+  shuffleFraction,
   suggestMoveWithRetry,
   uuidv7,
 } from '../ai';
@@ -89,6 +91,22 @@ let aiAutoStateHistory: string[] = [];
  */
 let aiAutoLastProgress: { f: number; d: number } | null = null;
 let aiAutoStallCount = 0;
+
+/**
+ * Move types applied on each consecutive flat-progress turn — the rolling
+ * window the shuffle-fraction gate reads to decide whether a long plateau is
+ * a real doom-loop (shuffle-dominated) or an honest hunt (draw-dominated).
+ * Cleared whenever progress is made or auto-play is re-engaged.
+ */
+let aiAutoRecentMoveTypes: string[] = [];
+
+/**
+ * Whether the current game's auto-play was halted by the stall terminator. The
+ * store reads this at export time so a harvested record carries
+ * `outcome: 'stalled_auto_terminated'` rather than the catch-all `incomplete`.
+ * Reset on a new game or re-engaged auto-play.
+ */
+let aiAutoStalled = false;
 
 /** Keys in {@link AIConfig} that a context preset controls. */
 const AI_TOGGLE_KEYS: readonly (keyof AIConfig)[] = [
@@ -362,6 +380,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // A new game invalidates any in-flight AI request.
     aiAbortController?.abort();
     aiAbortController = null;
+    // Auto-play tracking belongs to the previous game; clear it so the new
+    // game starts with a fresh plateau / window / outcome / position history.
+    aiAutoStateHistory = [];
+    aiAutoLastProgress = null;
+    aiAutoStallCount = 0;
+    aiAutoRecentMoveTypes = [];
+    aiAutoStalled = false;
     // The AI config is a session-level preference — preserve it across games.
     const preservedConfig = get().aiConfig ?? DEFAULT_AI_CONFIG;
     set({ ...initializeGameState(currentDifficulty, seed), aiConfig: preservedConfig });
@@ -1590,6 +1615,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     aiAutoStateHistory = [];
     aiAutoLastProgress = null;
     aiAutoStallCount = 0;
+    aiAutoRecentMoveTypes = [];
+    aiAutoStalled = false;
     set({ aiAutoPlay: true, aiError: undefined });
     void get().askAIForMove();
   },
@@ -1620,25 +1647,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     aiAutoStateHistory = [...aiAutoStateHistory, hash].slice(-AI_AUTO_HISTORY_LIMIT);
 
-    // Stall detection: a turn is "flat" when neither a card reached a foundation
-    // nor a face-down card was revealed. A few flat turns are normal (cycling
-    // the stock to reach a card); AI_AUTO_STALL_LIMIT in a row means the run is
-    // genuinely stuck. Loop detection above misses this — the board keeps
-    // changing — so it is a separate guard. Log it so a harvested game reads as
-    // auto-terminated, not abandoned.
+    // Stall detection — two-gate rule. A turn is "flat" when neither a card
+    // reached a foundation nor a face-down card was revealed. A few flat turns
+    // are normal (cycling the stock to reach a card); AI_AUTO_STALL_LIMIT in a
+    // row is the first gate. The second gate is the *shuffle fraction* over
+    // the plateau: a long flat run dominated by `tableau_to_tableau` /
+    // `discard_to_tableau` is a doom-loop and terminates; the same length
+    // dominated by `draw_card` / `recycle_stock` is an honest hunt for a still
+    // face-down card and is allowed to continue. Loop detection above misses
+    // both cases — the board keeps changing — so this is a separate guard.
+    // Log it so a harvested game reads as auto-terminated, not abandoned.
     const { foundationCards, faceDownTotal } = computeProgressComponents(state);
+    const lastInteractionMoveType = getLastAIInteraction()?.movesApplied?.[0];
     if (
       aiAutoLastProgress &&
       aiAutoLastProgress.f === foundationCards &&
       aiAutoLastProgress.d === faceDownTotal
     ) {
       aiAutoStallCount += 1;
+      if (lastInteractionMoveType) aiAutoRecentMoveTypes.push(lastInteractionMoveType);
     } else {
       aiAutoStallCount = 0;
+      aiAutoRecentMoveTypes = [];
     }
     aiAutoLastProgress = { f: foundationCards, d: faceDownTotal };
-    if (aiAutoStallCount >= AI_AUTO_STALL_LIMIT) {
+    if (shouldTerminateOnStall(aiAutoStallCount, aiAutoRecentMoveTypes)) {
       const stallConfig = state.aiConfig ?? DEFAULT_AI_CONFIG;
+      const fraction = shuffleFraction(aiAutoRecentMoveTypes);
+      const window = [...aiAutoRecentMoveTypes];
+      aiAutoStalled = true;
       recordAIInteraction({
         id: uuidv7(),
         requestId: uuidv7(),
@@ -1651,6 +1688,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         turnIndex: state.moveHistory.length,
         config: stallConfig,
         event: 'stall_terminated',
+        plateauLength: aiAutoStallCount,
+        shuffleFraction: fraction,
+        moveTypeWindow: window,
         outcome: 'success',
         durationMs: 0,
         prompt: '',
@@ -1658,8 +1698,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({
         aiAutoPlay: false,
         aiError:
-          `AI auto-play stopped: no progress for ${AI_AUTO_STALL_LIMIT} turns ` +
-          `(foundations and revealed cards both unchanged).`,
+          `AI auto-play stopped: no progress for ${aiAutoStallCount} turns ` +
+          `with ${Math.round(fraction * 100)}% shuffle moves ` +
+          `(threshold ${Math.round(AI_AUTO_STALL_SHUFFLE_FRACTION * 100)}%).`,
       });
       return;
     }
@@ -1704,12 +1745,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   exportAIInteractions: () => {
     // Stamp the export with the current game's outcome so a harvested dataset
     // can be filtered for quality games (e.g. wins only) on its own.
+    // `stalled_auto_terminated` is preferred over `incomplete` so the
+    // analytics side can tell a machine-terminated doom-loop apart from a
+    // genuinely abandoned game.
     const state = get();
-    const outcome: 'won' | 'lost' | 'incomplete' = state.gameWon
-      ? 'won'
-      : engine.getLegalMoves(uiToCore(state)).length === 0
-        ? 'lost'
-        : 'incomplete';
+    const outcome: 'won' | 'lost' | 'stalled_auto_terminated' | 'incomplete' =
+      state.gameWon
+        ? 'won'
+        : engine.getLegalMoves(uiToCore(state)).length === 0
+          ? 'lost'
+          : aiAutoStalled
+            ? 'stalled_auto_terminated'
+            : 'incomplete';
     return serializeAIInteractions({
       sessionId: state.gameSessionId ?? '',
       seed: state.seed,

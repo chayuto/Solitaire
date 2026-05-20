@@ -45,8 +45,37 @@ export const AI_AUTO_LOOP_LIMIT = 5;
  * Distinct from {@link AI_AUTO_LOOP_LIMIT}, which catches an *exactly* repeating
  * board position. A stall is flat progress while the board still churns (e.g.
  * cycling the stock), which loop detection never catches.
+ *
+ * Kept in lockstep with `STALL_TURNS` in the analytics-side
+ * `scripts/ingest_exports.py` — the harness terminates a game exactly when the
+ * ingest filter would have dropped its remaining decisions from training.
  */
 export const AI_AUTO_STALL_LIMIT = 25;
+
+/**
+ * Minimum fraction of *shuffle* moves in the stall window required to trigger
+ * auto-termination. Combined with {@link AI_AUTO_STALL_LIMIT} this is a
+ * two-gate rule: terminate only when (plateau ≥ AI_AUTO_STALL_LIMIT) AND
+ * (shuffle fraction ≥ AI_AUTO_STALL_SHUFFLE_FRACTION).
+ *
+ * The shuffle set is `{tableau_to_tableau, discard_to_tableau}` — moves that
+ * rearrange visible cards without surfacing new information. `draw_card` and
+ * `recycle_stock` are *information-gathering*: a long plateau of draws is an
+ * honest hunt for a still-face-down card (e.g. a missing Ace) and must not
+ * terminate. `tableau_to_foundation` and `discard_to_foundation` always make
+ * progress, so they cannot appear in a plateau window by construction.
+ *
+ * Empirical anchors (analytics 2026-05-20 doc, two real sessions on the
+ * stall threshold):
+ *  - `1279a3` — 24-turn plateau, 0% shuffles (18 draws + 1 recycle): honest
+ *    hunt, must NOT terminate.
+ *  - `73fd85` — 15-turn plateau on its way to a doom-loop, ~70% shuffles
+ *    (tableau-to-tableau oscillation): must terminate.
+ *
+ * 0.6 gives both cases wide headroom; tune from per-termination telemetry on
+ * the `stall_terminated` interaction once a real sample exists.
+ */
+export const AI_AUTO_STALL_SHUFFLE_FRACTION = 0.6;
 
 /**
  * How many times a single move request is attempted before giving up. LLM

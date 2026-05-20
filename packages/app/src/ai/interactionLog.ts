@@ -51,6 +51,25 @@ export interface AIInteraction {
    */
   event?: 'forced_move' | 'stall_terminated';
   /**
+   * Plateau length at the moment a `stall_terminated` event fired — number of
+   * consecutive flat-progress turns. Equals `AI_AUTO_STALL_LIMIT` at the first
+   * possible trigger; may be larger if other gates delayed the fire.
+   */
+  plateauLength?: number;
+  /**
+   * Shuffle fraction over the move-type window at the moment of trigger
+   * (`{tableau_to_tableau, discard_to_tableau}` / window length, in [0, 1]).
+   * Lets the analytics side audit and tune `AI_AUTO_STALL_SHUFFLE_FRACTION`
+   * without re-deriving it from the moves applied.
+   */
+  shuffleFraction?: number;
+  /**
+   * The exact move-type window that produced {@link shuffleFraction}. One entry
+   * per flat turn in the plateau, oldest first. Length matches
+   * {@link plateauLength} at trigger time.
+   */
+  moveTypeWindow?: string[];
+  /**
    * Move-history entry types this interaction's move produced (e.g. a
    * `tableau_to_foundation` followed by a `flip_card`). Lets a consumer
    * reconstruct the full move sequence and see why `turnIndex` advances by
@@ -98,10 +117,17 @@ export interface AISessionSummary {
   /** Model that drove the session. */
   model: string;
   /**
-   * How the game ended: `won` (all 52 cards home), `lost` (no legal moves
-   * remain), or `incomplete` (exported mid-game — i.e. abandoned).
+   * How the game ended:
+   * - `won` — all 52 cards home.
+   * - `lost` — no legal moves remain.
+   * - `stalled_auto_terminated` — auto-play hit the two-gate stall rule
+   *   (long flat-progress plateau dominated by shuffle moves) and the harness
+   *   stopped calling the teacher. Distinct from `incomplete` so the analytics
+   *   side can separate machine-terminated runs from player-abandoned ones.
+   * - `incomplete` — exported mid-game (abandoned, or a stop other than the
+   *   stall terminator).
    */
-  outcome: 'won' | 'lost' | 'incomplete';
+  outcome: 'won' | 'lost' | 'stalled_auto_terminated' | 'incomplete';
   /** Completion progress at export time (0–100). */
   finalProgress: number;
   /** Total move-history length at export time. */
