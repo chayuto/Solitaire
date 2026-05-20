@@ -77,25 +77,28 @@ const AIKeyModalContent: React.FC = () => {
           {provider.displayName}
         </div>
 
-        {/* Model */}
+        {/* Model — a dropdown of the provider's known models. If the stored
+            config names one outside that list (e.g. a legacy value), include
+            it so saving the form does not silently swap models. */}
         <label htmlFor="ai-model-input" className="block text-sm font-semibold text-gray-700 mb-1">
           Model
         </label>
-        <input
+        <select
           id="ai-model-input"
           data-testid="ai-model-input"
-          type="text"
-          list="ai-model-options"
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2 mb-1 text-sm"
-          placeholder="e.g. gemma-4-31b-it"
-        />
-        <datalist id="ai-model-options">
-          {provider.availableModels.map((m) => (
-            <option key={m} value={m} />
+          className="w-full border border-gray-300 rounded px-3 py-2 mb-1 text-sm bg-white"
+        >
+          {(provider.availableModels.includes(model)
+            ? provider.availableModels
+            : [model, ...provider.availableModels]
+          ).map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
           ))}
-        </datalist>
+        </select>
         <p className="text-xs text-gray-500 mb-4">
           Default <code>gemma-4-31b-it</code> is a thinking model — a suggestion can take
           up to ~3 minutes. Pick a faster model (e.g.{' '}
