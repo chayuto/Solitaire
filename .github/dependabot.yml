@@ -8,6 +8,10 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "UTC"
+    # Let a release sit for 30 days before Dependabot proposes it. Filters out
+    # day-zero releases that get yanked and lets the ecosystem react first.
+    cooldown:
+      default-days: 30
     groups:
       # Group all production dependencies together
       production-dependencies:
@@ -47,6 +51,9 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "UTC"
+    # Same 30-day cooldown as the npm updates.
+    cooldown:
+      default-days: 30
     groups:
       github-actions:
         patterns:
