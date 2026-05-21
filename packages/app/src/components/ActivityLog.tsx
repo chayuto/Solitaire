@@ -33,12 +33,70 @@ const ActivityLog: React.FC = () => {
 
   const formatTime = (timestamp: number): string => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
       second: '2-digit',
-      hour12: true 
+      hour12: true
     });
+  };
+
+  // A multi-card tableau-to-tableau move is stored as one Move per card
+  // (gameStore moveCardToTableau), so the log would otherwise repeat the same
+  // "Moved X from column A to column B" line once per card. We collapse a run
+  // of those into a single display entry that names both ends of the moved
+  // stack — see formatMove's 'tableau_to_tableau' branch below.
+  type DisplayEntry =
+    | { kind: 'single'; move: Move }
+    | { kind: 'sequence'; lead: Move; tail: Move; count: number };
+
+  const coalesceMoves = (moves: Move[]): DisplayEntry[] => {
+    const out: DisplayEntry[] = [];
+    let i = 0;
+    while (i < moves.length) {
+      const m = moves[i];
+      const fromCol = m.from?.columnIndex;
+      const toCol = m.to?.columnIndex;
+      const fromIdx = m.from?.cardIndex;
+      if (
+        m.type === 'tableau_to_tableau' &&
+        fromCol !== undefined &&
+        toCol !== undefined &&
+        fromIdx !== undefined
+      ) {
+        // Extend as long as the next entry is the next card in the same
+        // source slice landing on the same destination. Tail entries carry
+        // no reasoning/confidence of their own (the AI annotation puts those
+        // only on the lead) — stop early if one does, so we never swallow a
+        // distinct AI decision.
+        let j = i + 1;
+        while (j < moves.length) {
+          const n = moves[j];
+          const prev = moves[j - 1];
+          if (
+            n.type !== 'tableau_to_tableau' ||
+            n.from?.columnIndex !== fromCol ||
+            n.to?.columnIndex !== toCol ||
+            n.from?.cardIndex === undefined ||
+            prev.from?.cardIndex === undefined ||
+            n.from.cardIndex !== prev.from.cardIndex + 1 ||
+            n.aiReasoning !== undefined ||
+            n.aiConfidence !== undefined
+          ) {
+            break;
+          }
+          j++;
+        }
+        if (j > i + 1) {
+          out.push({ kind: 'sequence', lead: m, tail: moves[j - 1], count: j - i });
+          i = j;
+          continue;
+        }
+      }
+      out.push({ kind: 'single', move: m });
+      i++;
+    }
+    return out;
   };
 
   const formatMove = (move: Move): string => {
@@ -48,41 +106,52 @@ const ActivityLog: React.FC = () => {
     switch (move.type) {
       case 'draw_card':
         return `${time} - Drew ${cardStr} from draw pile`;
-      
+
       case 'tableau_to_tableau':
         return `${time} - Moved ${cardStr} from column ${(move.from?.columnIndex ?? 0) + 1} to column ${(move.to?.columnIndex ?? 0) + 1}`;
-      
+
       case 'tableau_to_foundation':
         return `${time} - Moved ${cardStr} to ${move.to?.suit} foundation`;
-      
+
       case 'discard_to_tableau':
         return `${time} - Moved ${cardStr} from discard to column ${(move.to?.columnIndex ?? 0) + 1}`;
-      
+
       case 'discard_to_foundation':
         return `${time} - Moved ${cardStr} from discard to ${move.to?.suit} foundation`;
-      
+
       case 'flip_card':
         return `${time} - Flipped ${cardStr} face up in column ${(move.from?.columnIndex ?? 0) + 1}`;
-      
+
       case 'autoplay_start':
         return `${time} - ▶️ Auto-play started`;
-      
+
       case 'autoplay_stop':
         return `${time} - ⏸️ Auto-play stopped`;
-      
+
       case 'autoplay_deadend':
         return `${time} - 🚫 Auto-play stopped - No valid moves available (deadend)`;
-      
+
       case 'autoplay_loop_detected':
         return `${time} - 🔄 Auto-play stopped - Loop detected`;
-      
+
       default:
         return `${time} - Unknown move`;
     }
   };
 
+  const formatEntry = (entry: DisplayEntry): string => {
+    if (entry.kind === 'single') return formatMove(entry.move);
+    const { lead, tail, count } = entry;
+    const time = formatTime(lead.timestamp);
+    const fromCol = (lead.from?.columnIndex ?? 0) + 1;
+    const toCol = (lead.to?.columnIndex ?? 0) + 1;
+    return `${time} - Moved ${formatCard(lead.card)} → ${formatCard(tail.card)} (${count} cards) from column ${fromCol} to column ${toCol}`;
+  };
+
+  const displayEntries: DisplayEntry[] = coalesceMoves(visibleLogs);
+
   const handleCopyToClipboard = async () => {
-    const logText = visibleLogs.map(move => formatMove(move)).join('\n');
+    const logText = displayEntries.map(formatEntry).join('\n');
     try {
       await navigator.clipboard.writeText(logText);
       // Could add a temporary success message here
@@ -139,17 +208,21 @@ const ActivityLog: React.FC = () => {
 
           {/* Log Display */}
           <div ref={entriesRef} data-testid="activity-log-entries" className="h-48 lg:h-96 overflow-y-auto p-3 bg-gray-50">
-            {visibleLogs.length === 0 ? (
+            {displayEntries.length === 0 ? (
               <p className="text-gray-500 text-center text-sm mt-8">No activities yet</p>
             ) : (
               <div className="space-y-1">
-                {[...visibleLogs].reverse().map((move, index) => {
-                  const isAutoPlayEvent = move.type.startsWith('autoplay_');
-                  const isDeadendOrLoop = move.type === 'autoplay_deadend' || move.type === 'autoplay_loop_detected';
-                  const isAIMove = move.aiMove === true || typeof move.aiReasoning === 'string';
+                {[...displayEntries].reverse().map((entry, index) => {
+                  // AI flags live on the lead entry of a sequence; tail entries
+                  // are intentionally skipped by coalesceMoves when they carry
+                  // their own reasoning, so reading from `lead` here is safe.
+                  const lead = entry.kind === 'single' ? entry.move : entry.lead;
+                  const isAutoPlayEvent = lead.type.startsWith('autoplay_');
+                  const isDeadendOrLoop = lead.type === 'autoplay_deadend' || lead.type === 'autoplay_loop_detected';
+                  const isAIMove = lead.aiMove === true || typeof lead.aiReasoning === 'string';
                   return (
                     <div
-                      key={`${move.timestamp}-${index}`}
+                      key={`${lead.timestamp}-${index}`}
                       data-testid="activity-log-entry"
                       className={`text-xs p-2 rounded shadow-sm border transition-colors ${
                         isDeadendOrLoop
@@ -163,19 +236,19 @@ const ActivityLog: React.FC = () => {
                     >
                       <div>
                         {isAIMove && <span className="mr-1" aria-label="AI move">🤖</span>}
-                        {formatMove(move)}
+                        {formatEntry(entry)}
                       </div>
                       {isAIMove && (
                         <div
                           data-testid="activity-log-ai-reasoning"
                           className="mt-1 pl-4 text-[11px] italic text-indigo-700 whitespace-pre-wrap break-words"
                         >
-                          {move.aiConfidence !== undefined && (
+                          {lead.aiConfidence !== undefined && (
                             <span className="not-italic font-semibold">
-                              [{Math.round(move.aiConfidence * 100)}%]{' '}
+                              [{Math.round(lead.aiConfidence * 100)}%]{' '}
                             </span>
                           )}
-                          {move.aiReasoning}
+                          {lead.aiReasoning}
                         </div>
                       )}
                     </div>
@@ -188,7 +261,7 @@ const ActivityLog: React.FC = () => {
           {/* Footer */}
           <div className="px-3 py-2 bg-gray-100 border-t border-gray-200">
             <p data-testid="activity-log-count" className="text-xs text-gray-600 text-center">
-              Total: {visibleLogs.length} {visibleLogs.length === 1 ? 'activity' : 'activities'}
+              Total: {displayEntries.length} {displayEntries.length === 1 ? 'activity' : 'activities'}
             </p>
           </div>
         </>
