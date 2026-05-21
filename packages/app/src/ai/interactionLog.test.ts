@@ -79,6 +79,18 @@ describe('interactionLog', () => {
     expect(getLastAIInteraction()?.timestamp).toBe(AI_INTERACTION_LOG_LIMIT + 24);
   });
 
+  it('warns exactly once when the buffer first overflows', () => {
+    const warn = vi.mocked(console.warn);
+    warn.mockClear(); // shed any cross-test history from the shared spy
+    for (let i = 0; i < AI_INTERACTION_LOG_LIMIT + 5; i++) {
+      recordAIInteraction({ ...base, id: `id-${i}`, timestamp: i });
+    }
+    const overflowWarns = warn.mock.calls.filter((c) =>
+      String(c[0]).includes('interaction log reached'),
+    );
+    expect(overflowWarns).toHaveLength(1);
+  });
+
   it('exportAIInteractions returns JSON with metadata and the entries', () => {
     recordAIInteraction(base);
     const parsed = JSON.parse(exportAIInteractions());
