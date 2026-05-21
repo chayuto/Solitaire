@@ -17,8 +17,18 @@ export const AI_REQUEST_TIMEOUT_MS = 240_000;
 /** Maximum number of past AI decisions retained in the store's decision log. */
 export const AI_DECISION_LOG_LIMIT = 30;
 
-/** Maximum number of LLM interactions retained in the in-memory harvest log. */
-export const AI_INTERACTION_LOG_LIMIT = 200;
+/**
+ * Maximum number of LLM interactions retained in the in-memory harvest log.
+ *
+ * Sized to cover many auto-played teacher games per tab session — one game can
+ * produce 80–150 entries (including retries, `forced_move` skips, and
+ * `stall_terminated` markers), so the previous 200 silently truncated the
+ * opening of a multi-game harvest run. Worst-case memory at 2 000 entries is
+ * ~20–80 MB, which a browser tab handles comfortably. When the cap is hit,
+ * {@link recordAIInteraction} emits a one-time `console.warn` so silent
+ * truncation is visible.
+ */
+export const AI_INTERACTION_LOG_LIMIT = 2000;
 
 /**
  * Pause between moves while the AI is auto-playing the whole game. The LLM

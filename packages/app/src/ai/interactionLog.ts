@@ -135,6 +135,12 @@ export interface AISessionSummary {
 }
 
 const buffer: AIInteraction[] = [];
+/**
+ * Whether the buffer has overflowed at least once in this tab session. A
+ * silent `buffer.shift()` would otherwise discard the opening of a harvest run
+ * unnoticed — we warn exactly once so the operator knows to export sooner.
+ */
+let overflowWarned = false;
 
 /** Record an interaction: append to the ring buffer and log a console summary. */
 export function recordAIInteraction(entry: AIInteraction): void {
@@ -143,7 +149,15 @@ export function recordAIInteraction(entry: AIInteraction): void {
     ? entry
     : { ...entry, appCommit: APP_COMMIT };
   buffer.push(stamped);
-  if (buffer.length > AI_INTERACTION_LOG_LIMIT) buffer.shift();
+  if (buffer.length > AI_INTERACTION_LOG_LIMIT) {
+    buffer.shift();
+    if (!overflowWarned) {
+      overflowWarned = true;
+      console.warn(
+        `[AI] interaction log reached ${AI_INTERACTION_LOG_LIMIT} entries; oldest entries are now being dropped. Export the log to preserve a full harvest.`,
+      );
+    }
+  }
 
   const seconds = (entry.durationMs / 1000).toFixed(1);
   if (entry.outcome === 'success') {
@@ -185,6 +199,7 @@ export function getLastAIInteraction(): AIInteraction | null {
 /** Clear the interaction log (used by tests). */
 export function clearAIInteractions(): void {
   buffer.length = 0;
+  overflowWarned = false;
 }
 
 /**
