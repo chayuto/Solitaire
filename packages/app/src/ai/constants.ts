@@ -9,10 +9,10 @@
  *
  * `gemma-4-31b-it` is a *thinking* model: it reasons internally before
  * answering, and on a complex board that can take a couple of minutes. We
- * allow a generous 3.5-minute ceiling so a slow-but-valid response is not
+ * allow a generous 4-minute ceiling so a slow-but-valid response is not
  * killed prematurely.
  */
-export const AI_REQUEST_TIMEOUT_MS = 210_000;
+export const AI_REQUEST_TIMEOUT_MS = 240_000;
 
 /** Maximum number of past AI decisions retained in the store's decision log. */
 export const AI_DECISION_LOG_LIMIT = 30;
