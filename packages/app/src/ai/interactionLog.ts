@@ -32,6 +32,22 @@ export interface AIInteraction {
   model: string;
   /** Git commit hash of the build that produced this interaction. */
   appCommit?: string;
+  /**
+   * SHA-256 hex digest of the assembled system-instruction text sent to the
+   * model — the deterministic identity of the prompt template variant. Lets a
+   * harvested dataset segment on the prompt directly instead of inferring it
+   * from `appCommit` (which, per the 2026-05-22 audit, can drift independently
+   * of any visible template change).
+   */
+  promptTemplateHash?: string;
+  /**
+   * ISO 8601 UTC timestamp marking when the current prompt template was
+   * finalised — the human-readable companion to {@link promptTemplateHash}.
+   * Defined as `PROMPT_TEMPLATE_FINALISED_AT` in `ai/context/systemInstruction`
+   * and bumped whenever any of the template blocks changes (the tripwire test
+   * enforces it).
+   */
+  promptTemplateFinalisedAt?: string;
   /** Deal seed of the game, when one was used. */
   seed?: number;
   /** Turn index within the game (move-history length at request time). */
