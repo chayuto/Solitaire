@@ -46,6 +46,18 @@ describe('interactionLog', () => {
     expect(stored[0].appCommit).toBeTruthy();
   });
 
+  it('preserves promptTemplateHash and promptTemplateFinalisedAt when supplied', () => {
+    recordAIInteraction({
+      ...base,
+      id: 'id-tpl',
+      promptTemplateHash: 'a'.repeat(64),
+      promptTemplateFinalisedAt: '2026-05-22T00:00:00Z',
+    });
+    const last = getLastAIInteraction();
+    expect(last?.promptTemplateHash).toBe('a'.repeat(64));
+    expect(last?.promptTemplateFinalisedAt).toBe('2026-05-22T00:00:00Z');
+  });
+
   it('getLastAIInteraction returns the most recent entry', () => {
     expect(getLastAIInteraction()).toBeNull();
     recordAIInteraction(base);

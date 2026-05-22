@@ -23,6 +23,10 @@ import {
   AI_TEMPERATURE,
   GEMINI_API_BASE,
 } from '../constants';
+import {
+  PROMPT_TEMPLATE_FINALISED_AT,
+  hashSystemInstruction,
+} from '../context/systemInstruction';
 import { parseDecision } from '../decision/schema';
 import { recordAIInteraction } from '../interactionLog';
 import { uuidv7 } from '../uuid';
@@ -177,6 +181,10 @@ export const geminiProvider: AIProvider = {
       `${request.systemInstruction}\n\n` +
       `CURRENT GAME (JSON):\n${JSON.stringify(request.context)}\n\n` +
       'Now choose the best move and reply with only the JSON object.';
+    // Fingerprint the prompt template for the harvested log. Hashed once per
+    // call, before any network IO, so both the success and error branches can
+    // stamp it without recomputing. SHA-256 on ~3 KB is sub-ms.
+    const promptTemplateHash = await hashSystemInstruction(request.systemInstruction);
     let rawResponse: string | undefined;
     let thinkingText: string | undefined;
     let httpStatus: number | undefined;
@@ -274,6 +282,8 @@ export const geminiProvider: AIProvider = {
         outcome: 'success',
         durationMs: Date.now() - startedAt,
         prompt,
+        promptTemplateHash,
+        promptTemplateFinalisedAt: PROMPT_TEMPLATE_FINALISED_AT,
         rawResponse,
         thinkingText,
         decision,
@@ -299,6 +309,8 @@ export const geminiProvider: AIProvider = {
         outcome: 'error',
         durationMs: Date.now() - startedAt,
         prompt,
+        promptTemplateHash,
+        promptTemplateFinalisedAt: PROMPT_TEMPLATE_FINALISED_AT,
         rawResponse,
         thinkingText,
         httpStatus,

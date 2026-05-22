@@ -40,6 +40,7 @@ function mockResponse(status: number, body: unknown): Response {
 describe('geminiProvider.suggestMove', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    clearAIInteractions();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -78,6 +79,40 @@ describe('geminiProvider.suggestMove', () => {
     expect(decision.reasoning).toBe('Bank the card.');
     expect(decision.boardAnalysis).toBe('An ace is playable.');
     expect(decision.confidence).toBeCloseTo(0.9);
+  });
+
+  it('stamps the prompt template hash and finalised date on the logged interaction', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(200, {
+        candidates: [
+          {
+            content: { parts: [{ text: '{"moveIndex":0,"reasoning":"Draw.","confidence":0.5}' }] },
+            finishReason: 'STOP',
+          },
+        ],
+      }),
+    );
+    await geminiProvider.suggestMove(request);
+    const last = getLastAIInteraction();
+    // SHA-256 hex of `request.systemInstruction` ('Be a solitaire advisor.').
+    expect(last?.promptTemplateHash).toMatch(/^[0-9a-f]{64}$/);
+    // Finalised date is the constant from systemInstruction.ts, in ISO 8601.
+    expect(last?.promptTemplateFinalisedAt).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
+    );
+  });
+
+  it('stamps the prompt template hash on an error-outcome interaction too', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(401, { error: { code: 401, message: 'API key not valid' } }),
+    );
+    await expect(geminiProvider.suggestMove(request)).rejects.toBeInstanceOf(AIError);
+    const last = getLastAIInteraction();
+    expect(last?.outcome).toBe('error');
+    expect(last?.promptTemplateHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(last?.promptTemplateFinalisedAt).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
+    );
   });
 
   it('falls back to all parts when none are flagged as thoughts', async () => {
