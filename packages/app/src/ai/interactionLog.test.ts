@@ -77,6 +77,15 @@ describe('interactionLog', () => {
     expect(getLastAIInteraction()?.inferenceParams).toEqual({ temperature: 0 });
   });
 
+  it('preserves promptLayoutVersion when supplied', () => {
+    recordAIInteraction({
+      ...base,
+      id: 'id-layout',
+      promptLayoutVersion: 'hybrid-v1',
+    });
+    expect(getLastAIInteraction()?.promptLayoutVersion).toBe('hybrid-v1');
+  });
+
   it('getLastAIInteraction returns the most recent entry', () => {
     expect(getLastAIInteraction()).toBeNull();
     recordAIInteraction(base);

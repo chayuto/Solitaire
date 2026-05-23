@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { geminiProvider } from './GeminiProvider';
 import { AI_TEMPERATURE } from '../constants';
+import { PROMPT_LAYOUT_VERSION } from '../context/renderContext';
 import { clearAIInteractions, getLastAIInteraction } from '../interactionLog';
 import { AIError, type AIMoveContext, type AIRequest } from '../types';
 
@@ -143,6 +144,58 @@ describe('geminiProvider.suggestMove', () => {
     const last = getLastAIInteraction();
     expect(last?.outcome).toBe('error');
     expect(last?.inferenceParams).toEqual({ temperature: AI_TEMPERATURE });
+  });
+
+  it('renders the per-turn game context as the hybrid ASCII layout, not JSON', async () => {
+    // The cross-team change PR ships: the wire format for the per-turn block
+    // is the hybrid layout. Pin the markers here so a future refactor that
+    // silently regresses to JSON is caught.
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(200, {
+        candidates: [
+          {
+            content: { parts: [{ text: '{"moveIndex":0,"reasoning":"Draw.","confidence":0.5}' }] },
+            finishReason: 'STOP',
+          },
+        ],
+      }),
+    );
+    await geminiProvider.suggestMove(request);
+    const last = getLastAIInteraction();
+    const prompt = last?.prompt ?? '';
+    // Hybrid markers present.
+    expect(prompt).toContain('NOTATION: rank+suit');
+    expect(prompt).toContain('FOUNDATIONS:');
+    expect(prompt).toContain('TABLEAU:');
+    expect(prompt).toContain('LEGAL MOVES (respond with the index of your chosen move):');
+    // JSON form is gone.
+    expect(prompt).not.toContain('CURRENT GAME (JSON):');
+    expect(prompt).not.toContain('"legalMoves":');
+  });
+
+  it('stamps the prompt-layout version on a success interaction', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(200, {
+        candidates: [
+          {
+            content: { parts: [{ text: '{"moveIndex":0,"reasoning":"Draw.","confidence":0.5}' }] },
+            finishReason: 'STOP',
+          },
+        ],
+      }),
+    );
+    await geminiProvider.suggestMove(request);
+    expect(getLastAIInteraction()?.promptLayoutVersion).toBe(PROMPT_LAYOUT_VERSION);
+  });
+
+  it('stamps the prompt-layout version on an error-outcome interaction too', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(401, { error: { code: 401, message: 'API key not valid' } }),
+    );
+    await expect(geminiProvider.suggestMove(request)).rejects.toBeInstanceOf(AIError);
+    const last = getLastAIInteraction();
+    expect(last?.outcome).toBe('error');
+    expect(last?.promptLayoutVersion).toBe(PROMPT_LAYOUT_VERSION);
   });
 
   it('falls back to all parts when none are flagged as thoughts', async () => {

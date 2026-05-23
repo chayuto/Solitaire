@@ -38,7 +38,10 @@ export const STRATEGY_GUIDANCE = `STRATEGY GUIDANCE (heuristics, not absolute ru
 
 /** Instructions describing the required JSON output. Always included. */
 export const OUTPUT_INSTRUCTION = `RESPONSE FORMAT:
-You will receive the current game as JSON, including a numbered array "legalMoves".
+You will receive the current game as plain-text blocks (NOTATION, FOUNDATIONS, STOCK,
+TABLEAU, RECENT MOVES, SEEN IN WASTE, LEGAL MOVES, PROGRESS — some are optional). The
+LEGAL MOVES block is a numbered list; each line begins with [index], the canonical
+move identifier you must return.
 Reason step by step, then respond with ONLY a single JSON object containing exactly
 these three keys, in this order (no prose or markdown fences outside the object):
 {
@@ -49,7 +52,7 @@ these three keys, in this order (no prose or markdown fences outside the object)
 - board_analysis: assess the current board — hidden cards, blocked columns, foundation
   progress, and the opportunities each legal move opens or closes.
 - strategic_plan: explain your plan and why the chosen move is best, given that analysis.
-- final_decision.move_index: the "index" of your chosen move from the legalMoves array.
+- final_decision.move_index: the [index] of your chosen move from the LEGAL MOVES block.
 - final_decision.confidence: a calibrated probability (0 to 1) that this move is
   objectively the best one available — a genuine estimate, not a feeling. Use the
   full range honestly:

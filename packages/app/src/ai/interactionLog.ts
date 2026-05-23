@@ -60,6 +60,16 @@ export interface AIInteraction {
     /** Sampling temperature passed to the provider (0 = greedy). */
     temperature?: number;
   };
+  /**
+   * Identifier for the per-turn-prompt layout that produced this row. Mirrors
+   * `promptTemplateHash` (which fingerprints the system instruction): even
+   * though the system instruction and the layout always change together in
+   * practice, the dataset side keys its comparison reports on
+   * (`promptTemplateHash`, `inferenceParams`, `promptLayoutVersion`) so a
+   * layout switch can be attributed without inferring from build hash.
+   * Bumped in lockstep with `PROMPT_LAYOUT_VERSION` in `context/renderContext`.
+   */
+  promptLayoutVersion?: string;
   /** Deal seed of the game, when one was used. */
   seed?: number;
   /** Turn index within the game (move-history length at request time). */

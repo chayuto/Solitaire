@@ -24,6 +24,10 @@ import {
   GEMINI_API_BASE,
 } from '../constants';
 import {
+  PROMPT_LAYOUT_VERSION,
+  renderHybridContext,
+} from '../context/renderContext';
+import {
   PROMPT_TEMPLATE_FINALISED_AT,
   hashSystemInstruction,
 } from '../context/systemInstruction';
@@ -176,10 +180,13 @@ export const geminiProvider: AIProvider = {
 
     const startedAt = Date.now();
     // Single user message: system instruction + game context (the output
-    // rules are already inside the system instruction).
+    // rules are already inside the system instruction). The per-turn block is
+    // rendered as the hybrid ASCII layout — roughly 4–5× fewer tokens than the
+    // prior JSON dump for the same information, and visually adjacent
+    // RECENT/LEGAL moves blocks; layout contract lives in `context/renderContext`.
     const prompt =
       `${request.systemInstruction}\n\n` +
-      `CURRENT GAME (JSON):\n${JSON.stringify(request.context)}\n\n` +
+      `CURRENT GAME:\n${renderHybridContext(request.context)}\n\n` +
       'Now choose the best move and reply with only the JSON object.';
     // Fingerprint the prompt template for the harvested log. Hashed once per
     // call, before any network IO, so both the success and error branches can
@@ -285,6 +292,7 @@ export const geminiProvider: AIProvider = {
         promptTemplateHash,
         promptTemplateFinalisedAt: PROMPT_TEMPLATE_FINALISED_AT,
         inferenceParams: { temperature: AI_TEMPERATURE },
+        promptLayoutVersion: PROMPT_LAYOUT_VERSION,
         rawResponse,
         thinkingText,
         decision,
@@ -313,6 +321,7 @@ export const geminiProvider: AIProvider = {
         promptTemplateHash,
         promptTemplateFinalisedAt: PROMPT_TEMPLATE_FINALISED_AT,
         inferenceParams: { temperature: AI_TEMPERATURE },
+        promptLayoutVersion: PROMPT_LAYOUT_VERSION,
         rawResponse,
         thinkingText,
         httpStatus,
