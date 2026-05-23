@@ -1,14 +1,16 @@
 ---
 name: high-fidelity-frontend-testing
 description: >-
-  High-fidelity frontend testing and visual debugging for the Solitaire app.
-  Use whenever working on end-to-end tests, browser testing, the Playwright
-  suite, the window.__solitaire test bridge, deterministic seeded games,
-  data-testid selectors, visual verification, screenshots, or driving the UI
-  with an agent (Playwright MCP). Trigger on: "e2e test", "Playwright", "browser
-  test", "smoke test", "visually verify", "screenshot the page", "test bridge",
-  "seed the game", "is the app functional", "MCP", "agentic testing", or any
-  change to packages/app that needs UI-level verification.
+  High-fidelity frontend testing and visual debugging for the Solitaire app —
+  always headless. Use whenever working on end-to-end tests, browser testing,
+  the Playwright suite, the window.__solitaire test bridge, deterministic
+  seeded games, data-testid selectors, visual verification, screenshots,
+  driving the UI with an agent (Playwright MCP), or smoke-testing the AI
+  advisor against the live Gemini API. Trigger on: "e2e test", "Playwright",
+  "browser test", "smoke test", "visually verify", "screenshot the page",
+  "test bridge", "seed the game", "is the app functional", "MCP", "agentic
+  testing", "ask the advisor live", or any change to packages/app that needs
+  UI-level verification.
 ---
 
 # High-Fidelity Frontend Testing & Visual Debugging
@@ -16,6 +18,12 @@ description: >-
 This project is instrumented so an AI agent can test the UI **deterministically
 and with high fidelity** — no guessing pixel coordinates, no flaky reruns. Use
 this skill when verifying UI behaviour, writing e2e tests, or debugging visually.
+
+> **Always headless.** Every browser-driving path in this project — `pnpm run
+> test:e2e`, the Playwright MCP server in `.mcp.json` (pinned to `--headless
+> --isolated`), and any one-off `browser_*` MCP call — runs without a visible
+> window. Do not enable a headed mode without asking; the user works on a Mac
+> and a real browser window is disruptive.
 
 ## Toolchain
 
@@ -124,21 +132,67 @@ the `waitForGame` helper (`e2e/helpers.ts`) before asserting. Add a
 
 ## Visual debugging with Playwright MCP
 
-`.mcp.json` registers the Playwright MCP server. Its **default accessibility-
-tree mode** is deterministic and token-cheap — prefer it. Use it to:
+`.mcp.json` registers the Playwright MCP server and pins it to `--headless
+--isolated` — **all browser driving via MCP must run headless**. Opening a
+visible browser window on the user's Mac is disruptive and the project already
+has full headless infrastructure (e2e suite + `window.__solitaire` bridge) that
+covers verification. Do not pass flags that re-enable a visible window. If you
+need a headed run for one-off human inspection, ask first.
+
+Its **default accessibility-tree mode** is deterministic and token-cheap —
+prefer it over screenshots. Use it to:
 
 - Snapshot the page structure (`browser_snapshot`) and act on element refs.
 - Capture a screenshot (`browser_take_screenshot`) and visually inspect layout,
-  highlights, the win modal, etc.
+  highlights, the win modal, etc. — fine even in headless mode.
 - Run `browser_evaluate` against `window.__solitaire` to set up or read state.
 
 Visual debugging loop: seed the game → act → screenshot → inspect the image →
 compare against expectation → adjust. For pixel-level regression use Playwright's
 `toHaveScreenshot()` in a spec.
 
-Start the dev server first when driving MCP live: `pnpm run dev` (serves on
-`:5173`). MCP is **not a security boundary** — fine here (a local, client-only
-game).
+Start the dev server first when driving MCP live: `pnpm -F app dev` (serves on
+`:5173`). Stop it explicitly when done — a SIGTERM via `lsof -ti:5173 | xargs
+kill` (exit code 143) is expected, not a failure. MCP is **not a security
+boundary** — fine here (a local, client-only game).
+
+### Smoke-testing AI advisor calls against the live Gemini API
+
+For end-to-end verification of an AI-advisor change against the real provider
+(not a mocked fetch), the same headless MCP loop applies. The repo-root `.env`
+holds a dev `GEMINI_API_KEY` that Vite injects as `__DEV_GEMINI_KEY__` and
+`keyStore.getEffectiveKey` picks up automatically — so `pnpm -F app dev` plus a
+fresh navigation is enough to fire a real call. Then:
+
+1. `window.__solitaire.askAI()` — fires one move through the real provider.
+2. `window.__solitaire.getAIInteractions()` — the harvested row(s) for that
+   call, with the full prompt, the parsed decision, and all the stamping fields
+   (`promptLayoutVersion`, `promptTemplateHash`, `promptTemplateFinalisedAt`,
+   `inferenceParams`, `appCommit`).
+
+To verify the **on-the-wire** request body Gemini actually sees (not just the
+prompt string the log captured), monkey-patch `window.fetch` before calling
+`askAI()`:
+
+```js
+window.__captured = [];
+const orig = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const url = typeof input === 'string' ? input : input?.url ?? '';
+  if (url.includes('generativelanguage.googleapis.com') && init?.body) {
+    window.__captured.push({
+      urlMasked: url.replace(/key=[^&]+/, 'key=<redacted>'),
+      body: JSON.parse(String(init.body)),
+    });
+  }
+  return orig(input, init);
+};
+```
+
+Always mask the `key=` query parameter before logging — the dev key must never
+land in transcripts or files. Expect the retry wrapper to record multiple rows
+when Gemini returns 500s; the always-stamped discipline (every row, both
+branches) means every retry row should still carry the layout/template stamps.
 
 ## Known pitfalls (validated)
 
@@ -163,3 +217,4 @@ Before claiming UI work is done:
 - [ ] `pnpm run build` — production build succeeds
 - [ ] New interactive UI elements have a `data-testid`
 - [ ] New behaviour has an e2e test that uses a fixed seed
+- [ ] Any live MCP browsing this session was headless (no visible window)
