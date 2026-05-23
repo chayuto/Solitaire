@@ -48,6 +48,18 @@ export interface AIInteraction {
    * enforces it).
    */
   promptTemplateFinalisedAt?: string;
+  /**
+   * Decoding parameters sent to the provider for this call. Mirrors the
+   * "stamp the variable on every row" discipline applied to the prompt
+   * template hash: even when these values are constant in production, the
+   * dataset side can attribute behaviour to the exact decoding setup that
+   * produced it without inferring from build hash. New fields (e.g. `topP`,
+   * `topK`) get appended here if `generationConfig` ever grows.
+   */
+  inferenceParams?: {
+    /** Sampling temperature passed to the provider (0 = greedy). */
+    temperature?: number;
+  };
   /** Deal seed of the game, when one was used. */
   seed?: number;
   /** Turn index within the game (move-history length at request time). */

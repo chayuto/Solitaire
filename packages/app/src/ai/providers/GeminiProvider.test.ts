@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { geminiProvider } from './GeminiProvider';
+import { AI_TEMPERATURE } from '../constants';
 import { clearAIInteractions, getLastAIInteraction } from '../interactionLog';
 import { AIError, type AIMoveContext, type AIRequest } from '../types';
 
@@ -113,6 +114,35 @@ describe('geminiProvider.suggestMove', () => {
     expect(last?.promptTemplateFinalisedAt).toMatch(
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
     );
+  });
+
+  it('stamps the inference parameters (temperature) on a success interaction', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(200, {
+        candidates: [
+          {
+            content: { parts: [{ text: '{"moveIndex":0,"reasoning":"Draw.","confidence":0.5}' }] },
+            finishReason: 'STOP',
+          },
+        ],
+      }),
+    );
+    await geminiProvider.suggestMove(request);
+    const last = getLastAIInteraction();
+    // The value must match the constant actually sent to the API — that's
+    // the whole point of stamping it. If `AI_TEMPERATURE` moves, this row
+    // moves with it so the dataset side can attribute by exact value.
+    expect(last?.inferenceParams).toEqual({ temperature: AI_TEMPERATURE });
+  });
+
+  it('stamps the inference parameters on an error-outcome interaction too', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(401, { error: { code: 401, message: 'API key not valid' } }),
+    );
+    await expect(geminiProvider.suggestMove(request)).rejects.toBeInstanceOf(AIError);
+    const last = getLastAIInteraction();
+    expect(last?.outcome).toBe('error');
+    expect(last?.inferenceParams).toEqual({ temperature: AI_TEMPERATURE });
   });
 
   it('falls back to all parts when none are flagged as thoughts', async () => {

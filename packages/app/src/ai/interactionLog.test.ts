@@ -58,6 +58,25 @@ describe('interactionLog', () => {
     expect(last?.promptTemplateFinalisedAt).toBe('2026-05-22T00:00:00Z');
   });
 
+  it('preserves inferenceParams when supplied', () => {
+    recordAIInteraction({
+      ...base,
+      id: 'id-inf',
+      inferenceParams: { temperature: 0.3 },
+    });
+    const last = getLastAIInteraction();
+    expect(last?.inferenceParams).toEqual({ temperature: 0.3 });
+  });
+
+  it('accepts inferenceParams with greedy temperature', () => {
+    recordAIInteraction({
+      ...base,
+      id: 'id-greedy',
+      inferenceParams: { temperature: 0 },
+    });
+    expect(getLastAIInteraction()?.inferenceParams).toEqual({ temperature: 0 });
+  });
+
   it('getLastAIInteraction returns the most recent entry', () => {
     expect(getLastAIInteraction()).toBeNull();
     recordAIInteraction(base);
