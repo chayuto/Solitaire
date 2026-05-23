@@ -27,7 +27,7 @@ import { OUTPUT_INSTRUCTION, RULES_PRIMER, STRATEGY_GUIDANCE } from './rulesPrim
  * because the templates evolve independently of any release cadence and the
  * downstream analytics already key off ISO timestamps.
  */
-export const PROMPT_TEMPLATE_FINALISED_AT = '2026-05-22T00:00:00Z';
+export const PROMPT_TEMPLATE_FINALISED_AT = '2026-05-24T00:00:00Z';
 
 /** Build the full system instruction for a move-suggestion request. */
 export function buildSystemInstruction(config: AIConfig): string {
