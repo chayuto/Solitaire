@@ -27,7 +27,23 @@ import { OUTPUT_INSTRUCTION, RULES_PRIMER, STRATEGY_GUIDANCE } from './rulesPrim
  * because the templates evolve independently of any release cadence and the
  * downstream analytics already key off ISO timestamps.
  */
-export const PROMPT_TEMPLATE_FINALISED_AT = '2026-05-24T00:00:00Z';
+export const PROMPT_TEMPLATE_FINALISED_AT = '2026-05-26T00:00:00Z';
+
+/**
+ * Human-readable semantic version of the prompt template (rules + output
+ * instruction + per-turn layout, treated as one artefact). Bumped on every
+ * visible-to-the-model change:
+ * - minor (`hybrid-v1.x`) for text-only edits within the same layout;
+ * - major (`hybrid-v2.0`) for a layout restructure (a new/removed section, a
+ *   changed numbering convention).
+ *
+ * Complements {@link hashSystemInstruction} (which is the deterministic
+ * fingerprint of any byte change); the semantic version is the coarse,
+ * human-meaningful identifier that makes cross-version analysis tractable.
+ * Adopted per the 2026-05-26 harvester-team ask in
+ * `solitaire-analytics/docs/reports/20260526_harvester_team_resign_hygiene_versioning_ask.md`.
+ */
+export const PROMPT_TEMPLATE_VERSION = 'hybrid-v1.1';
 
 /** Build the full system instruction for a move-suggestion request. */
 export function buildSystemInstruction(config: AIConfig): string {

@@ -1453,6 +1453,51 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
       );
 
+      // Resignation: `move_index: -1` means the model surrendered the game
+      // because no legal move can productively advance and drawing is
+      // exhausted. The 2026-05-26 ask wired this through; the harness applies
+      // no move, records the decision with `moveType: 'resign'`, stops
+      // auto-play, and ends the session. The interaction was logged by the
+      // provider with `outcome: 'resigned'` and the decision's analysis text
+      // / confidence intact.
+      if (decision.moveIndex === -1) {
+        setLastInteractionMovesApplied([]);
+        const interaction = getLastAIInteraction();
+        const record: AIDecisionRecord = {
+          timestamp: Date.now(),
+          moveType: 'resign',
+          describe: 'AI resigned',
+          boardAnalysis: decision.boardAnalysis,
+          reasoning: decision.reasoning,
+          confidence: decision.confidence,
+          model: config.model,
+          requestId,
+          moveIndex: -1,
+          legalMoveCount: legalMoves.length,
+          durationMs: Date.now() - requestStartedAt,
+          retries: get().aiRetryCount ?? 0,
+          promptTokens: interaction?.promptTokens,
+          thoughtTokens: interaction?.thoughtTokens,
+          outputTokens: interaction?.outputTokens,
+          totalTokens: interaction?.totalTokens,
+        };
+        const aiDecisionLog = [...(get().aiDecisionLog ?? []), record].slice(
+          -AI_DECISION_LOG_LIMIT,
+        );
+        set({
+          aiThinking: false,
+          aiThinkingSince: undefined,
+          aiStatus: 'AI resigned.',
+          aiDecisionLog,
+          aiError: undefined,
+          aiAutoPlay: false,
+        });
+        console.info(
+          `[AI] resign applied in ${((Date.now() - requestStartedAt) / 1000).toFixed(1)}s`,
+        );
+        return;
+      }
+
       // Defensive: the provider already range-checked moveIndex, but never
       // index a move list with an unverified value.
       if (decision.moveIndex < 0 || decision.moveIndex >= legalMoves.length) {

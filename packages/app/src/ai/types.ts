@@ -279,8 +279,11 @@ export class AIError extends Error {
 export interface AIDecisionRecord {
   /** When the decision was applied. */
   timestamp: number;
-  /** The chosen move's type. */
-  moveType: MoveCommand['type'];
+  /**
+   * The chosen move's type, or `'resign'` when the model returned
+   * `move_index: -1` and the harness ended the session without a move.
+   */
+  moveType: MoveCommand['type'] | 'resign';
   /** Human-readable description of the chosen move. */
   describe: string;
   /** The LLM's board analysis (the `board_analysis` output key). */

@@ -34,9 +34,13 @@ function baseContext(overrides: Partial<AIMoveContext> = {}): AIMoveContext {
 }
 
 describe('renderHybridContext', () => {
-  it('always emits the NOTATION, FOUNDATIONS, STOCK, TABLEAU, LEGAL MOVES blocks', () => {
+  it('always emits the FOUNDATIONS, STOCK, TABLEAU, LEGAL MOVES blocks', () => {
     const out = renderHybridContext(baseContext());
-    expect(out).toMatch(/^NOTATION: rank\+suit/);
+    // NOTATION moved to the static rules block in 2026-05-26 hygiene edit 2;
+    // the per-turn render must NOT carry it any more (re-rendered every turn
+    // for no information change).
+    expect(out).not.toMatch(/NOTATION:/);
+    expect(out).toMatch(/^FOUNDATIONS:/);
     expect(out).toContain('FOUNDATIONS:   H: --   D: --   C: --   S: --');
     expect(out).toContain('STOCK: 0 cards   WASTE top: --   recycle stock: no');
     expect(out).toContain('TABLEAU:');

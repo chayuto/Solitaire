@@ -54,7 +54,7 @@ export function createStubProvider(decide?: StubDecisionFn): AIProvider {
           seed: request.seed,
           turnIndex: request.turnIndex,
           config: request.config,
-          outcome: 'success',
+          outcome: decision.moveIndex === -1 ? 'resigned' : 'success',
           durationMs: Date.now() - startedAt,
           prompt,
           rawResponse: JSON.stringify(decision),

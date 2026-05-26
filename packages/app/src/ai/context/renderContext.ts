@@ -37,20 +37,15 @@ const TYPE_COL_WIDTH = 24;
  * Render an {@link AIMoveContext} as a hybrid plain-text block.
  *
  * The output is everything between the system instruction and the closing
- * "Now choose..." prompt suffix — the caller wraps it with its own framing.
+ * "Now choose..." prompt suffix; the caller wraps it with its own framing.
+ *
+ * The NOTATION legend lives in the static rules block (in `rulesPrimer.ts`),
+ * not here, so it is not re-rendered every turn for no information change.
  */
 export function renderHybridContext(context: AIMoveContext): string {
   const lines: string[] = [];
 
-  // NOTATION — the renderer's own legend takes precedence over the
-  // (JSON-shape) `notation` field on the context; the field is now vestigial.
-  lines.push(
-    'NOTATION: rank+suit (A 2-9 T J Q K; H D C S). ?? = face-down. ' +
-      'In each column the top of the stack is the rightmost card.',
-  );
-  lines.push('');
-
-  // FOUNDATIONS + STOCK header
+  // FOUNDATIONS + STOCK header.
   const f = context.foundations;
   lines.push(
     `FOUNDATIONS:   H: ${f.hearts ?? '--'}   ` +

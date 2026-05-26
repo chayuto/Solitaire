@@ -34,9 +34,20 @@ describe('validateDecision', () => {
     ).toThrow(/non-integer/);
   });
 
-  it('rejects a moveIndex below range', () => {
+  it('accepts moveIndex -1 as the resignation sentinel', () => {
+    // Per the 2026-05-26 resign ask: `-1` means "resign", and the harness
+    // (not the schema) is responsible for skipping move application.
+    const result = validateDecision(
+      { moveIndex: -1, reasoning: 'No productive move available.', confidence: 0.7 },
+      LEGAL_COUNT,
+    );
+    expect(result.moveIndex).toBe(-1);
+    expect(result.reasoning).toBe('No productive move available.');
+  });
+
+  it('rejects a moveIndex below range that is not the resign sentinel', () => {
     expect(() =>
-      validateDecision({ moveIndex: -1, reasoning: 'x', confidence: 1 }, LEGAL_COUNT),
+      validateDecision({ moveIndex: -2, reasoning: 'x', confidence: 1 }, LEGAL_COUNT),
     ).toThrow(/outside the valid range/);
   });
 
