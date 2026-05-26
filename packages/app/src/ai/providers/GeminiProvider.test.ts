@@ -18,6 +18,7 @@ const context: AIMoveContext = {
   discardTop: null,
   drawPileCount: 0,
   canRecycleStock: false,
+  cycle: 1,
   legalMoves: [
     { index: 0, type: 'draw_card', describe: 'Draw' },
     { index: 1, type: 'discard_to_foundation', describe: 'To foundation' },

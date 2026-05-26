@@ -92,6 +92,14 @@ export interface GameState {
   replayIndex: number; // Current index in move history during replay
   replayPaused: boolean; // True when replay is paused
   replaySpeed: number; // Speed of replay in ms per move (default 1000)
+  /**
+   * Number of times the waste pile has been recycled back into the stock in
+   * this game. Cycle 1 starts at game open with this at 0; the moment the
+   * first recycle fires the value becomes 1, which renders as `CYCLE: 2`
+   * in the AI prompt. Drives the DRAW TIMELINE block's known-vs-unknown
+   * stock identity rule (hybrid-v1.2 onwards).
+   */
+  recycleCount?: number;
 
   // --- AI Move Advisor ---
   // Optional, like the other supplemental UI fields above: the store always

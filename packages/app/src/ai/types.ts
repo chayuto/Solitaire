@@ -112,6 +112,24 @@ export interface AIMoveContext {
   drawPileCount: number;
   /** Whether the waste pile can be recycled back into an empty stock. */
   canRecycleStock: boolean;
+  /**
+   * 1-based stock cycle number: cycle 1 is the initial pass, cycle 2 starts
+   * the moment the first recycle fires, and so on. Drives DRAW TIMELINE
+   * stock-identity rendering (cycle 1 hides identities as `???`; cycle 2+
+   * shows them, on the perfect-recall human assumption). hybrid-v1.2 onwards.
+   */
+  cycle: number;
+  /**
+   * Tokenised DRAW TIMELINE: one linear sequence of stock + waste positions,
+   * left to right ordered so the leftmost token is the furthest-future draw
+   * and the rightmost token is the oldest waste card from this cycle. The
+   * current waste top sits in the middle wrapped in `{}` (e.g. `{7H}`).
+   * Stock positions that the model hasn't observed yet render as `???`
+   * (only possible in cycle 1). Undefined when no draws have happened yet
+   * (turn 0), in which case the timeline block is skipped.
+   * hybrid-v1.2 onwards.
+   */
+  drawTimeline?: string[];
   /** Every legal move — the LLM must pick one by its `index`. */
   legalMoves: AILegalMove[];
 

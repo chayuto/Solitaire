@@ -25,6 +25,18 @@ KLONDIKE SOLITAIRE RULES (this variant):
 - The game is WON when all 52 cards reach the foundations.
 NOTATION: rank+suit (A 2-9 T J Q K; H D C S). ?? = face-down. In each column the top of the stack is the rightmost card.
 
+INTERPRETING THE DRAW TIMELINE (when present in the game state):
+The DRAW TIMELINE block renders the stock and waste piles as one linear sequence
+of card identifiers. The current waste top is wrapped in {curly braces}. Tokens
+LEFT of {NOW} are cards that will be drawn next in this stock cycle: the
+immediate next draw is the token directly left of {NOW}, the draw after that is
+the token two positions left, and so on. Tokens RIGHT of {NOW} are cards drawn
+earlier in this cycle, still sitting in the waste pile beneath the current top.
+The token ??? marks a card whose identity has not yet been observed. ??? can
+only appear during the first stock cycle. After the first recycle every position
+is a known identity, because every stock card has passed through the waste at
+least once.
+
 THE GOAL: choose the single move that gives the best chance of eventually winning.`;
 
 /** Klondike strategy heuristics. Included when `includeStrategyGuidance` is on. */
@@ -34,13 +46,17 @@ export const STRATEGY_GUIDANCE = `STRATEGY GUIDANCE (heuristics, not absolute ru
 - Be cautious sending higher cards to the foundations too early — they are sometimes needed to receive tableau cards.
 - Do not empty a column unless you have a King ready to occupy it.
 - Prefer exposing new cards and creating useful sequences over shuffling cards between columns with no gain.
-- Drawing from the stock is reasonable when no productive tableau/foundation move exists.
+- Drawing from the stock is reasonable ONLY IF the DRAW TIMELINE shows an
+  upcoming card (a token left of {NOW}) that will be playable to a foundation
+  or to a tableau column once drawn. If every remaining stock card has already
+  been seen and none unlock the board, drawing wastes turns and you should
+  commit to a tableau move instead, even an imperfect one.
 - Avoid moves that simply undo a recent move or lead nowhere.`;
 
 /** Instructions describing the required JSON output. Always included. */
 export const OUTPUT_INSTRUCTION = `RESPONSE FORMAT:
-You will receive the current game as plain-text blocks (NOTATION, FOUNDATIONS, STOCK,
-TABLEAU, RECENT MOVES, SEEN IN WASTE, LEGAL MOVES, PROGRESS — some are optional). The
+You will receive the current game as plain-text blocks (FOUNDATIONS, STOCK, TABLEAU,
+RECENT MOVES, DRAW TIMELINE, LEGAL MOVES, PROGRESS — some are optional). The
 LEGAL MOVES block is a numbered list; each line begins with [index], the canonical
 move identifier you must return.
 Reason step by step, then respond with ONLY a single JSON object containing exactly

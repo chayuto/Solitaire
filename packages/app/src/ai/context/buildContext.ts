@@ -86,6 +86,44 @@ function computeSeenDrawPileCards(state: GameState): string[] {
 }
 
 /**
+ * Build the DRAW TIMELINE token sequence for the AI prompt (hybrid-v1.2).
+ *
+ * The output is a single linear sequence rendered left-to-right with the
+ * leftmost token = the furthest-future draw, then the upcoming stock cards
+ * in draw order, then the current waste top wrapped in `{}` (the `{NOW}`
+ * marker), then the cards drawn earlier in this cycle that still sit beneath
+ * the top of the waste, in most-recent-first order.
+ *
+ * Stock identity rule:
+ * - cycle 1 (no recycles yet): every stock position renders as `???` because
+ *   the model has not observed those cards;
+ * - cycle 2+: every stock card was observed in a previous cycle, so identities
+ *   surface (the "perfect-recall human" assumption from the 2026-05-27 ask).
+ *
+ * Returns `undefined` when no draws have happened yet (`discardPile` empty);
+ * the renderer then skips the block entirely.
+ */
+function computeDrawTimeline(state: GameState, cycle: number): string[] | undefined {
+  if (state.discardPile.length === 0) return undefined;
+
+  // Stock side: UI orientation has `drawPile[0]` as the next draw and
+  // `drawPile[last]` as the furthest-future card. The timeline reads
+  // furthest-future first, so we reverse.
+  const stockTokens =
+    cycle === 1
+      ? Array<string>(state.drawPile.length).fill('???')
+      : [...state.drawPile].reverse().map(cardShort);
+
+  // Waste side: `discardPile[last]` is the current top = `{NOW}`. Below the
+  // top, oldest-this-cycle is `discardPile[0]`. Right of `{NOW}` reads
+  // most-recent-first, so we drop the top and reverse what remains.
+  const nowToken = `{${cardShort(state.discardPile[state.discardPile.length - 1])}}`;
+  const wasteBelow = state.discardPile.slice(0, -1).reverse().map(cardShort);
+
+  return [...stockTokens, nowToken, ...wasteBelow];
+}
+
+/**
  * Build the AI context payload for the current game state.
  *
  * @param state - The current UI game state.
@@ -149,6 +187,13 @@ export function buildContext(
       ? cardShort(state.discardPile[state.discardPile.length - 1])
       : null;
 
+  // Cycle is always defined: 1 + number of times the waste has been recycled.
+  // Older saved sessions imported before recycleCount was tracked default to
+  // 0, so a mid-cycle-2 import will read as cycle 1 until the next recycle
+  // fires; acceptable since the AI is not queried during pure replay.
+  const cycle = (state.recycleCount ?? 0) + 1;
+  const drawTimeline = computeDrawTimeline(state, cycle);
+
   const context: AIMoveContext = {
     notation:
       'Cards: rank then suit (A 2-9 T J Q K; H D C S). Tableau columns are ' +
@@ -159,8 +204,12 @@ export function buildContext(
     discardTop,
     drawPileCount: state.drawPile.length,
     canRecycleStock: state.drawPile.length === 0 && state.discardPile.length > 0,
+    cycle,
     legalMoves: aiLegalMoves,
   };
+  if (drawTimeline !== undefined) {
+    context.drawTimeline = drawTimeline;
+  }
 
   // --- Optional: game metrics ---
   if (config.includeGameMetrics) {
