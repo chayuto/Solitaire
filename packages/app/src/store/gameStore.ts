@@ -261,6 +261,7 @@ const initializeGameState = (
     initialBoardSetup,
     perceivedDifficulty: undefined, // Will be calculated below
     completionProgress: 0, // Start at 0% completion
+    recycleCount: 0,
     replayMode: false,
     replayIndex: 0,
     replayPaused: false,
@@ -330,6 +331,7 @@ function hydratePersisted(p: PersistedGameState): GameState {
     initialBoardSetup: p.initialBoardSetup,
     perceivedDifficulty: p.perceivedDifficulty,
     completionProgress: p.completionProgress,
+    recycleCount: p.recycleCount ?? 0,
     replayMode: false,
     replayIndex: 0,
     replayPaused: false,
@@ -700,12 +702,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     
     if (state.drawPile.length === 0) {
-      // Reset draw pile from discard pile
+      // Reset draw pile from discard pile. Bump recycleCount; the AI prompt
+      // renders `CYCLE: N` as `1 + recycleCount` so cycle 1 is the initial
+      // pass and the first recycle moves the game into cycle 2.
       const newDrawPile = [...state.discardPile].reverse().map(card => ({
         ...card,
         faceUp: false,
       }));
-      set({ drawPile: newDrawPile, discardPile: [] });
+      set({
+        drawPile: newDrawPile,
+        discardPile: [],
+        recycleCount: (state.recycleCount ?? 0) + 1,
+      });
     } else {
       // Draw a card from draw pile to discard pile
       const card = state.drawPile[0];
@@ -755,6 +763,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       initialBoardSetup: state.initialBoardSetup,
       perceivedDifficulty: state.perceivedDifficulty,
       completionProgress: state.completionProgress,
+      recycleCount: state.recycleCount,
       replayMode: state.replayMode,
       replayIndex: state.replayIndex,
       replayPaused: state.replayPaused,
@@ -825,6 +834,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         initialBoardSetup: importedState.initialBoardSetup,
         perceivedDifficulty,
         completionProgress,
+        recycleCount: importedState.recycleCount ?? 0,
         replayMode: false,
         replayIndex: 0,
         replayPaused: false,
@@ -1168,12 +1178,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       tableau: JSON.parse(JSON.stringify(state.initialBoardSetup.tableau)),
       selectedCard: undefined,
       replayIndex: targetIndex,
+      recycleCount: 0,
     };
-    
+
     // Apply moves up to targetIndex
     for (let i = 0; i < targetIndex; i++) {
       const move = state.moveHistory[i];
-      
+
       switch (move.type) {
         case 'draw_card': {
           // Draw a card
@@ -1183,12 +1194,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
             newState.drawPile = newState.drawPile.slice(1);
             newState.discardPile = [...(newState.discardPile || []), drawnCard];
           } else if (newState.discardPile && newState.discardPile.length > 0) {
-            // Reset draw pile from discard pile
+            // Reset draw pile from discard pile; track cycle the same way
+            // live play does.
             newState.drawPile = [...newState.discardPile].reverse().map(card => ({
               ...card,
               faceUp: false,
             }));
             newState.discardPile = [];
+            newState.recycleCount = (newState.recycleCount ?? 0) + 1;
           }
           break;
         }

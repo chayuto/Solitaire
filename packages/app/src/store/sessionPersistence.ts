@@ -46,6 +46,7 @@ export interface PersistedGameState {
   initialBoardSetup: GameState['initialBoardSetup'];
   perceivedDifficulty: GameState['perceivedDifficulty'];
   completionProgress: GameState['completionProgress'];
+  recycleCount: GameState['recycleCount'];
   replaySpeed: GameState['replaySpeed'];
   aiConfig: GameState['aiConfig'];
   aiDecisionLog: GameState['aiDecisionLog'];
@@ -102,6 +103,7 @@ function pickPersisted(state: GameState): PersistedGameState {
     initialBoardSetup: state.initialBoardSetup,
     perceivedDifficulty: state.perceivedDifficulty,
     completionProgress: state.completionProgress,
+    recycleCount: state.recycleCount,
     replaySpeed: state.replaySpeed,
     aiConfig: state.aiConfig,
     aiDecisionLog: state.aiDecisionLog,

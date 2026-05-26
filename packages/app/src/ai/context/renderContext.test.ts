@@ -28,6 +28,7 @@ function baseContext(overrides: Partial<AIMoveContext> = {}): AIMoveContext {
     discardTop: null,
     drawPileCount: 0,
     canRecycleStock: false,
+    cycle: 1,
     legalMoves: [{ index: 0, type: 'draw_card', describe: 'Draw the next card' }],
     ...overrides,
   };
@@ -42,7 +43,7 @@ describe('renderHybridContext', () => {
     expect(out).not.toMatch(/NOTATION:/);
     expect(out).toMatch(/^FOUNDATIONS:/);
     expect(out).toContain('FOUNDATIONS:   H: --   D: --   C: --   S: --');
-    expect(out).toContain('STOCK: 0 cards   WASTE top: --   recycle stock: no');
+    expect(out).toContain('STOCK: 0 cards   CYCLE: 1   WASTE top: --   recycle stock: no');
     expect(out).toContain('TABLEAU:');
     expect(out).toContain('LEGAL MOVES (respond with the index of your chosen move):');
   });
@@ -117,11 +118,30 @@ describe('renderHybridContext', () => {
     expect(out).toContain('  12. draw card-12');
   });
 
-  it('renders SEEN IN WASTE as a single space-separated line', () => {
+  it('renders DRAW TIMELINE as a single space-separated line when supplied', () => {
+    // hybrid-v1.2 replaces the old SEEN IN WASTE THIS CYCLE block with a
+    // single linear DRAW TIMELINE: stock cards left of {NOW}, current waste
+    // top wrapped in {}, and earlier-this-cycle waste cards to the right.
     const out = renderHybridContext(
-      baseContext({ seenDrawPileCards: ['9H', '5S', 'KS', 'JC'] }),
+      baseContext({
+        drawTimeline: ['???', '???', '8D', 'QH', '3C', '{7H}', '4S', 'KH', '2D'],
+      }),
     );
-    expect(out).toContain('SEEN IN WASTE THIS CYCLE: 9H 5S KS JC');
+    expect(out).toContain('DRAW TIMELINE:\n  ??? ??? 8D QH 3C {7H} 4S KH 2D');
+  });
+
+  it('skips DRAW TIMELINE when no draws have happened (drawTimeline undefined)', () => {
+    const out = renderHybridContext(baseContext());
+    expect(out).not.toContain('DRAW TIMELINE');
+  });
+
+  it('renders CYCLE inline on the STOCK line', () => {
+    expect(renderHybridContext(baseContext())).toContain(
+      'STOCK: 0 cards   CYCLE: 1   WASTE top: --   recycle stock: no',
+    );
+    expect(
+      renderHybridContext(baseContext({ cycle: 3, drawPileCount: 14, discardTop: '2H' })),
+    ).toContain('STOCK: 14 cards   CYCLE: 3   WASTE top: 2H   recycle stock: no');
   });
 
   it('renders the HIDDEN INFO oracle block only when hiddenInfo is supplied', () => {
@@ -199,23 +219,24 @@ describe('renderHybridContext', () => {
     expect(out).toContain('  2. move: Play AC to clubs');
   });
 
-  it('places RECENT MOVES immediately before LEGAL MOVES (modulo optional SEEN/HIDDEN blocks)', () => {
+  it('places RECENT MOVES before DRAW TIMELINE before LEGAL MOVES', () => {
     // The whole point of the layout is the visual adjacency of just-played
-    // moves and on-offer moves. Pin the order so a refactor cannot quietly
-    // split them apart.
+    // moves and on-offer moves. The DRAW TIMELINE (hybrid-v1.2) replaces the
+    // old SEEN IN WASTE block at the same slot.
     const out = renderHybridContext(
       baseContext({
         recentMoves: ['draw 6C', 'move 9D col 3 -> col 7'],
-        seenDrawPileCards: ['9H', '5S'],
+        drawTimeline: ['???', '???', '{6C}', '9D'],
       }),
     );
     const recentIdx = out.indexOf('RECENT MOVES');
-    const seenIdx = out.indexOf('SEEN IN WASTE');
+    const timelineIdx = out.indexOf('DRAW TIMELINE');
     const legalIdx = out.indexOf('LEGAL MOVES');
     expect(recentIdx).toBeGreaterThan(-1);
+    expect(timelineIdx).toBeGreaterThan(-1);
     expect(legalIdx).toBeGreaterThan(-1);
-    expect(recentIdx).toBeLessThan(seenIdx);
-    expect(seenIdx).toBeLessThan(legalIdx);
+    expect(recentIdx).toBeLessThan(timelineIdx);
+    expect(timelineIdx).toBeLessThan(legalIdx);
   });
 
   it('has no trailing blank line', () => {
@@ -268,6 +289,6 @@ describe('renderHybridContext', () => {
     // two fields on a harvested interaction never disagree. See the
     // promptlayoutversion-lockstep follow-up note.
     expect(PROMPT_LAYOUT_VERSION).toMatch(/^hybrid-v\d+\.\d+$/);
-    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.1');
+    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.2');
   });
 });

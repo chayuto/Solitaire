@@ -21,6 +21,7 @@ const CONTEXT: AIMoveContext = {
   discardTop: null,
   drawPileCount: 0,
   canRecycleStock: false,
+  cycle: 1,
   legalMoves: [{ index: 0, type: 'draw_card', describe: 'Draw' }],
 };
 

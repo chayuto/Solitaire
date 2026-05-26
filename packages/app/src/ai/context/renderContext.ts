@@ -34,7 +34,7 @@ import type { AIMoveContext } from '../types';
  * computing `promptTemplateHash` to identify the variant. The hash stays
  * authoritative for byte-level identity.
  */
-export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.1';
+export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.2';
 
 /** Pad a column name's value column to keep `[index]` + type aligned. */
 const TYPE_COL_WIDTH = 24;
@@ -59,8 +59,11 @@ export function renderHybridContext(context: AIMoveContext): string {
       `C: ${f.clubs ?? '--'}   ` +
       `S: ${f.spades ?? '--'}`,
   );
+  // STOCK line carries the CYCLE counter inline (hybrid-v1.2). CYCLE: 1 is
+  // the initial pass; the first recycle moves the game into CYCLE: 2.
   lines.push(
     `STOCK: ${context.drawPileCount} cards   ` +
+      `CYCLE: ${context.cycle}   ` +
       `WASTE top: ${context.discardTop ?? '--'}   ` +
       `recycle stock: ${context.canRecycleStock ? 'yes' : 'no'}`,
   );
@@ -96,10 +99,17 @@ export function renderHybridContext(context: AIMoveContext): string {
     lines.push('');
   }
 
-  // SEEN IN WASTE — kept on one line; needed for stock-cycle decisions.
-  const seen = context.seenDrawPileCards ?? [];
-  if (seen.length > 0) {
-    lines.push(`SEEN IN WASTE THIS CYCLE: ${seen.join(' ')}`);
+  // DRAW TIMELINE (hybrid-v1.2): one linear sequence of stock + waste,
+  // left-to-right, with the current waste top wrapped as `{NOW}`. Stock
+  // cards render as `???` in cycle 1 (model has not observed them) and as
+  // their identities in cycle 2+ (perfect-recall human assumption).
+  // Replaces the previous `SEEN IN WASTE THIS CYCLE` block, which only
+  // appeared post-first-recycle and used a misleading "shrinks as you draw"
+  // label. Block is skipped entirely when no draws have happened (turn 0).
+  const timeline = context.drawTimeline;
+  if (timeline && timeline.length > 0) {
+    lines.push('DRAW TIMELINE:');
+    lines.push(`  ${timeline.join(' ')}`);
     lines.push('');
   }
 
