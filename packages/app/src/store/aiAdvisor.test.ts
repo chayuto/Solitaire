@@ -163,6 +163,45 @@ describe('AI Move Advisor store actions', () => {
     useGameStore.getState().clearAIError();
     expect(useGameStore.getState().aiError).toBeUndefined();
   });
+
+  it('records a resign decision and applies no move when the model returns move_index -1', async () => {
+    // Resign path: harness must record `moveType: 'resign'`, set the
+    // interaction outcome to `resigned`, and leave the board untouched.
+    // No error is reported; the analysis text and confidence pass through.
+    clearAIInteractions();
+    useStub({
+      boardAnalysis: 'Three-card oscillation, stock exhausted, no out.',
+      moveIndex: -1,
+      reasoning: 'No legal move advances the game; drawing is exhausted.',
+      confidence: 0.6,
+    });
+
+    const before = useGameStore.getState().moveHistory.length;
+    await useGameStore.getState().askAIForMove();
+    const state = useGameStore.getState();
+
+    // Board untouched.
+    expect(state.moveHistory.length).toBe(before);
+    // Harness state: not thinking, no error, auto-play off, status reflects resign.
+    expect(state.aiThinking).toBe(false);
+    expect(state.aiError).toBeUndefined();
+    expect(state.aiAutoPlay).toBe(false);
+    expect(state.aiStatus).toBe('AI resigned.');
+    // Decision recorded with the resign sentinel.
+    expect(state.aiDecisionLog).toHaveLength(1);
+    const decision = state.aiDecisionLog?.[0];
+    expect(decision?.moveType).toBe('resign');
+    expect(decision?.moveIndex).toBe(-1);
+    expect(decision?.describe).toBe('AI resigned');
+    expect(decision?.boardAnalysis).toBe('Three-card oscillation, stock exhausted, no out.');
+    expect(decision?.reasoning).toBe('No legal move advances the game; drawing is exhausted.');
+    expect(decision?.confidence).toBeCloseTo(0.6);
+    // Interaction logged with outcome `resigned` and an empty movesApplied[].
+    const last = getLastAIInteraction();
+    expect(last?.outcome).toBe('resigned');
+    expect(last?.movesApplied).toEqual([]);
+    expect(last?.decision?.moveIndex).toBe(-1);
+  });
 });
 
 describe('AI auto-play', () => {

@@ -29,6 +29,7 @@ import {
 } from '../context/renderContext';
 import {
   PROMPT_TEMPLATE_FINALISED_AT,
+  PROMPT_TEMPLATE_VERSION,
   hashSystemInstruction,
 } from '../context/systemInstruction';
 import { parseDecision } from '../decision/schema';
@@ -274,7 +275,13 @@ export const geminiProvider: AIProvider = {
       const decision = parseDecision(rawResponse, request.context.legalMoves.length);
 
       // Log the full interaction: prompt, response, thinking, decision, tokens.
+      // A parsed decision with `moveIndex === -1` is the resignation signal
+      // (see the 2026-05-26 resign ask); the interaction is recorded with
+      // outcome `resigned` rather than `success`, no move is applied, and
+      // the harness ends the session. The decision itself is still
+      // populated so the analysis text/confidence are harvested intact.
       const usage = data.usageMetadata;
+      const isResign = decision.moveIndex === -1;
       recordAIInteraction({
         id: uuidv7(),
         requestId: request.requestId ?? uuidv7(),
@@ -286,11 +293,12 @@ export const geminiProvider: AIProvider = {
         seed: request.seed,
         turnIndex: request.turnIndex,
         config: request.config,
-        outcome: 'success',
+        outcome: isResign ? 'resigned' : 'success',
         durationMs: Date.now() - startedAt,
         prompt,
         promptTemplateHash,
         promptTemplateFinalisedAt: PROMPT_TEMPLATE_FINALISED_AT,
+        promptTemplateVersion: PROMPT_TEMPLATE_VERSION,
         inferenceParams: { temperature: AI_TEMPERATURE },
         promptLayoutVersion: PROMPT_LAYOUT_VERSION,
         rawResponse,
@@ -320,6 +328,7 @@ export const geminiProvider: AIProvider = {
         prompt,
         promptTemplateHash,
         promptTemplateFinalisedAt: PROMPT_TEMPLATE_FINALISED_AT,
+        promptTemplateVersion: PROMPT_TEMPLATE_VERSION,
         inferenceParams: { temperature: AI_TEMPERATURE },
         promptLayoutVersion: PROMPT_LAYOUT_VERSION,
         rawResponse,

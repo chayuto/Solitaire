@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { geminiProvider } from './GeminiProvider';
 import { AI_TEMPERATURE } from '../constants';
 import { PROMPT_LAYOUT_VERSION } from '../context/renderContext';
+import { PROMPT_TEMPLATE_VERSION } from '../context/systemInstruction';
 import { clearAIInteractions, getLastAIInteraction } from '../interactionLog';
 import { AIError, type AIMoveContext, type AIRequest } from '../types';
 
@@ -163,9 +164,11 @@ describe('geminiProvider.suggestMove', () => {
     await geminiProvider.suggestMove(request);
     const last = getLastAIInteraction();
     const prompt = last?.prompt ?? '';
-    // Hybrid markers present.
-    expect(prompt).toContain('NOTATION: rank+suit');
+    // Hybrid markers present. (NOTATION lives in the static rules block now,
+    // not the per-turn render; the system instruction is stubbed here so the
+    // marker is not in `prompt`. Per-turn markers below are what we pin.)
     expect(prompt).toContain('FOUNDATIONS:');
+    expect(prompt).toContain('NEXT NEEDED:');
     expect(prompt).toContain('TABLEAU:');
     expect(prompt).toContain('LEGAL MOVES (respond with the index of your chosen move):');
     // JSON form is gone.
@@ -196,6 +199,61 @@ describe('geminiProvider.suggestMove', () => {
     const last = getLastAIInteraction();
     expect(last?.outcome).toBe('error');
     expect(last?.promptLayoutVersion).toBe(PROMPT_LAYOUT_VERSION);
+  });
+
+  it('stamps the prompt-template semantic version on success and error interactions', async () => {
+    // Per the 2026-05-26 versioning ask: every harvested interaction must
+    // carry the human-readable template version (e.g. `hybrid-v1.1`)
+    // alongside the per-row hash, so the dataset side can partition on it
+    // without inferring from `appCommit`.
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(200, {
+        candidates: [
+          {
+            content: { parts: [{ text: '{"moveIndex":0,"reasoning":"Draw.","confidence":0.5}' }] },
+            finishReason: 'STOP',
+          },
+        ],
+      }),
+    );
+    await geminiProvider.suggestMove(request);
+    expect(getLastAIInteraction()?.promptTemplateVersion).toBe(PROMPT_TEMPLATE_VERSION);
+
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(401, { error: { code: 401, message: 'API key not valid' } }),
+    );
+    await expect(geminiProvider.suggestMove(request)).rejects.toBeInstanceOf(AIError);
+    expect(getLastAIInteraction()?.promptTemplateVersion).toBe(PROMPT_TEMPLATE_VERSION);
+  });
+
+  it('records outcome="resigned" when the model returns move_index -1, no error thrown', async () => {
+    // Resign sentinel: parser passes `-1` through, harness (not provider)
+    // skips move application. The provider's job is to log the interaction
+    // with the right outcome.
+    vi.mocked(fetch).mockResolvedValue(
+      mockResponse(200, {
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text:
+                    '{"board_analysis":"oscillation, no out","strategic_plan":"resign",' +
+                    '"final_decision":{"move_index":-1,"confidence":0.6}}',
+                },
+              ],
+            },
+            finishReason: 'STOP',
+          },
+        ],
+      }),
+    );
+    const decision = await geminiProvider.suggestMove(request);
+    expect(decision.moveIndex).toBe(-1);
+    const last = getLastAIInteraction();
+    expect(last?.outcome).toBe('resigned');
+    expect(last?.decision?.moveIndex).toBe(-1);
+    expect(last?.errorKind).toBeUndefined();
   });
 
   it('falls back to all parts when none are flagged as thoughts', async () => {

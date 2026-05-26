@@ -33,30 +33,52 @@ export const PROMPT_LAYOUT_VERSION = 'hybrid-v1';
 /** Pad a column name's value column to keep `[index]` + type aligned. */
 const TYPE_COL_WIDTH = 24;
 
+/** Foundation rank ladder; index = rank's slot in an Ace-to-King build. */
+const FOUNDATION_RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K'] as const;
+
+/**
+ * The next rank a suit's foundation needs to receive. Pre-computed so the
+ * model does not re-derive it in every reasoning trace; the prior corpus
+ * showed this being recomputed manually almost every turn. See the
+ * 2026-05-26 hygiene ask, edit 3.
+ */
+function nextFoundationToken(top: string | null, suitLetter: string): string {
+  if (top === null) return `A${suitLetter}`;
+  const rank = top[0];
+  const idx = FOUNDATION_RANKS.indexOf(rank as (typeof FOUNDATION_RANKS)[number]);
+  if (idx < 0) return `A${suitLetter}`; // defensive: malformed token
+  if (idx === FOUNDATION_RANKS.length - 1) return 'done';
+  return `${FOUNDATION_RANKS[idx + 1]}${suitLetter}`;
+}
+
 /**
  * Render an {@link AIMoveContext} as a hybrid plain-text block.
  *
  * The output is everything between the system instruction and the closing
- * "Now choose..." prompt suffix — the caller wraps it with its own framing.
+ * "Now choose..." prompt suffix; the caller wraps it with its own framing.
+ *
+ * The NOTATION legend lives in the static rules block (in `rulesPrimer.ts`),
+ * not here, so it is not re-rendered every turn for no information change.
  */
 export function renderHybridContext(context: AIMoveContext): string {
   const lines: string[] = [];
 
-  // NOTATION — the renderer's own legend takes precedence over the
-  // (JSON-shape) `notation` field on the context; the field is now vestigial.
-  lines.push(
-    'NOTATION: rank+suit (A 2-9 T J Q K; H D C S). ?? = face-down. ' +
-      'In each column the top of the stack is the rightmost card.',
-  );
-  lines.push('');
-
-  // FOUNDATIONS + STOCK header
+  // FOUNDATIONS + STOCK header. The NEXT NEEDED line under FOUNDATIONS
+  // pre-computes the card each suit must receive next (Ace for an empty
+  // foundation, `done` when a King is home); it saves the model from doing
+  // the derivation in prose every turn.
   const f = context.foundations;
   lines.push(
     `FOUNDATIONS:   H: ${f.hearts ?? '--'}   ` +
       `D: ${f.diamonds ?? '--'}   ` +
       `C: ${f.clubs ?? '--'}   ` +
       `S: ${f.spades ?? '--'}`,
+  );
+  lines.push(
+    `NEXT NEEDED:   H: ${nextFoundationToken(f.hearts, 'H')}   ` +
+      `D: ${nextFoundationToken(f.diamonds, 'D')}   ` +
+      `C: ${nextFoundationToken(f.clubs, 'C')}   ` +
+      `S: ${nextFoundationToken(f.spades, 'S')}`,
   );
   lines.push(
     `STOCK: ${context.drawPileCount} cards   ` +

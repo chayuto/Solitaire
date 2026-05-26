@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   PROMPT_TEMPLATE_FINALISED_AT,
+  PROMPT_TEMPLATE_VERSION,
   buildSystemInstruction,
   hashSystemInstruction,
 } from './systemInstruction';
@@ -66,16 +67,25 @@ describe('hashSystemInstruction', () => {
 describe('prompt template identity (tripwire)', () => {
   it('hash with strategy guidance is pinned', async () => {
     const hash = await hashSystemInstruction(buildSystemInstruction(configWith(true)));
-    expect(hash).toBe('0462323c366204b491790a90930fffa2916117b4bb210f390b26c33ddd0cdb9c');
+    expect(hash).toBe('a60f6344096980d7ba4889bd46faced173aca9e925e3e6b886bf5a4db56412b3');
   });
 
   it('hash without strategy guidance is pinned', async () => {
     const hash = await hashSystemInstruction(buildSystemInstruction(configWith(false)));
-    expect(hash).toBe('4115634979af4b7f4539f1a154b192ba813b8173a65800bba963bee4ef3582ba');
+    expect(hash).toBe('879a4d8fb4c8507b91fd4139d2fc66505150ca9311e196038ad52dbbae9bef22');
   });
 
   it('PROMPT_TEMPLATE_FINALISED_AT is a valid ISO 8601 UTC instant', () => {
     expect(PROMPT_TEMPLATE_FINALISED_AT).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     expect(Number.isFinite(new Date(PROMPT_TEMPLATE_FINALISED_AT).getTime())).toBe(true);
+  });
+
+  it('PROMPT_TEMPLATE_VERSION follows the hybrid-v{major}.{minor} semantic scheme', () => {
+    // Per the 2026-05-26 versioning ask: minor bump for text-only edits
+    // within the same layout (`hybrid-v1.x`); major bump for a layout
+    // restructure (`hybrid-v2.0`). The exact value is what the dataset side
+    // partitions on, so it is a tripwire — bump deliberately.
+    expect(PROMPT_TEMPLATE_VERSION).toMatch(/^hybrid-v\d+\.\d+$/);
+    expect(PROMPT_TEMPLATE_VERSION).toBe('hybrid-v1.1');
   });
 });

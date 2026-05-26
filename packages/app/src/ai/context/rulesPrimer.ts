@@ -23,6 +23,7 @@ KLONDIKE SOLITAIRE RULES (this variant):
 - Drawing turns the next stock card face-up onto the waste. When the stock is empty it can be recycled from the waste.
 - When a face-down tableau card is exposed by a move, it flips face-up automatically.
 - The game is WON when all 52 cards reach the foundations.
+NOTATION: rank+suit (A 2-9 T J Q K; H D C S). ?? = face-down. In each column the top of the stack is the rightmost card.
 
 THE GOAL: choose the single move that gives the best chance of eventually winning.`;
 
@@ -49,18 +50,14 @@ these three keys, in this order (no prose or markdown fences outside the object)
   "strategic_plan": <string>,
   "final_decision": { "move_index": <number>, "confidence": <number>, "alternative_move_index": <number> }
 }
-- board_analysis: assess the current board — hidden cards, blocked columns, foundation
+- board_analysis: assess the current board, hidden cards, blocked columns, foundation
   progress, and the opportunities each legal move opens or closes.
 - strategic_plan: explain your plan and why the chosen move is best, given that analysis.
-- final_decision.move_index: the [index] of your chosen move from the LEGAL MOVES block.
-- final_decision.confidence: a calibrated probability (0 to 1) that this move is
-  objectively the best one available — a genuine estimate, not a feeling. Use the
-  full range honestly:
-    1.0-0.9  forced, or clearly dominant — any other move would be a mistake.
-    0.9-0.7  strong — one plausible alternative exists, but this move is better.
-    0.7-0.5  a real toss-up between two or three reasonable moves.
-    0.5-0.3  a guess — the board is unclear or several moves look about equal.
-    below 0.3  little better than picking at random.
-  If you would not bet on the move, do not report high confidence.
+- final_decision.move_index: the [index] of your chosen move from the LEGAL MOVES
+  block, OR -1 to RESIGN. Resign only when no legal move can productively advance
+  the game, drawing has been exhausted, and you would not bet on any of the
+  available moves to recover. Resign is final and ends the session.
+- final_decision.confidence: a probability estimate (0 to 1) that this is the
+  best move. Use the full range honestly.
 - final_decision.alternative_move_index: optional; the index of your second-choice move.
 Produce the keys in the order above: analyse the board first, then plan, then decide.`;

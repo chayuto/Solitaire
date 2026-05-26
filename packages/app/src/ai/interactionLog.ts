@@ -70,6 +70,16 @@ export interface AIInteraction {
    * Bumped in lockstep with `PROMPT_LAYOUT_VERSION` in `context/renderContext`.
    */
   promptLayoutVersion?: string;
+  /**
+   * Human-readable semantic version of the full prompt template (rules +
+   * output instruction + per-turn layout). Bumped on every visible-to-the-
+   * model change: minor (`hybrid-v1.x`) for text edits within the same
+   * layout; major (`hybrid-v2.0`) for a layout restructure. Complements
+   * {@link promptTemplateHash} (the deterministic byte-level fingerprint)
+   * with a coarse identifier that makes cross-version analysis tractable.
+   * Adopted per the 2026-05-26 harvester-team versioning ask.
+   */
+  promptTemplateVersion?: string;
   /** Deal seed of the game, when one was used. */
   seed?: number;
   /** Turn index within the game (move-history length at request time). */
@@ -114,8 +124,16 @@ export interface AIInteraction {
    * more than one between calls.
    */
   movesApplied?: string[];
-  /** Whether the call succeeded. */
-  outcome: 'success' | 'error';
+  /**
+   * Outcome of the call:
+   * - `success`: model returned a parseable decision and the harness applied
+   *   the chosen move.
+   * - `error`: the call failed (network, timeout, parse failure, etc.).
+   * - `resigned`: model returned `move_index: -1`; harness applied no move
+   *   and ended the session. {@link decision} is populated; {@link errorKind}
+   *   is not.
+   */
+  outcome: 'success' | 'error' | 'resigned';
   /** Wall-clock duration of the call, in ms. */
   durationMs: number;
   /** The full prompt text sent to the model. */
@@ -205,6 +223,10 @@ export function recordAIInteraction(entry: AIInteraction): void {
         ` thoughts=${entry.thoughtTokens ?? '?'}` +
         ` output=${entry.outputTokens ?? '?'}` +
         ` total=${entry.totalTokens ?? '?'}`,
+    );
+  } else if (entry.outcome === 'resigned') {
+    console.info(
+      `[AI] ${entry.model} resigned in ${seconds}s (req ${entry.requestId.slice(0, 8)} #${entry.attempt})`,
     );
   } else {
     console.warn(

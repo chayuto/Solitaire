@@ -45,9 +45,13 @@ function pick(...candidates: unknown[]): unknown {
 /**
  * Validate a parsed object into an {@link AIMoveDecision}.
  *
- * `moveIndex` is validated strictly — an out-of-range or non-integer index is
+ * `moveIndex` is validated strictly: an out-of-range or non-integer index is
  * rejected, because applying it would touch the board. The text fields are
  * display-only and are coerced to safe defaults rather than rejected.
+ *
+ * The sentinel `-1` is accepted as a resignation signal (see the
+ * 2026-05-26 resign ask). The harness branch on `-1` skips move
+ * application and terminates the session; no other code path consumes it.
  *
  * @param raw - The parsed model output (object expected).
  * @param legalMoveCount - Number of legal moves offered to the model.
@@ -76,10 +80,11 @@ export function validateDecision(raw: unknown, legalMoveCount: number): AIMoveDe
       `AI returned a non-integer move index (${JSON.stringify(rawIndex)}).`,
     );
   }
-  if (moveIndex < 0 || moveIndex >= legalMoveCount) {
+  // `-1` is the resignation sentinel; any other negative index is invalid.
+  if (moveIndex !== -1 && (moveIndex < 0 || moveIndex >= legalMoveCount)) {
     throw new AIError(
       'bad_response',
-      `AI chose move index ${moveIndex}, outside the valid range 0..${legalMoveCount - 1}.`,
+      `AI chose move index ${moveIndex}, outside the valid range 0..${legalMoveCount - 1} (or -1 to resign).`,
     );
   }
 
