@@ -48,7 +48,7 @@ these three keys, in this order (no prose or markdown fences outside the object)
 {
   "board_analysis": <string>,
   "strategic_plan": <string>,
-  "final_decision": { "move_index": <number>, "confidence": <number>, "alternative_move_index": <number> }
+  "final_decision": { "move_index": <number> }
 }
 - board_analysis: assess the current board, hidden cards, blocked columns, foundation
   progress, and the opportunities each legal move opens or closes.
@@ -57,7 +57,4 @@ these three keys, in this order (no prose or markdown fences outside the object)
   block, OR -1 to RESIGN. Resign only when no legal move can productively advance
   the game, drawing has been exhausted, and you would not bet on any of the
   available moves to recover. Resign is final and ends the session.
-- final_decision.confidence: a probability estimate (0 to 1) that this is the
-  best move. Use the full range honestly.
-- final_decision.alternative_move_index: optional; the index of your second-choice move.
 Produce the keys in the order above: analyse the board first, then plan, then decide.`;

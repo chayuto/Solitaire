@@ -67,12 +67,12 @@ describe('hashSystemInstruction', () => {
 describe('prompt template identity (tripwire)', () => {
   it('hash with strategy guidance is pinned', async () => {
     const hash = await hashSystemInstruction(buildSystemInstruction(configWith(true)));
-    expect(hash).toBe('a60f6344096980d7ba4889bd46faced173aca9e925e3e6b886bf5a4db56412b3');
+    expect(hash).toBe('8971cad00d0b6cf1ccf18baf9053742a156a02583b30d19984b524b902ff51eb');
   });
 
   it('hash without strategy guidance is pinned', async () => {
     const hash = await hashSystemInstruction(buildSystemInstruction(configWith(false)));
-    expect(hash).toBe('879a4d8fb4c8507b91fd4139d2fc66505150ca9311e196038ad52dbbae9bef22');
+    expect(hash).toBe('35efc0b832a453bbbb5421bcbb4eb0d677245b423fa2365f1cf70194ae935b9e');
   });
 
   it('PROMPT_TEMPLATE_FINALISED_AT is a valid ISO 8601 UTC instant', () => {

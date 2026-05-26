@@ -168,7 +168,6 @@ describe('geminiProvider.suggestMove', () => {
     // not the per-turn render; the system instruction is stubbed here so the
     // marker is not in `prompt`. Per-turn markers below are what we pin.)
     expect(prompt).toContain('FOUNDATIONS:');
-    expect(prompt).toContain('NEXT NEEDED:');
     expect(prompt).toContain('TABLEAU:');
     expect(prompt).toContain('LEGAL MOVES (respond with the index of your chosen move):');
     // JSON form is gone.

@@ -34,7 +34,7 @@ function baseContext(overrides: Partial<AIMoveContext> = {}): AIMoveContext {
 }
 
 describe('renderHybridContext', () => {
-  it('always emits the FOUNDATIONS, NEXT NEEDED, STOCK, TABLEAU, LEGAL MOVES blocks', () => {
+  it('always emits the FOUNDATIONS, STOCK, TABLEAU, LEGAL MOVES blocks', () => {
     const out = renderHybridContext(baseContext());
     // NOTATION moved to the static rules block in 2026-05-26 hygiene edit 2;
     // the per-turn render must NOT carry it any more (re-rendered every turn
@@ -42,20 +42,9 @@ describe('renderHybridContext', () => {
     expect(out).not.toMatch(/NOTATION:/);
     expect(out).toMatch(/^FOUNDATIONS:/);
     expect(out).toContain('FOUNDATIONS:   H: --   D: --   C: --   S: --');
-    expect(out).toContain('NEXT NEEDED:   H: AH   D: AD   C: AC   S: AS');
     expect(out).toContain('STOCK: 0 cards   WASTE top: --   recycle stock: no');
     expect(out).toContain('TABLEAU:');
     expect(out).toContain('LEGAL MOVES (respond with the index of your chosen move):');
-  });
-
-  it('renders NEXT NEEDED as the next rank up from each foundation top, with "done" for a finished King suit', () => {
-    const out = renderHybridContext(
-      baseContext({
-        foundations: { hearts: 'QH', diamonds: 'KD', clubs: '8C', spades: null },
-      }),
-    );
-    expect(out).toContain('FOUNDATIONS:   H: QH   D: KD   C: 8C   S: --');
-    expect(out).toContain('NEXT NEEDED:   H: KH   D: done   C: 9C   S: AS');
   });
 
   it('renders an empty tableau column as <empty>', () => {

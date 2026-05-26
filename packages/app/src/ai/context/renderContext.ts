@@ -33,24 +33,6 @@ export const PROMPT_LAYOUT_VERSION = 'hybrid-v1';
 /** Pad a column name's value column to keep `[index]` + type aligned. */
 const TYPE_COL_WIDTH = 24;
 
-/** Foundation rank ladder; index = rank's slot in an Ace-to-King build. */
-const FOUNDATION_RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K'] as const;
-
-/**
- * The next rank a suit's foundation needs to receive. Pre-computed so the
- * model does not re-derive it in every reasoning trace; the prior corpus
- * showed this being recomputed manually almost every turn. See the
- * 2026-05-26 hygiene ask, edit 3.
- */
-function nextFoundationToken(top: string | null, suitLetter: string): string {
-  if (top === null) return `A${suitLetter}`;
-  const rank = top[0];
-  const idx = FOUNDATION_RANKS.indexOf(rank as (typeof FOUNDATION_RANKS)[number]);
-  if (idx < 0) return `A${suitLetter}`; // defensive: malformed token
-  if (idx === FOUNDATION_RANKS.length - 1) return 'done';
-  return `${FOUNDATION_RANKS[idx + 1]}${suitLetter}`;
-}
-
 /**
  * Render an {@link AIMoveContext} as a hybrid plain-text block.
  *
@@ -63,22 +45,13 @@ function nextFoundationToken(top: string | null, suitLetter: string): string {
 export function renderHybridContext(context: AIMoveContext): string {
   const lines: string[] = [];
 
-  // FOUNDATIONS + STOCK header. The NEXT NEEDED line under FOUNDATIONS
-  // pre-computes the card each suit must receive next (Ace for an empty
-  // foundation, `done` when a King is home); it saves the model from doing
-  // the derivation in prose every turn.
+  // FOUNDATIONS + STOCK header.
   const f = context.foundations;
   lines.push(
     `FOUNDATIONS:   H: ${f.hearts ?? '--'}   ` +
       `D: ${f.diamonds ?? '--'}   ` +
       `C: ${f.clubs ?? '--'}   ` +
       `S: ${f.spades ?? '--'}`,
-  );
-  lines.push(
-    `NEXT NEEDED:   H: ${nextFoundationToken(f.hearts, 'H')}   ` +
-      `D: ${nextFoundationToken(f.diamonds, 'D')}   ` +
-      `C: ${nextFoundationToken(f.clubs, 'C')}   ` +
-      `S: ${nextFoundationToken(f.spades, 'S')}`,
   );
   lines.push(
     `STOCK: ${context.drawPileCount} cards   ` +
