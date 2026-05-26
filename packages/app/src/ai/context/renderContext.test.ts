@@ -263,7 +263,11 @@ describe('renderHybridContext', () => {
     expect(hybridChars).toBeLessThan(prettyJsonChars);
   });
 
-  it('PROMPT_LAYOUT_VERSION is the hybrid-v1 stamp', () => {
-    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1');
+  it('PROMPT_LAYOUT_VERSION follows the lockstep semver and matches the template version', () => {
+    // Tripwire: layout and template versions are now bumped together so the
+    // two fields on a harvested interaction never disagree. See the
+    // promptlayoutversion-lockstep follow-up note.
+    expect(PROMPT_LAYOUT_VERSION).toMatch(/^hybrid-v\d+\.\d+$/);
+    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.1');
   });
 });
