@@ -166,8 +166,14 @@ export interface AIMoveDecision {
   reasoning: string;
   /** Chosen move index into the legal-moves list (from `final_decision`). */
   moveIndex: number;
-  /** The LLM's self-rated confidence, 0–1 (from `final_decision`). */
-  confidence: number;
+  /**
+   * The LLM's self-rated confidence, 0-1. Optional because hybrid-v1.1
+   * removed `final_decision.confidence` from the prompt schema (saturated
+   * near 0.93 in the corpus, no signal); the parser leaves it undefined
+   * when the model omits it rather than fabricating a misleading 0.5.
+   * Older response shapes that still emit a value are accepted and clamped.
+   */
+  confidence?: number;
   /** Optional runner-up move index (from `final_decision`). */
   alternativeMoveIndex?: number;
 }
@@ -290,8 +296,12 @@ export interface AIDecisionRecord {
   boardAnalysis?: string;
   /** The LLM's strategic plan / reasoning. */
   reasoning: string;
-  /** The LLM's confidence, 0–1. */
-  confidence: number;
+  /**
+   * The LLM's confidence, 0-1. Optional in hybrid-v1.1 onwards (the prompt
+   * no longer asks for it). Older saved sessions / replays may still carry
+   * a number; UI sites must gate rendering on presence.
+   */
+  confidence?: number;
   /** Description of the runner-up move, if the LLM supplied one. */
   alternativeDescribe?: string;
   /** Model that produced the decision. */
