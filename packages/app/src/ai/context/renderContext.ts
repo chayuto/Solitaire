@@ -22,13 +22,19 @@
 import type { AIMoveContext } from '../types';
 
 /**
- * Stamp identifying the layout that produced a given interaction. The
- * dataset side keys its comparison reports on (`promptTemplateHash`,
- * `inferenceParams`, `promptLayoutVersion`) — bumping this constant lets
- * harvests be partitioned cleanly across format changes without inferring
- * from the build hash. Bump when the renderer's output shape changes.
+ * Stamp identifying the prompt variant that produced a given interaction.
+ *
+ * Bumped in lockstep with `PROMPT_TEMPLATE_VERSION` (in
+ * `context/systemInstruction`) so the two version fields never disagree on
+ * which variant produced a row. The semver follows the same scheme:
+ * - major (`hybrid-v2.0`) on a layout-shape change;
+ * - minor (`hybrid-v1.x`) on any visible text edit within the same layout.
+ *
+ * Anyone reading a harvested ai-log can read this one field instead of
+ * computing `promptTemplateHash` to identify the variant. The hash stays
+ * authoritative for byte-level identity.
  */
-export const PROMPT_LAYOUT_VERSION = 'hybrid-v1';
+export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.1';
 
 /** Pad a column name's value column to keep `[index]` + type aligned. */
 const TYPE_COL_WIDTH = 24;
