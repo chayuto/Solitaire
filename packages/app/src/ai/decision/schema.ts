@@ -88,15 +88,22 @@ export function validateDecision(raw: unknown, legalMoveCount: number): AIMoveDe
     );
   }
 
-  // --- confidence (coerced + clamped) ---
-  let confidence = toNumber(pick(decisionBlock.confidence, obj.confidence));
-  if (!Number.isFinite(confidence)) {
-    confidence = 0.5;
+  // --- confidence (coerced + clamped, undefined when absent) ---
+  // The hybrid-v1.1 prompt removed `final_decision.confidence` from the schema
+  // it asks the model to emit; the field has no signal in our corpus (mean
+  // ~0.93 regardless of outcome). When the model omits it, leave `confidence`
+  // undefined rather than fabricating a 0.5 — a fabricated default would
+  // render as "50%" in the UI and look like real signal. A model that still
+  // emits a value (older variants, manual tests) is parsed and clamped as
+  // before.
+  let confidence: number | undefined;
+  const rawConfidence = pick(decisionBlock.confidence, obj.confidence);
+  if (rawConfidence !== undefined && rawConfidence !== null) {
+    const n = toNumber(rawConfidence);
+    if (Number.isFinite(n)) {
+      confidence = clamp(n > 1 ? n / 100 : n, 0, 1);
+    }
   }
-  if (confidence > 1) {
-    confidence = confidence / 100; // tolerate a 0-100 scale
-  }
-  confidence = clamp(confidence, 0, 1);
 
   // --- alternativeMoveIndex (optional, dropped if invalid) ---
   let alternativeMoveIndex: number | undefined;

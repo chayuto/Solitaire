@@ -92,10 +92,22 @@ describe('validateDecision', () => {
     ).toBeCloseTo(0.9);
   });
 
-  it('defaults a missing/NaN confidence to 0.5', () => {
+  it('leaves a missing or non-finite confidence undefined (no fabricated default)', () => {
+    // hybrid-v1.1 removed `final_decision.confidence` from the prompt schema;
+    // fabricating a 0.5 default would render as "50%" in the UI and look like
+    // real signal. Missing/non-numeric values now stay undefined so callers
+    // can gate rendering on presence.
     expect(
       validateDecision({ moveIndex: 0, reasoning: 'x' }, LEGAL_COUNT).confidence,
-    ).toBe(0.5);
+    ).toBeUndefined();
+    expect(
+      validateDecision({ moveIndex: 0, reasoning: 'x', confidence: NaN }, LEGAL_COUNT)
+        .confidence,
+    ).toBeUndefined();
+    expect(
+      validateDecision({ moveIndex: 0, reasoning: 'x', confidence: 'nope' }, LEGAL_COUNT)
+        .confidence,
+    ).toBeUndefined();
   });
 
   it('keeps a valid alternativeMoveIndex', () => {

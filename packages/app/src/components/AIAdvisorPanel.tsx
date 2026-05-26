@@ -160,20 +160,25 @@ const AIAdvisorPanel: React.FC = () => {
           <div data-testid="ai-last-decision" className="bg-gray-50 border border-gray-200 rounded p-3">
             <p className="text-sm font-semibold text-gray-800">{lastDecision.describe}</p>
 
-            <div className="mt-2">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs font-semibold text-gray-600">Confidence</span>
-                <span className="text-xs font-bold text-gray-700">
-                  {Math.round(lastDecision.confidence * 100)}%
-                </span>
+            {/* Confidence block. Only rendered when the decision actually carries
+                a confidence value (hybrid-v1.1 onwards drops it from the prompt;
+                older saved sessions / replays may still have one). */}
+            {lastDecision.confidence !== undefined && (
+              <div className="mt-2">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-semibold text-gray-600">Confidence</span>
+                  <span className="text-xs font-bold text-gray-700">
+                    {Math.round(lastDecision.confidence * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all ${confidenceColor(lastDecision.confidence)}`}
+                    style={{ width: `${Math.round(lastDecision.confidence * 100)}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full transition-all ${confidenceColor(lastDecision.confidence)}`}
-                  style={{ width: `${Math.round(lastDecision.confidence * 100)}%` }}
-                />
-              </div>
-            </div>
+            )}
 
             <p
               data-testid="ai-reasoning"

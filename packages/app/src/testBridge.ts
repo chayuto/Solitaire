@@ -80,8 +80,12 @@ export interface AIBridgeState {
   seeHiddenCards: boolean;
   /** Number of decisions recorded so far. */
   decisionCount: number;
-  /** The most recent decision, or `null`. */
-  lastDecision: { describe: string; reasoning: string; confidence: number } | null;
+  /**
+   * The most recent decision, or `null`. `confidence` is optional because
+   * hybrid-v1.1 removed it from the prompt; older saved sessions / stub
+   * providers may still supply one.
+   */
+  lastDecision: { describe: string; reasoning: string; confidence?: number } | null;
 }
 
 /** The `window.__solitaire` control surface. */
