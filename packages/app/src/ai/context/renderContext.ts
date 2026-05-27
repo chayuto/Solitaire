@@ -12,9 +12,12 @@
  * sample produced offline matches the wire format byte-for-byte (modulo
  * trailing-whitespace conventions).
  *
- * `reasoningTrail` is carried forward under a soft-de-emphasis header, as the
- * layout-ask doc recommends — the change is about the board / moves layout,
- * not the trail. The decision to keep, relocate, or drop it is a separate ask.
+ * `reasoningTrail` is intentionally NOT rendered in hybrid-v1.3: feeding the
+ * model its own last-N rationales reinforces in-context any doom-loop already
+ * underway (Halawi et al. 2023, "Overthinking the Truth"; the v1.2 corpus is
+ * the catalogued real-world example). The field on {@link AIMoveContext} is
+ * left intact for analytics and any future re-enablement experiment; the
+ * per-turn prompt simply ignores it.
  *
  * @module ai/context/renderContext
  */
@@ -34,7 +37,7 @@ import type { AIMoveContext } from '../types';
  * computing `promptTemplateHash` to identify the variant. The hash stays
  * authoritative for byte-level identity.
  */
-export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.2';
+export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.3';
 
 /** Pad a column name's value column to keep `[index]` + type aligned. */
 const TYPE_COL_WIDTH = 24;
@@ -145,17 +148,9 @@ export function renderHybridContext(context: AIMoveContext): string {
     lines.push('');
   }
 
-  // PRIOR REASONING — carried forward with the layout-ask doc's
-  // soft-de-emphasis label. Not dropped: that decision is a separate ask.
-  const trail = context.reasoningTrail ?? [];
-  if (trail.length > 0) {
-    lines.push('PRIOR REASONING (may be obsolete; verify against current state):');
-    trail.forEach((t, i) => {
-      lines.push(`  ${i + 1}. move: ${t.move}`);
-      lines.push(`     why: ${t.reasoning}`);
-    });
-    lines.push('');
-  }
+  // PRIOR REASONING — intentionally dropped in hybrid-v1.3 (see module
+  // docstring). `context.reasoningTrail` is still populated by buildContext
+  // when the user toggles it on, but is not surfaced to the model.
 
   // Trim trailing blank line for cleanliness.
   while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();

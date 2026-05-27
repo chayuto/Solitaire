@@ -204,7 +204,12 @@ describe('renderHybridContext', () => {
     expect(out).toContain('PROGRESS: foundation=6/52, face-down remaining=12, completion=12%');
   });
 
-  it('carries PRIOR REASONING forward with the soft-de-emphasis header', () => {
+  it('does NOT render PRIOR REASONING even when reasoningTrail is supplied (hybrid-v1.3)', () => {
+    // hybrid-v1.3 drops the block per the v1.3 candidate spec: feeding the
+    // model its own prior rationales reinforces any doom-loop in progress
+    // (Halawi et al. 2023). The field on AIMoveContext is still accepted —
+    // analytics and any future re-enablement experiment can populate it —
+    // but the renderer ignores it.
     const out = renderHybridContext(
       baseContext({
         reasoningTrail: [
@@ -213,10 +218,9 @@ describe('renderHybridContext', () => {
         ],
       }),
     );
-    expect(out).toContain('PRIOR REASONING (may be obsolete; verify against current state):');
-    expect(out).toContain('  1. move: Draw the next card');
-    expect(out).toContain('     why: No productive tableau move.');
-    expect(out).toContain('  2. move: Play AC to clubs');
+    expect(out).not.toContain('PRIOR REASONING');
+    expect(out).not.toContain('No productive tableau move.');
+    expect(out).not.toContain('Aces always go up early.');
   });
 
   it('places RECENT MOVES before DRAW TIMELINE before LEGAL MOVES', () => {
@@ -289,6 +293,6 @@ describe('renderHybridContext', () => {
     // two fields on a harvested interaction never disagree. See the
     // promptlayoutversion-lockstep follow-up note.
     expect(PROMPT_LAYOUT_VERSION).toMatch(/^hybrid-v\d+\.\d+$/);
-    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.2');
+    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.3');
   });
 });
