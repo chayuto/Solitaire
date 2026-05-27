@@ -32,7 +32,7 @@ const AISettingsSection: React.FC = () => {
   const setAIKeyModalOpen = useGameStore((s) => s.setAIKeyModalOpen);
   const exportAIInteractions = useGameStore((s) => s.exportAIInteractions);
   const gameSessionId = useGameStore((s) => s.gameSessionId);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   /** Download the full LLM interaction log as a JSON file. */
   const handleExportAILog = () => {
