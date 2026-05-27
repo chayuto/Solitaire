@@ -238,47 +238,6 @@ const ControlPanel: React.FC = () => {
         )}
 
         <div className="border-t border-gray-300 my-2"></div>
-        
-        <button
-          data-testid="valid-moves-btn"
-          onClick={toggleValidMoves}
-          disabled={replayMode}
-          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
-            showValidMoves
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-          } ${replayMode ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {showValidMoves ? '✓' : '✗'} Valid Moves
-        </button>
-        
-        <button
-          data-testid="god-mode-btn"
-          onClick={toggleGodMode}
-          disabled={replayMode}
-          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
-            godMode
-              ? 'bg-purple-600 hover:bg-purple-700 text-white'
-              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-          } ${replayMode ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {godMode ? '👁️' : '👁️‍🗨️'} God Mode
-        </button>
-        
-        <button
-          data-testid="auto-play-btn"
-          onClick={toggleAutoPlay}
-          disabled={replayMode || aiAutoPlay}
-          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
-            autoPlayEnabled
-              ? 'bg-amber-600 hover:bg-amber-700 text-white'
-              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
-          } ${replayMode || aiAutoPlay ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {autoPlayEnabled ? '⏸️' : '▶️'} Auto Play
-        </button>
-
-        <div className="border-t border-gray-300 my-2"></div>
 
         <button
           data-testid="ask-ai-btn"
@@ -315,6 +274,47 @@ const ControlPanel: React.FC = () => {
         </button>
 
         <AISettingsSection />
+
+        <div className="border-t border-gray-300 my-2"></div>
+
+        <button
+          data-testid="valid-moves-btn"
+          onClick={toggleValidMoves}
+          disabled={replayMode}
+          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+            showValidMoves
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+          } ${replayMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {showValidMoves ? '✓' : '✗'} Valid Moves
+        </button>
+
+        <button
+          data-testid="god-mode-btn"
+          onClick={toggleGodMode}
+          disabled={replayMode}
+          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+            godMode
+              ? 'bg-purple-600 hover:bg-purple-700 text-white'
+              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+          } ${replayMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {godMode ? '👁️' : '👁️‍🗨️'} God Mode
+        </button>
+
+        <button
+          data-testid="auto-play-btn"
+          onClick={toggleAutoPlay}
+          disabled={replayMode || aiAutoPlay}
+          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+            autoPlayEnabled
+              ? 'bg-amber-600 hover:bg-amber-700 text-white'
+              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+          } ${replayMode || aiAutoPlay ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {autoPlayEnabled ? '⏸️' : '▶️'} Auto Play
+        </button>
       </div>
 
       <input

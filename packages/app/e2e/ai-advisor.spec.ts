@@ -85,7 +85,7 @@ test.describe('AI Move Advisor', () => {
     await page.goto('/?seed=1');
     await waitForGame(page);
 
-    await page.getByTestId('ai-settings-toggle-btn').click();
+    // AI Settings section is expanded by default; no toggle click needed.
     await page.getByTestId('ai-key-settings-btn').click();
 
     await expect(page.getByTestId('ai-key-modal')).toBeVisible();
@@ -99,7 +99,7 @@ test.describe('AI Move Advisor', () => {
     await page.goto('/?seed=1');
     await waitForGame(page);
 
-    await page.getByTestId('ai-settings-toggle-btn').click();
+    // AI Settings section is expanded by default; no toggle click needed.
     await page.getByTestId('ai-preset-select').selectOption('minimal');
 
     const ai = await page.evaluate(() => window.__solitaire!.getAIState());
