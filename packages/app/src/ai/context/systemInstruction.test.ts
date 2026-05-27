@@ -67,7 +67,7 @@ describe('hashSystemInstruction', () => {
 describe('prompt template identity (tripwire)', () => {
   it('hash with strategy guidance is pinned', async () => {
     const hash = await hashSystemInstruction(buildSystemInstruction(configWith(true)));
-    expect(hash).toBe('dde52402372de11f46bba3dacc9e728e26be8f4177ac73f15df66ca98d406d57');
+    expect(hash).toBe('645f77b252b95a1b0bdc1c12abf194ee42cef6cd0425fdbab8a5f425f5053c98');
   });
 
   it('hash without strategy guidance is pinned', async () => {

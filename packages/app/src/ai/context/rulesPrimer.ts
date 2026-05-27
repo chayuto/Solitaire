@@ -46,11 +46,6 @@ export const STRATEGY_GUIDANCE = `STRATEGY GUIDANCE (heuristics, not absolute ru
 - Be cautious sending higher cards to the foundations too early — they are sometimes needed to receive tableau cards.
 - Do not empty a column unless you have a King ready to occupy it.
 - Prefer exposing new cards and creating useful sequences over shuffling cards between columns with no gain.
-- Drawing from the stock is reasonable ONLY IF the DRAW TIMELINE shows an
-  upcoming card (a token left of {NOW}) that will be playable to a foundation
-  or to a tableau column once drawn. If every remaining stock card has already
-  been seen and none unlock the board, drawing wastes turns and you should
-  commit to a tableau move instead, even an imperfect one.
 - Avoid moves that simply undo a recent move or lead nowhere.`;
 
 /** Instructions describing the required JSON output. Always included. */
