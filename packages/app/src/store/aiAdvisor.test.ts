@@ -7,6 +7,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useGameStore } from './gameStore';
 import {
   AIError,
+  AI_AUTO_TURN_CAP,
+  AI_AUTO_TURN_CAP_RESUME_INCREMENT,
   clearAIInteractions,
   createStubProvider,
   getAIInteractions,
@@ -500,6 +502,90 @@ describe('AI auto-play stall terminator', () => {
     // window, so the second gate fails and termination does not fire.
     expect(useGameStore.getState().aiAutoPlay).toBe(true);
     expect(getLastAIInteraction()?.event).not.toBe('stall_terminated');
+  });
+});
+
+describe('AI auto-play turn cap (token-runaway guard)', () => {
+  beforeEach(() => {
+    useGameStore.getState().initializeGame(3, 42);
+  });
+
+  afterEach(() => {
+    setProviderOverride(null);
+    if (useGameStore.getState().aiAutoPlay) {
+      useGameStore.getState().toggleAIAutoPlay();
+    }
+  });
+
+  /**
+   * A throwaway move-history array of the given length. Only `.length` (the cap
+   * check) and `.type` (the uiToCore filter, on the async path) are ever read,
+   * so a minimal tagged object per entry is sufficient.
+   */
+  function fakeHistory(n: number): GameState['moveHistory'] {
+    return Array.from({ length: n }, () => ({ type: 'draw_stock' })) as unknown as GameState['moveHistory'];
+  }
+
+  it('pauses auto-play at the move cap and requires a manual resume', () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
+
+    // Engage from a fresh (0-move) board to arm the cap at AI_AUTO_TURN_CAP,
+    // then stop so the async first request cannot drive the loop further. The
+    // stop branch leaves the armed cap untouched.
+    useGameStore.getState().toggleAIAutoPlay(); // arms cap = AI_AUTO_TURN_CAP
+    useGameStore.getState().toggleAIAutoPlay(); // stop + abort in-flight request
+
+    // Re-enable directly (does NOT re-arm the cap) and jump the board to the cap.
+    useGameStore.setState({
+      aiAutoPlay: true,
+      aiError: undefined,
+      moveHistory: fakeHistory(AI_AUTO_TURN_CAP),
+    });
+    useGameStore.getState().continueAIAutoPlay();
+
+    const state = useGameStore.getState();
+    expect(state.aiAutoPlay).toBe(false);
+    expect(state.aiError).toMatch(/cap/i);
+    expect(state.aiError).toContain(String(AI_AUTO_TURN_CAP));
+  });
+
+  it('grants a further increment of moves on each manual resume', () => {
+    useStub({ moveIndex: 0, reasoning: 'go', confidence: 0.5 });
+    // Minimal context: the resume toggle fires an async request, and the
+    // bogus move history below would otherwise crash the history renderer.
+    useGameStore.getState().setAIConfig({ preset: 'minimal' });
+
+    // Simulate already sitting at the first cap, then resume. Engaging at/after
+    // the cap arms the next pause at moves + AI_AUTO_TURN_CAP_RESUME_INCREMENT.
+    useGameStore.setState({ moveHistory: fakeHistory(AI_AUTO_TURN_CAP) });
+    useGameStore.getState().toggleAIAutoPlay(); // arms cap = 500 + 200 = 700
+    useGameStore.getState().toggleAIAutoPlay(); // stop + abort
+
+    const resumeCap = AI_AUTO_TURN_CAP + AI_AUTO_TURN_CAP_RESUME_INCREMENT;
+    useGameStore.setState({
+      aiAutoPlay: true,
+      aiError: undefined,
+      moveHistory: fakeHistory(resumeCap),
+    });
+    useGameStore.getState().continueAIAutoPlay();
+
+    const state = useGameStore.getState();
+    expect(state.aiAutoPlay).toBe(false);
+    // Pauses at the *new* (higher) cap, proving the resume re-armed it rather
+    // than firing again at the original 500 boundary.
+    expect(state.aiError).toContain(String(resumeCap));
+  });
+
+  it('does not apply the cap when auto-play is not engaged', () => {
+    // A stopped session (e.g. a single manual "Ask AI") past the cap must not
+    // be paused by the guard — continueAIAutoPlay no-ops when not auto-playing.
+    useGameStore.setState({
+      aiAutoPlay: false,
+      aiError: undefined,
+      moveHistory: fakeHistory(AI_AUTO_TURN_CAP + 50),
+    });
+    useGameStore.getState().continueAIAutoPlay();
+    expect(useGameStore.getState().aiError ?? '').not.toMatch(/cap/i);
   });
 });
 

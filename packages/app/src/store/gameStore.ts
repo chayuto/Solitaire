@@ -30,6 +30,8 @@ import {
   AI_AUTO_HISTORY_LIMIT,
   AI_AUTO_LOOP_LIMIT,
   AI_AUTO_STALL_SHUFFLE_FRACTION,
+  AI_AUTO_TURN_CAP,
+  AI_AUTO_TURN_CAP_RESUME_INCREMENT,
   AI_AUTO_RETRY_COOLDOWN,
   AI_RETRY_MAX_ATTEMPTS,
   DEFAULT_AI_CONFIG,
@@ -107,6 +109,15 @@ let aiAutoRecentMoveTypes: string[] = [];
  * Reset on a new game or re-engaged auto-play.
  */
 let aiAutoStalled = false;
+
+/**
+ * Move-count at which the current AI auto-play run pauses for a manual resume —
+ * the token-runaway cap. Set when auto-play is engaged (first run: the
+ * {@link AI_AUTO_TURN_CAP} boundary; a resume past that: the current move-count
+ * plus {@link AI_AUTO_TURN_CAP_RESUME_INCREMENT}). Read once per turn in
+ * {@link continueAIAutoPlay}.
+ */
+let aiAutoTurnCap = AI_AUTO_TURN_CAP;
 
 /** Keys in {@link AIConfig} that a context preset controls. */
 const AI_TOGGLE_KEYS: readonly (keyof AIConfig)[] = [
@@ -1675,6 +1686,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     aiAutoStallCount = 0;
     aiAutoRecentMoveTypes = [];
     aiAutoStalled = false;
+    // Arm the token-runaway cap. A fresh run pauses at the AI_AUTO_TURN_CAP
+    // boundary; resuming at or past it grants another increment of moves, so
+    // each manual restart is a deliberate opt-in for more spend.
+    const movesAtStart = state.moveHistory.length;
+    aiAutoTurnCap =
+      movesAtStart < AI_AUTO_TURN_CAP
+        ? AI_AUTO_TURN_CAP
+        : movesAtStart + AI_AUTO_TURN_CAP_RESUME_INCREMENT;
     set({ aiAutoPlay: true, aiError: undefined });
     void get().askAIForMove();
   },
@@ -1686,6 +1705,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Stop cleanly when the game is won.
     if (state.gameWon) {
       set({ aiAutoPlay: false });
+      return;
+    }
+
+    // Token-runaway cap: pause once the run reaches its move budget and require
+    // a deliberate manual resume. Unlike the stall/loop terminators below (which
+    // catch *unproductive* play), this fires even on a healthy, progressing game
+    // so an unattended tab cannot spend tokens without bound.
+    if (state.moveHistory.length >= aiAutoTurnCap) {
+      set({
+        aiAutoPlay: false,
+        aiError:
+          `AI auto-play paused at the ${aiAutoTurnCap}-move cap ` +
+          `(token-runaway guard). Click AI Auto-Play to resume for ` +
+          `another ${AI_AUTO_TURN_CAP_RESUME_INCREMENT} moves.`,
+      });
       return;
     }
 
