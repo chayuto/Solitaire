@@ -88,6 +88,22 @@ export const AI_AUTO_STALL_LIMIT = 25;
 export const AI_AUTO_STALL_SHUFFLE_FRACTION = 0.6;
 
 /**
+ * Move-count at which AI auto-play pauses for a deliberate manual resume — a
+ * hard token-runaway guard, independent of the stall/loop terminators (which
+ * catch *unproductive* play). A long but genuinely-progressing game can still
+ * burn a large number of LLM round-trips; this cap forces a human to opt back
+ * in rather than letting an unattended tab spend tokens indefinitely.
+ *
+ * The first pause is at {@link AI_AUTO_TURN_CAP} moves; each manual resume then
+ * grants a further {@link AI_AUTO_TURN_CAP_RESUME_INCREMENT} moves before the
+ * next pause.
+ */
+export const AI_AUTO_TURN_CAP = 500;
+
+/** Additional moves granted per manual resume after the first cap. */
+export const AI_AUTO_TURN_CAP_RESUME_INCREMENT = 200;
+
+/**
  * How many times a single move request is attempted before giving up. LLM
  * endpoints are not perfectly stable; transient failures are retried with
  * exponential backoff (see `ai/retry`).
