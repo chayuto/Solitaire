@@ -261,10 +261,10 @@ const ControlPanel: React.FC = () => {
           data-testid="ai-auto-play-btn"
           onClick={toggleAIAutoPlay}
           disabled={replayMode || autoPlayEnabled || gameWon}
-          className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
+          className={`w-full font-semibold py-2 px-4 rounded shadow-md transition-all text-sm ${
             aiAutoPlay
-              ? 'bg-indigo-700 hover:bg-indigo-800 text-white'
-              : 'bg-gray-300 hover:bg-gray-400 text-gray-700'
+              ? 'bg-rose-600 hover:bg-rose-700 text-white'
+              : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white'
           } ${
             replayMode || autoPlayEnabled || gameWon ? 'opacity-50 cursor-not-allowed' : ''
           }`}

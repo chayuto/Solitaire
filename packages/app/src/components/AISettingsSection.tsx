@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { DEFAULT_AI_CONFIG } from '../ai';
+import { getEffectiveKey } from '../ai/keyStore';
 import { downloadJson, gameIdTag } from '../utils/download';
 import type { AIConfig, AIContextPreset } from '../ai';
 
@@ -28,11 +29,21 @@ const PRESETS: { value: AIContextPreset; label: string }[] = [
  */
 const AISettingsSection: React.FC = () => {
   const aiConfig = useGameStore((s) => s.aiConfig) ?? DEFAULT_AI_CONFIG;
+  // Re-read after the key modal closes so a freshly-saved key reflects here.
+  const keyModalOpen = useGameStore((s) => s.aiKeyModalOpen);
   const setAIConfig = useGameStore((s) => s.setAIConfig);
   const setAIKeyModalOpen = useGameStore((s) => s.setAIKeyModalOpen);
   const exportAIInteractions = useGameStore((s) => s.exportAIInteractions);
   const gameSessionId = useGameStore((s) => s.gameSessionId);
   const [expanded, setExpanded] = useState(true);
+
+  // Last 4 chars of the key that will actually be used for requests — matches
+  // getEffectiveKey(config.provider) in the game store. Lets you tell which key
+  // a given tab is on when several instances run with different .env keys.
+  // keyModalOpen is read above purely to re-render this on modal open/close.
+  void keyModalOpen;
+  const activeKey = getEffectiveKey(aiConfig.provider);
+  const keySuffix = activeKey ? activeKey.slice(-4) : null;
 
   /** Download the full LLM interaction log as a JSON file. */
   const handleExportAILog = () => {
@@ -112,6 +123,20 @@ const AISettingsSection: React.FC = () => {
 
           {/* Model + key */}
           <div className="border-t border-indigo-200 pt-2">
+            <p className="text-[10px] text-gray-500 mb-0.5">
+              Key:{' '}
+              {keySuffix ? (
+                <code
+                  data-testid="ai-active-key-suffix"
+                  className="text-[10px] text-indigo-700 font-semibold"
+                  title="Last 4 characters of the API key in use for this tab"
+                >
+                  …{keySuffix}
+                </code>
+              ) : (
+                <span className="text-amber-600">none</span>
+              )}
+            </p>
             <p className="text-[10px] text-gray-500 mb-1">
               Model: <code className="text-[10px]">{aiConfig.model}</code>
             </p>
