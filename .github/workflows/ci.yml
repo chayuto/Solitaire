@@ -103,6 +103,19 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    # Run inside the official Playwright image: chromium, the headless shell,
+    # ffmpeg and every OS dependency are baked in, so there is NO
+    # `playwright install` download step — the CDN stall that used to hang this
+    # job can't happen. Keep this tag in lockstep with the @playwright/test
+    # version in packages/app/package.json (currently 1.59.1); a mismatch makes
+    # Playwright fall back to downloading the browser again.
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    # Safety cap; with no browser download the job is fast (~2-3 min).
+    timeout-minutes: 20
+    env:
+      # Where the image stores its preinstalled browsers.
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     permissions:
       contents: read
 
@@ -124,9 +137,6 @@ jobs:
 
       - name: Build libraries
         run: pnpm run build:libs
-
-      - name: Install Playwright browsers
-        run: pnpm --filter app exec playwright install chromium --with-deps
 
       - name: Run E2E tests
         run: pnpm run test:e2e
