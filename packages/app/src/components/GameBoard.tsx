@@ -6,6 +6,7 @@ import DiscardPile from './DiscardPile';
 import FoundationPile from './FoundationPile';
 import TableauColumn from './TableauColumn';
 import ControlPanel from './ControlPanel';
+import GameInsightsPanel from './GameInsightsPanel';
 import ActivityLog from './ActivityLog';
 import AIAdvisorPanel from './AIAdvisorPanel';
 import AIKeyModal from './AIKeyModal';
@@ -138,6 +139,9 @@ const GameBoard: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            {/* Live progress dashboard — charts the game / AI auto-play */}
+            <GameInsightsPanel />
           </div>
         </div>
 
