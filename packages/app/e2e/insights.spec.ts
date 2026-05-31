@@ -44,7 +44,7 @@ test.describe('Game Insights panel', () => {
     // Dismiss the win modal (keeps game state) and confirm the chart drew.
     await page.getByTestId('win-modal-close-btn').click();
     await expect(
-      page.getByTestId('insights-chart-progress').locator('svg'),
+      page.getByTestId('insights-chart-progress').locator('canvas'),
     ).toBeVisible();
   });
 
@@ -63,7 +63,7 @@ test.describe('Game Insights panel', () => {
       'true',
     );
     await expect(
-      page.getByTestId('insights-chart-progress').locator('svg'),
+      page.getByTestId('insights-chart-progress').locator('canvas'),
     ).toBeVisible();
 
     // Switch to Card Flow.
@@ -73,7 +73,7 @@ test.describe('Game Insights panel', () => {
       'true',
     );
     await expect(
-      page.getByTestId('insights-chart-flow').locator('svg'),
+      page.getByTestId('insights-chart-flow').locator('canvas'),
     ).toBeVisible();
     await expect(page.getByTestId('insights-chart-progress')).toHaveCount(0);
   });
@@ -182,5 +182,34 @@ test.describe('Game Insights — stats, board & AI', () => {
     // Seeded play makes no real AI calls, so the telemetry stays empty.
     await expect(page.getByTestId('insights-ai-empty')).toBeVisible();
     await expect(page.getByTestId('insights-ai-stats')).toHaveCount(0);
+  });
+
+  test('stays responsive on a long game — both canvas charts still render at scale', async ({
+    page,
+  }) => {
+    await page.goto('/?seed=42');
+    await waitForGame(page);
+
+    // Drive a long game: hundreds of draws at the scale that froze the old SVG
+    // charts. The ECharts canvas charts render the full-resolution series, so
+    // this must not crash or hang.
+    await page.evaluate(() => {
+      for (let i = 0; i < 240; i += 1) window.__solitaire!.draw();
+    });
+
+    const movesText = await page.getByTestId('insights-stat-moves').textContent();
+    const moves = Number.parseInt(movesText ?? '0', 10);
+    expect(moves).toBeGreaterThan(160);
+
+    // Progress chart draws to a <canvas>.
+    await expect(
+      page.getByTestId('insights-chart-progress').locator('canvas'),
+    ).toBeVisible();
+
+    // And so does the streamgraph.
+    await page.getByTestId('insights-tab-flow').click();
+    await expect(
+      page.getByTestId('insights-chart-flow').locator('canvas'),
+    ).toBeVisible();
   });
 });

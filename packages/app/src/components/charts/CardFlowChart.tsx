@@ -3,75 +3,100 @@
  *
  * A streamgraph of where all 52 cards live, move by move: they flow from the
  * stock, through the waste and tableau, and pool into the foundations. The
- * foundations band swells to fill the whole height at a win. Mesmerising to
- * watch while the AI auto-plays.
+ * foundations band swells to fill the whole height at a win.
+ *
+ * Canvas-rendered via ECharts ThemeRiver (a silhouette streamgraph). A live
+ * chart re-renders every move; an SVG chart lib reconciles a large DOM tree each
+ * time (~320ms at a long game's scale, which froze the UI during auto-play).
+ * Canvas redraws in one pass, so the full-resolution stream stays smooth.
  */
 
-import { ResponsiveStream } from '@nivo/stream';
+import { memo, useMemo } from 'react';
+// ESM core build, NOT `lib/core` (CJS) — see the note in ProgressChart: the CJS
+// interop crashes the prod bundle with React error #130.
+import ReactEChartsCore from 'echarts-for-react/esm/core';
+import * as echarts from 'echarts/core';
+import { ThemeRiverChart } from 'echarts/charts';
+import { SingleAxisComponent, LegendComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+import type { EChartsOption } from 'echarts';
 import type { ProgressSnapshot } from '../../hooks/useProgressHistory';
 import { ChartEmptyHint } from './ChartEmptyHint';
 
+echarts.use([ThemeRiverChart, SingleAxisComponent, LegendComponent, CanvasRenderer]);
+
+/** Stream bands, bottom-to-top, with their colours. */
+const ZONES = [
+  { key: 'Stock', color: '#94a3b8', value: (p: ProgressSnapshot) => p.stock },
+  { key: 'Waste', color: '#fbbf24', value: (p: ProgressSnapshot) => p.waste },
+  { key: 'Face-down', color: '#6366f1', value: (p: ProgressSnapshot) => p.faceDown },
+  { key: 'Face-up', color: '#38bdf8', value: (p: ProgressSnapshot) => p.faceUp },
+  { key: 'Foundations', color: '#34d399', value: (p: ProgressSnapshot) => p.foundations },
+] as const;
+
 interface CardFlowChartProps {
   history: ProgressSnapshot[];
+  /** Kept for API parity; live updates are instant (animation off). */
   animate: boolean;
 }
 
-/** Stream keys, stacked bottom-to-top, with their band colours. */
-const ZONES = [
-  { key: 'Stock', color: '#94a3b8' },
-  { key: 'Waste', color: '#fbbf24' },
-  { key: 'Face-down', color: '#6366f1' },
-  { key: 'Face-up', color: '#38bdf8' },
-  { key: 'Foundations', color: '#34d399' },
-] as const;
+const CardFlowChart: React.FC<CardFlowChartProps> = ({ history }) => {
+  const option = useMemo<EChartsOption>(() => {
+    // ThemeRiver wants flat [x, value, band] triples, grouped by band so the
+    // layer (and colour) order is deterministic.
+    const data: [number, number, string][] = [];
+    for (const z of ZONES) {
+      for (const p of history) data.push([p.move, z.value(p), z.key]);
+    }
+    const maxMove = history.length > 0 ? history[history.length - 1].move : 0;
 
-const KEYS = ZONES.map((z) => z.key);
-const COLORS = ZONES.map((z) => z.color);
+    return {
+      animation: false,
+      color: ZONES.map((z) => z.color),
+      legend: {
+        data: ZONES.map((z) => z.key),
+        bottom: 0,
+        itemWidth: 10,
+        itemHeight: 10,
+        textStyle: { color: '#6b7280', fontSize: 10 },
+      },
+      singleAxis: {
+        type: 'value',
+        min: 0,
+        max: maxMove || 'dataMax',
+        top: 8,
+        bottom: 30,
+        left: 8,
+        right: 8,
+        axisLabel: { show: false },
+        axisTick: { show: false },
+        axisLine: { show: false },
+        splitLine: { show: false },
+      },
+      series: [
+        {
+          type: 'themeRiver',
+          emphasis: { focus: 'series' },
+          label: { show: false },
+          itemStyle: { opacity: 0.9 },
+          data,
+        },
+      ],
+    };
+  }, [history]);
 
-const CardFlowChart: React.FC<CardFlowChartProps> = ({ history, animate }) => {
   if (history.length < 2) return <ChartEmptyHint />;
 
-  const data = history.map((p) => ({
-    Stock: p.stock,
-    Waste: p.waste,
-    'Face-down': p.faceDown,
-    'Face-up': p.faceUp,
-    Foundations: p.foundations,
-  }));
-
   return (
-    <ResponsiveStream
-      data={data}
-      keys={KEYS}
-      colors={COLORS}
-      margin={{ top: 12, right: 16, bottom: 16, left: 16 }}
-      offsetType="silhouette"
-      order="none"
-      curve="basis"
-      fillOpacity={0.88}
-      borderWidth={1}
-      borderColor={{ theme: 'background' }}
-      enableGridX={false}
-      enableGridY={false}
-      axisBottom={null}
-      axisLeft={null}
-      animate={animate}
-      motionConfig="gentle"
-      legends={[
-        {
-          anchor: 'bottom',
-          direction: 'row',
-          translateY: 14,
-          itemWidth: 78,
-          itemHeight: 14,
-          itemTextColor: '#6b7280',
-          symbolSize: 10,
-          symbolShape: 'circle',
-        },
-      ]}
-      theme={{ text: { fill: '#6b7280', fontSize: 10 } }}
+    <ReactEChartsCore
+      echarts={echarts}
+      option={option}
+      notMerge
+      lazyUpdate
+      style={{ height: '100%', width: '100%' }}
+      opts={{ renderer: 'canvas' }}
     />
   );
 };
 
-export default CardFlowChart;
+export default memo(CardFlowChart);
