@@ -35,6 +35,32 @@ export default defineConfig(({ mode }) => {
       __COMMIT_HASH__: JSON.stringify(getBuildInfo().commitHash),
       __DEV_GEMINI_KEY__: JSON.stringify(devGeminiKey),
     },
+    build: {
+      // The `echarts` chunk below is a deliberately large vendor bundle that is
+      // lazy-loaded only when the Insights charts open — it never touches the
+      // eager entry path — so its size shouldn't trip the default 500 kB warning.
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        output: {
+          // ECharts (canvas chart lib + its zrender dep) is the heavy,
+          // lazy-loaded chart vendor bundle shared by ProgressChart and
+          // CardFlowChart. Pin it to a stable `echarts` chunk name so the build
+          // output stays honest regardless of which tiny app module Rollup
+          // happens to pick as the shared chunk's namesake. Referenced only by
+          // the lazy charts, so it stays out of the eager entry bundle.
+          manualChunks(id: string) {
+            if (
+              id.includes('node_modules/echarts/') ||
+              id.includes('node_modules/echarts-for-react/') ||
+              id.includes('node_modules/zrender/')
+            ) {
+              return 'echarts';
+            }
+            return undefined;
+          },
+        },
+      },
+    },
     test: {
       globals: true,
       environment: 'jsdom',

@@ -11,7 +11,7 @@
  * collapsed; collapsing only hides the tabs + chart, never the live bar.
  */
 
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useDeferredValue, useMemo, useState } from 'react';
 import { useProgressHistory } from '../hooks/useProgressHistory';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 import { ChartEmptyHint } from './charts/ChartEmptyHint';
@@ -32,6 +32,13 @@ const INITIAL_FACE_DOWN = 21;
 const GameInsightsPanel: React.FC = () => {
   const history = useProgressHistory();
   const animate = useMemo(() => !checkReducedMotion(), []);
+
+  // The live bar + stat chips read `history` directly (cheap, instant). The
+  // heavy charts read a DEFERRED copy so a move's urgent work — the card moving
+  // and its flip animation — commits first and the chart re-renders after, at
+  // low priority. During a fast auto-play this also coalesces rapid moves into
+  // far fewer chart renders (React drops superseded deferred values).
+  const chartHistory = useDeferredValue(history);
 
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState<InsightsTab>('progress');
@@ -150,14 +157,14 @@ const GameInsightsPanel: React.FC = () => {
                   data-testid="insights-chart-progress"
                   className="h-full w-full"
                 >
-                  <ProgressChart history={history} animate={animate} />
+                  <ProgressChart history={chartHistory} animate={animate} />
                 </div>
               </Suspense>
             )}
             {tab === 'flow' && (
               <Suspense fallback={<ChartEmptyHint />}>
                 <div data-testid="insights-chart-flow" className="h-full w-full">
-                  <CardFlowChart history={history} animate={animate} />
+                  <CardFlowChart history={chartHistory} animate={animate} />
                 </div>
               </Suspense>
             )}
