@@ -19,8 +19,8 @@ import StatStrip from './insights/StatStrip';
 import MoveMix from './insights/MoveMix';
 import AIStatsTab from './insights/AIStatsTab';
 
-// Nivo (and its d3 deps) is heavy; load the charts as a separate chunk so the
-// always-visible bar + stat chips paint without waiting on it.
+// ECharts is heavy; load the charts as a separate chunk so the always-visible
+// bar + stat chips paint without waiting on it.
 const ProgressChart = lazy(() => import('./charts/ProgressChart'));
 const CardFlowChart = lazy(() => import('./charts/CardFlowChart'));
 
