@@ -139,31 +139,28 @@ test.describe('Game Insights — stats, board & AI', () => {
     );
   });
 
-  test('Board tab renders the foundation and tableau bars', async ({ page }) => {
+  test('Move Mix tab breaks moves down by type', async ({ page }) => {
     await page.goto('/?seed=42');
     await waitForGame(page);
 
-    await page.getByTestId('insights-tab-board').click();
-    await expect(page.getByTestId('insights-tab-board')).toHaveAttribute(
+    // Fresh deal → no moves yet → empty state.
+    await page.getByTestId('insights-tab-moves').click();
+    await expect(page.getByTestId('insights-tab-moves')).toHaveAttribute(
       'aria-selected',
       'true',
     );
+    await expect(page.getByTestId('insights-moves-empty')).toBeVisible();
 
-    await expect(page.getByTestId('insights-board-bars')).toBeVisible();
+    // A run of draws populates the Draws bucket; nothing reverses, so the
+    // back-and-forth callout stays clean.
+    await page.evaluate(() => {
+      for (let i = 0; i < 8; i += 1) window.__solitaire!.draw();
+    });
 
-    // Four foundations, all empty on a fresh deal.
-    for (const suit of ['spades', 'hearts', 'diamonds', 'clubs']) {
-      await expect(page.getByTestId(`insights-foundation-${suit}`)).toHaveAttribute(
-        'aria-label',
-        `${suit} foundation: 0 of 13`,
-      );
-    }
-
-    // Seven tableau columns; the last holds 7 cards with 6 face-down.
-    await expect(page.getByTestId('insights-column-0')).toBeVisible();
-    await expect(page.getByTestId('insights-column-6')).toHaveAttribute(
-      'aria-label',
-      'Column 7: 7 cards, 6 face-down',
+    await expect(page.getByTestId('insights-move-mix')).toBeVisible();
+    await expect(page.getByTestId('insights-move-draws')).toContainText('8');
+    await expect(page.getByTestId('insights-move-churn')).toContainText(
+      'no back-and-forth',
     );
   });
 

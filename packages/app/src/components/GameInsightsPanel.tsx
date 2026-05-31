@@ -16,7 +16,7 @@ import { useProgressHistory } from '../hooks/useProgressHistory';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 import { ChartEmptyHint } from './charts/ChartEmptyHint';
 import StatStrip from './insights/StatStrip';
-import BoardShapeBars from './insights/BoardShapeBars';
+import MoveMix from './insights/MoveMix';
 import AIStatsTab from './insights/AIStatsTab';
 
 // Nivo (and its d3 deps) is heavy; load the charts as a separate chunk so the
@@ -24,7 +24,7 @@ import AIStatsTab from './insights/AIStatsTab';
 const ProgressChart = lazy(() => import('./charts/ProgressChart'));
 const CardFlowChart = lazy(() => import('./charts/CardFlowChart'));
 
-type InsightsTab = 'progress' | 'flow' | 'board' | 'ai';
+type InsightsTab = 'progress' | 'flow' | 'moves' | 'ai';
 
 /** Total face-down cards in a fresh Klondike deal. */
 const INITIAL_FACE_DOWN = 21;
@@ -128,7 +128,7 @@ const GameInsightsPanel: React.FC = () => {
             {([
               { id: 'progress', label: 'Progress' },
               { id: 'flow', label: 'Card Flow' },
-              { id: 'board', label: 'Board' },
+              { id: 'moves', label: 'Move Mix' },
               { id: 'ai', label: 'AI' },
             ] as const).map(({ id, label }) => (
               <button
@@ -168,9 +168,9 @@ const GameInsightsPanel: React.FC = () => {
                 </div>
               </Suspense>
             )}
-            {tab === 'board' && (
-              <div data-testid="insights-chart-board" className="h-full w-full">
-                <BoardShapeBars />
+            {tab === 'moves' && (
+              <div data-testid="insights-chart-moves" className="h-full w-full">
+                <MoveMix />
               </div>
             )}
             {tab === 'ai' && (
