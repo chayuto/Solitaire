@@ -98,3 +98,89 @@ test.describe('Game Insights panel', () => {
     await expect(page.getByTestId('insights-tab-progress')).toBeVisible();
   });
 });
+
+/**
+ * The "stat nerd" additions: the always-visible box-score strip, the Board
+ * topology tab, and the AI telemetry tab.
+ */
+test.describe('Game Insights — stats, board & AI', () => {
+  test('shows the box-score stat strip on a fresh deal', async ({ page }) => {
+    await page.goto('/?seed=42');
+    await waitForGame(page);
+
+    await expect(page.getByTestId('insights-stat-strip')).toBeVisible();
+    await expect(page.getByTestId('insights-stat-time')).toContainText('0:');
+    await expect(page.getByTestId('insights-stat-pace')).toContainText('moves/min');
+    await expect(page.getByTestId('insights-stat-recycles')).toContainText(
+      '0 recycles',
+    );
+    // No moves yet → efficiency is a dash, and the stuck-o-meter reads "flowing".
+    await expect(page.getByTestId('insights-stat-efficiency')).toContainText('—');
+    await expect(page.getByTestId('insights-stat-stuck')).toContainText('flowing');
+  });
+
+  test('updates the stat strip after a run of unproductive draws', async ({
+    page,
+  }) => {
+    await page.goto('/?seed=42');
+    await waitForGame(page);
+
+    await page.evaluate(() => {
+      for (let i = 0; i < 12; i += 1) window.__solitaire!.draw();
+    });
+
+    // Drawing never reveals a tableau card or banks one → 0% efficient and the
+    // stuck-o-meter is climbing.
+    await expect(page.getByTestId('insights-stat-efficiency')).toContainText(
+      '0% efficient',
+    );
+    await expect(page.getByTestId('insights-stat-stuck')).toContainText(
+      'since gain',
+    );
+  });
+
+  test('Board tab renders the foundation and tableau bars', async ({ page }) => {
+    await page.goto('/?seed=42');
+    await waitForGame(page);
+
+    await page.getByTestId('insights-tab-board').click();
+    await expect(page.getByTestId('insights-tab-board')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await expect(page.getByTestId('insights-board-bars')).toBeVisible();
+
+    // Four foundations, all empty on a fresh deal.
+    for (const suit of ['spades', 'hearts', 'diamonds', 'clubs']) {
+      await expect(page.getByTestId(`insights-foundation-${suit}`)).toHaveAttribute(
+        'aria-label',
+        `${suit} foundation: 0 of 13`,
+      );
+    }
+
+    // Seven tableau columns; the last holds 7 cards with 6 face-down.
+    await expect(page.getByTestId('insights-column-0')).toBeVisible();
+    await expect(page.getByTestId('insights-column-6')).toHaveAttribute(
+      'aria-label',
+      'Column 7: 7 cards, 6 face-down',
+    );
+  });
+
+  test('AI tab shows the empty state when no model has played', async ({
+    page,
+  }) => {
+    await page.goto('/?seed=42');
+    await waitForGame(page);
+
+    await page.getByTestId('insights-tab-ai').click();
+    await expect(page.getByTestId('insights-tab-ai')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    // Seeded play makes no real AI calls, so the telemetry stays empty.
+    await expect(page.getByTestId('insights-ai-empty')).toBeVisible();
+    await expect(page.getByTestId('insights-ai-stats')).toHaveCount(0);
+  });
+});

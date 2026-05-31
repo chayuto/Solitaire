@@ -15,13 +15,16 @@ import { lazy, Suspense, useMemo, useState } from 'react';
 import { useProgressHistory } from '../hooks/useProgressHistory';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 import { ChartEmptyHint } from './charts/ChartEmptyHint';
+import StatStrip from './insights/StatStrip';
+import BoardShapeBars from './insights/BoardShapeBars';
+import AIStatsTab from './insights/AIStatsTab';
 
 // Nivo (and its d3 deps) is heavy; load the charts as a separate chunk so the
 // always-visible bar + stat chips paint without waiting on it.
 const ProgressChart = lazy(() => import('./charts/ProgressChart'));
 const CardFlowChart = lazy(() => import('./charts/CardFlowChart'));
 
-type InsightsTab = 'progress' | 'flow';
+type InsightsTab = 'progress' | 'flow' | 'board' | 'ai';
 
 /** Total face-down cards in a fresh Klondike deal. */
 const INITIAL_FACE_DOWN = 21;
@@ -104,6 +107,9 @@ const GameInsightsPanel: React.FC = () => {
         </span>
       </div>
 
+      {/* Box-score stat strip (elapsed, pace, recycles, efficiency, stuck) */}
+      <StatStrip history={history} />
+
       {!collapsed && (
         <>
           {/* Tab switcher (segmented control) */}
@@ -115,6 +121,8 @@ const GameInsightsPanel: React.FC = () => {
             {([
               { id: 'progress', label: 'Progress' },
               { id: 'flow', label: 'Card Flow' },
+              { id: 'board', label: 'Board' },
+              { id: 'ai', label: 'AI' },
             ] as const).map(({ id, label }) => (
               <button
                 key={id}
@@ -134,22 +142,35 @@ const GameInsightsPanel: React.FC = () => {
             ))}
           </div>
 
-          {/* Active chart */}
+          {/* Active chart / panel */}
           <div className="mt-2 h-52 w-full">
-            <Suspense fallback={<ChartEmptyHint />}>
-              {tab === 'progress' ? (
+            {tab === 'progress' && (
+              <Suspense fallback={<ChartEmptyHint />}>
                 <div
                   data-testid="insights-chart-progress"
                   className="h-full w-full"
                 >
                   <ProgressChart history={history} animate={animate} />
                 </div>
-              ) : (
+              </Suspense>
+            )}
+            {tab === 'flow' && (
+              <Suspense fallback={<ChartEmptyHint />}>
                 <div data-testid="insights-chart-flow" className="h-full w-full">
                   <CardFlowChart history={history} animate={animate} />
                 </div>
-              )}
-            </Suspense>
+              </Suspense>
+            )}
+            {tab === 'board' && (
+              <div data-testid="insights-chart-board" className="h-full w-full">
+                <BoardShapeBars />
+              </div>
+            )}
+            {tab === 'ai' && (
+              <div data-testid="insights-chart-ai" className="h-full w-full">
+                <AIStatsTab />
+              </div>
+            )}
           </div>
         </>
       )}
