@@ -7,7 +7,7 @@
  * progress series plus two store fields — no new state.
  *
  * The 1-second clock lives here, local to this subtree, so the ticking elapsed
- * time never re-renders the (expensive) Nivo charts above it.
+ * time never re-renders the (expensive) ECharts charts above it.
  */
 
 import { useEffect, useState } from 'react';

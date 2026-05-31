@@ -6,6 +6,8 @@ consumes them.
 
 Live: https://chayuto.github.io/Solitaire/
 
+![Solitaire gameplay — board, AI activity log, and controls](docs/images/gameplay.png)
+
 ## Features
 
 - Classic Klondike Solitaire with click-to-move and drag-and-drop
@@ -13,7 +15,9 @@ Live: https://chayuto.github.io/Solitaire/
 - Move history, replay, save and load, and game state export
 - Heuristic auto-play and end-game auto-complete
 - AI Move Advisor: ask an LLM for the next best move, or let it auto-play the
-  whole game
+  whole game, with each decision explained in the activity log
+- Live Game Insights dashboard — progress, card flow, move mix, and AI telemetry
+  that update on every move
 
 ## Monorepo layout
 
@@ -48,6 +52,33 @@ pnpm run dev          # start the app on http://localhost:5173
 | `pnpm run test:libs` | Run library unit tests |
 | `pnpm run test:e2e` | Run end-to-end tests (Playwright) |
 | `pnpm run typecheck` | Type-check every package |
+
+## Game Insights
+
+A live dashboard that turns each move into a readable picture of the game — the
+"fish bowl" effect. It updates on every move, so it is especially fun to watch
+while the AI auto-plays.
+
+![Game Insights — live progress bar, box-score chips, and the Card Flow streamgraph](docs/images/game-insights.png)
+
+- **Always-visible header** — a live progress bar plus chips for moves played,
+  cards sent home (`x/52`), and face-down cards revealed (`x/21`).
+- **Box-score strip** — elapsed time, move pace, stock recycles, move efficiency
+  (the share of moves that revealed a card or banked one home), and a
+  "stuck-o-meter" counting moves since the last gain.
+- **Progress tab** — move number versus progress %, with the blended progress
+  score and the foundations-home percentage as gradient area lines.
+- **Card Flow tab** — a streamgraph of all 52 cards flowing from the stock
+  through the waste and tableau and pooling into the foundations.
+- **Move Mix tab** — how moves were spent (draws, reveals, foundation banks,
+  tableau shuffles, waste plays) plus a "back-and-forth" callout for redundant
+  tableau round-trips, broken out by how many the AI made.
+- **AI tab** — live model telemetry: think time, token burn, self-rated
+  confidence, and the success / error / resigned tally.
+
+Charts are canvas-rendered with [ECharts](https://echarts.apache.org/) and read
+a deferred copy of the history, so the dashboard stays smooth even during a fast
+AI auto-play.
 
 ## AI Move Advisor
 

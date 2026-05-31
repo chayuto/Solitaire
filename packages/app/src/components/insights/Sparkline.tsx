@@ -1,9 +1,10 @@
 /**
  * Sparkline — a tiny inline-SVG trend line for the AI stats tab.
  *
- * Deliberately *not* a Nivo chart: these are thumbnail-sized trends (latency,
- * confidence) where a 200 KB charting dep would be absurd. The two hero charts
- * (Progress, Card Flow) keep using Nivo; this stays a few lines of SVG.
+ * Deliberately *not* an ECharts chart: these are thumbnail-sized trends
+ * (latency, confidence) where pulling in the charting dep would be absurd. The
+ * two hero charts (Progress, Card Flow) use ECharts; this stays a few lines of
+ * SVG.
  */
 
 interface SparklineProps {
