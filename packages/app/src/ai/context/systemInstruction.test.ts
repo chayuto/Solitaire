@@ -67,7 +67,7 @@ describe('hashSystemInstruction', () => {
 describe('prompt template identity (tripwire)', () => {
   it('hash with strategy guidance is pinned', async () => {
     const hash = await hashSystemInstruction(buildSystemInstruction(configWith(true)));
-    expect(hash).toBe('7d9ecda4cb415ec2335b3e970421d297730773f541b523666332dd024e9772bb');
+    expect(hash).toBe('818edeb2c1dbfd00c71b9311d34ec5a4c5b9454cbe5d9a26f33897b18328bec4');
   });
 
   it('hash without strategy guidance is pinned', async () => {
@@ -86,6 +86,6 @@ describe('prompt template identity (tripwire)', () => {
     // restructure (`hybrid-v2.0`). The exact value is what the dataset side
     // partitions on, so it is a tripwire — bump deliberately.
     expect(PROMPT_TEMPLATE_VERSION).toMatch(/^hybrid-v\d+\.\d+$/);
-    expect(PROMPT_TEMPLATE_VERSION).toBe('hybrid-v1.3');
+    expect(PROMPT_TEMPLATE_VERSION).toBe('hybrid-v1.4');
   });
 });
