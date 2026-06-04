@@ -293,6 +293,6 @@ describe('renderHybridContext', () => {
     // two fields on a harvested interaction never disagree. See the
     // promptlayoutversion-lockstep follow-up note.
     expect(PROMPT_LAYOUT_VERSION).toMatch(/^hybrid-v\d+\.\d+$/);
-    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.3');
+    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.4');
   });
 });
