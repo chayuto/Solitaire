@@ -37,7 +37,7 @@ import type { AIMoveContext } from '../types';
  * computing `promptTemplateHash` to identify the variant. The hash stays
  * authoritative for byte-level identity.
  */
-export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.4';
+export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.5';
 
 /** Pad a column name's value column to keep `[index]` + type aligned. */
 const TYPE_COL_WIDTH = 24;
@@ -137,13 +137,18 @@ export function renderHybridContext(context: AIMoveContext): string {
   }
   lines.push('');
 
-  // PROGRESS — game metrics in a single line.
+  // PROGRESS — game metrics in a single line. The two "turns since" counts
+  // (hybrid-v1.5) are facts the 10-move RECENT MOVES window hides: a long dry
+  // spell of draws is otherwise invisible. Rendered as bare counts, with no
+  // threshold and no action attached — the decision stays with the model.
   const metrics = context.metrics;
   if (metrics) {
     lines.push(
       `PROGRESS: foundation=${metrics.foundationCards}/52, ` +
         `face-down remaining=${metrics.faceDownTotal}, ` +
-        `completion=${metrics.completionProgress}%`,
+        `completion=${metrics.completionProgress}%, ` +
+        `turns since foundation grew: ${metrics.turnsSinceFoundationGrew}, ` +
+        `turns since a card was revealed: ${metrics.turnsSinceCardRevealed}`,
     );
     lines.push('');
   }

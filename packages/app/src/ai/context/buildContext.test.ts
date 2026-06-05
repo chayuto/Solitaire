@@ -93,6 +93,8 @@ describe('buildContext', () => {
     // foundationCards/faceDownTotal/progressScore are raw progress components
     // (this fixture has empty tableau columns => no face-down cards, so all 21
     // deal cards read as "revealed" and progressScore is 0.35 * 100 = 35).
+    // Two draw moves, no foundation move and no reveal yet, so both stall
+    // counts equal the number of player moves so far (2).
     expect(ctx.metrics).toEqual({
       completionProgress: 25,
       perceivedDifficulty: 0,
@@ -100,6 +102,8 @@ describe('buildContext', () => {
       foundationCards: 0,
       faceDownTotal: 0,
       progressScore: 35,
+      turnsSinceFoundationGrew: 2,
+      turnsSinceCardRevealed: 2,
     });
     expect(ctx.recentMoves).toEqual(['draw 4C', 'draw 7S']);
   });

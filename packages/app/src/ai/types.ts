@@ -149,6 +149,17 @@ export interface AIMoveContext {
     faceDownTotal: number;
     /** Blended progress score (0–100): weighted foundations + revealed cards. */
     progressScore: number;
+    /**
+     * Player moves since a foundation last grew (same unit as RECENT MOVES).
+     * A true count of past events the 10-move window hides; rendered with no
+     * threshold and no action attached. hybrid-v1.5 onwards.
+     */
+    turnsSinceFoundationGrew: number;
+    /**
+     * Player moves since a face-down tableau card was last revealed (same unit
+     * as RECENT MOVES). hybrid-v1.5 onwards.
+     */
+    turnsSinceCardRevealed: number;
   };
   /** Recent moves, most-recent last (when `includeMoveHistory`). */
   recentMoves?: string[];
