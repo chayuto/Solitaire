@@ -46,7 +46,6 @@ export const STRATEGY_GUIDANCE = `STRATEGY GUIDANCE (heuristics, not absolute ru
 - Be cautious sending higher cards to the foundations too early — they are sometimes needed to receive tableau cards.
 - Do not empty a column unless you have a King ready to occupy it.
 - Prefer a move tagged "(reveals a hidden card)" over a tableau move that is not tagged and only shuffles cards between columns with no gain.
-- Drawing from the stock is the correct action when no legal move is tagged "(reveals a hidden card)" and no legal move advances a foundation.
 - Do not return a card to a tableau column it occupied in any move shown in RECENT MOVES.`;
 
 /** Instructions describing the required JSON output. Always included. */

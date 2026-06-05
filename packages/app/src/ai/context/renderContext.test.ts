@@ -198,10 +198,15 @@ describe('renderHybridContext', () => {
           foundationCards: 6,
           faceDownTotal: 12,
           progressScore: 35,
+          turnsSinceFoundationGrew: 63,
+          turnsSinceCardRevealed: 47,
         },
       }),
     );
-    expect(out).toContain('PROGRESS: foundation=6/52, face-down remaining=12, completion=12%');
+    expect(out).toContain(
+      'PROGRESS: foundation=6/52, face-down remaining=12, completion=12%, ' +
+        'turns since foundation grew: 63, turns since a card was revealed: 47',
+    );
   });
 
   it('does NOT render PRIOR REASONING even when reasoningTrail is supplied (hybrid-v1.3)', () => {
@@ -281,6 +286,8 @@ describe('renderHybridContext', () => {
         foundationCards: 6,
         faceDownTotal: 12,
         progressScore: 35,
+        turnsSinceFoundationGrew: 63,
+        turnsSinceCardRevealed: 47,
       },
     });
     const hybridChars = renderHybridContext(ctx).length;
@@ -293,6 +300,6 @@ describe('renderHybridContext', () => {
     // two fields on a harvested interaction never disagree. See the
     // promptlayoutversion-lockstep follow-up note.
     expect(PROMPT_LAYOUT_VERSION).toMatch(/^hybrid-v\d+\.\d+$/);
-    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.4');
+    expect(PROMPT_LAYOUT_VERSION).toBe('hybrid-v1.5');
   });
 });

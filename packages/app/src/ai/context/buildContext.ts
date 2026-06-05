@@ -11,7 +11,7 @@
 
 import type { MoveCommand } from '@chayuto/solitaire-core';
 import { getPerceivedDifficulty } from '@chayuto/solitaire-core';
-import type { GameState, Suit } from '../../types';
+import type { GameState, Move, Suit } from '../../types';
 import type { AIConfig, AIDecisionRecord, AILegalMove, AIMoveContext } from '../types';
 import { uiToCore } from '../../adapters/coreAdapter';
 import { cardShort } from '../cardNotation';
@@ -30,6 +30,44 @@ const NON_PLAYER_MOVE_TYPES = new Set([
   'autoplay_deadend',
   'autoplay_loop_detected',
 ]);
+
+/** Player-move types that advance a foundation. */
+const FOUNDATION_MOVE_TYPES = new Set(['tableau_to_foundation', 'discard_to_foundation']);
+
+/**
+ * Count, in player-move units (the same unit RECENT MOVES uses), how long the
+ * game has gone without a foundation advancing and without a face-down card
+ * being revealed.
+ *
+ * These are facts — counts of true past events — not directives: the RECENT
+ * MOVES window shows only the last N moves, so a long dry spell (e.g. 40
+ * consecutive draws) is invisible to the model; these counts restore exactly
+ * what the window hides. They carry no threshold and no recommended action
+ * (hybrid-v1.5; see the v1.5 harvester ask). A reveal is a `flip_card`
+ * bookkeeping entry, so we stop at it but count only the player moves since.
+ */
+function computeStallCounts(moveHistory: readonly Move[]): {
+  turnsSinceFoundationGrew: number;
+  turnsSinceCardRevealed: number;
+} {
+  let turnsSinceFoundationGrew = 0;
+  for (let i = moveHistory.length - 1; i >= 0; i--) {
+    const type = moveHistory[i].type;
+    if (NON_PLAYER_MOVE_TYPES.has(type)) continue;
+    if (FOUNDATION_MOVE_TYPES.has(type)) break;
+    turnsSinceFoundationGrew += 1;
+  }
+
+  let turnsSinceCardRevealed = 0;
+  for (let i = moveHistory.length - 1; i >= 0; i--) {
+    const type = moveHistory[i].type;
+    if (type === 'flip_card') break;
+    if (NON_PLAYER_MOVE_TYPES.has(type)) continue;
+    turnsSinceCardRevealed += 1;
+  }
+
+  return { turnsSinceFoundationGrew, turnsSinceCardRevealed };
+}
 
 /**
  * Match a {@link MoveCommand} to a scored {@link PossibleMove} from the
@@ -218,6 +256,7 @@ export function buildContext(
     // repeated every turn carries no per-turn signal. `moveCount` is omitted
     // here: it duplicates the interaction log's `turnIndex` exactly.
     const progress = computeProgressComponents(state);
+    const stall = computeStallCounts(state.moveHistory);
     context.metrics = {
       completionProgress: Math.round(state.completionProgress),
       perceivedDifficulty: getPerceivedDifficulty(uiToCore(state)),
@@ -225,6 +264,8 @@ export function buildContext(
       foundationCards: progress.foundationCards,
       faceDownTotal: progress.faceDownTotal,
       progressScore: progress.progressScore,
+      turnsSinceFoundationGrew: stall.turnsSinceFoundationGrew,
+      turnsSinceCardRevealed: stall.turnsSinceCardRevealed,
     };
   }
 
