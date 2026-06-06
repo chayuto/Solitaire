@@ -13,8 +13,9 @@ export interface Card {
   id: string;
 }
 
-export type MoveType = 
+export type MoveType =
   | 'draw_card'
+  | 'recycle_stock'
   | 'tableau_to_tableau'
   | 'tableau_to_foundation'
   | 'discard_to_tableau'

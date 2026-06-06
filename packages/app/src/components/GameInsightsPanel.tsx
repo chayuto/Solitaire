@@ -41,7 +41,7 @@ const GameInsightsPanel: React.FC = () => {
   const chartHistory = useDeferredValue(history);
 
   const [collapsed, setCollapsed] = useState(false);
-  const [tab, setTab] = useState<InsightsTab>('progress');
+  const [tab, setTab] = useState<InsightsTab>('flow');
 
   const latest = history[history.length - 1];
   const progress = latest?.progress ?? 0;
@@ -126,8 +126,8 @@ const GameInsightsPanel: React.FC = () => {
             className="mt-4 inline-flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold"
           >
             {([
-              { id: 'progress', label: 'Progress' },
               { id: 'flow', label: 'Card Flow' },
+              { id: 'progress', label: 'Progress' },
               { id: 'moves', label: 'Move Mix' },
               { id: 'ai', label: 'AI' },
             ] as const).map(({ id, label }) => (

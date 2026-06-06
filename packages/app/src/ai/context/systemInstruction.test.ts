@@ -67,12 +67,12 @@ describe('hashSystemInstruction', () => {
 describe('prompt template identity (tripwire)', () => {
   it('hash with strategy guidance is pinned', async () => {
     const hash = await hashSystemInstruction(buildSystemInstruction(configWith(true)));
-    expect(hash).toBe('8a46ca22bc36c14eed0cdb5c3090f17c09ed8adc91cf0c3d13dfd8ac2e8fe337');
+    expect(hash).toBe('7d2c6cada62d3faae6c830941fcae78dfa6435bcda44b12838890c69615a987a');
   });
 
   it('hash without strategy guidance is pinned', async () => {
     const hash = await hashSystemInstruction(buildSystemInstruction(configWith(false)));
-    expect(hash).toBe('9ac8a0443d2735a37527433844258889c895dd918a54881c8399be577bd45ff1');
+    expect(hash).toBe('e9fe1aa25b2bc868d4407dd4417428b6a360fd562d498a5b85bb90b056f61470');
   });
 
   it('PROMPT_TEMPLATE_FINALISED_AT is a valid ISO 8601 UTC instant', () => {
@@ -86,6 +86,6 @@ describe('prompt template identity (tripwire)', () => {
     // restructure (`hybrid-v2.0`). The exact value is what the dataset side
     // partitions on, so it is a tripwire — bump deliberately.
     expect(PROMPT_TEMPLATE_VERSION).toMatch(/^hybrid-v\d+\.\d+$/);
-    expect(PROMPT_TEMPLATE_VERSION).toBe('hybrid-v1.5');
+    expect(PROMPT_TEMPLATE_VERSION).toBe('hybrid-v1.6');
   });
 });

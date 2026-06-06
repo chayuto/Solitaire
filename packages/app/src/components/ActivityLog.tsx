@@ -107,6 +107,9 @@ const ActivityLog: React.FC = () => {
       case 'draw_card':
         return `${time} - Drew ${cardStr} from draw pile`;
 
+      case 'recycle_stock':
+        return `${time} - 🔁 Recycled the waste pile back into the stock`;
+
       case 'tableau_to_tableau':
         return `${time} - Moved ${cardStr} from column ${(move.from?.columnIndex ?? 0) + 1} to column ${(move.to?.columnIndex ?? 0) + 1}`;
 

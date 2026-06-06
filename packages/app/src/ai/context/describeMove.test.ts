@@ -132,6 +132,15 @@ describe('summarizeHistoryMove', () => {
     expect(summarizeHistoryMove(move)).toBe('draw TD');
   });
 
+  it('summarizes a recycle as a plain "recycle stock" entry', () => {
+    const move: Move = {
+      type: 'recycle_stock',
+      timestamp: 0,
+      card: card('hearts', 'A'),
+    };
+    expect(summarizeHistoryMove(move)).toBe('recycle stock');
+  });
+
   it('summarizes a tableau-to-foundation move', () => {
     const move: Move = {
       type: 'tableau_to_foundation',

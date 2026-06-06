@@ -37,7 +37,7 @@ import type { AIMoveContext } from '../types';
  * computing `promptTemplateHash` to identify the variant. The hash stays
  * authoritative for byte-level identity.
  */
-export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.5';
+export const PROMPT_LAYOUT_VERSION = 'hybrid-v1.6';
 
 /** Pad a column name's value column to keep `[index]` + type aligned. */
 const TYPE_COL_WIDTH = 24;

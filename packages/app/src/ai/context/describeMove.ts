@@ -84,6 +84,8 @@ export function summarizeHistoryMove(move: Move): string {
   switch (move.type) {
     case 'draw_card':
       return `draw ${card}`;
+    case 'recycle_stock':
+      return 'recycle stock';
     case 'tableau_to_tableau':
       return `move ${card} col ${(move.from?.columnIndex ?? 0) + 1} -> col ${(move.to?.columnIndex ?? 0) + 1}`;
     case 'tableau_to_foundation':
