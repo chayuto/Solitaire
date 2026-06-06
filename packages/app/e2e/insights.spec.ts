@@ -43,12 +43,13 @@ test.describe('Game Insights panel', () => {
 
     // Dismiss the win modal (keeps game state) and confirm the chart drew.
     await page.getByTestId('win-modal-close-btn').click();
+    await page.getByTestId('insights-tab-progress').click();
     await expect(
       page.getByTestId('insights-chart-progress').locator('canvas'),
     ).toBeVisible();
   });
 
-  test('switches between the Progress and Card Flow tabs', async ({ page }) => {
+  test('switches between the Card Flow and Progress tabs', async ({ page }) => {
     await page.goto('/?seed=42');
     await waitForGame(page);
 
@@ -57,17 +58,7 @@ test.describe('Game Insights panel', () => {
       for (let i = 0; i < 20; i += 1) window.__solitaire!.draw();
     });
 
-    // Progress is the default tab.
-    await expect(page.getByTestId('insights-tab-progress')).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    await expect(
-      page.getByTestId('insights-chart-progress').locator('canvas'),
-    ).toBeVisible();
-
-    // Switch to Card Flow.
-    await page.getByTestId('insights-tab-flow').click();
+    // Card Flow is the default tab.
     await expect(page.getByTestId('insights-tab-flow')).toHaveAttribute(
       'aria-selected',
       'true',
@@ -75,7 +66,17 @@ test.describe('Game Insights panel', () => {
     await expect(
       page.getByTestId('insights-chart-flow').locator('canvas'),
     ).toBeVisible();
-    await expect(page.getByTestId('insights-chart-progress')).toHaveCount(0);
+
+    // Switch to Progress.
+    await page.getByTestId('insights-tab-progress').click();
+    await expect(page.getByTestId('insights-tab-progress')).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(
+      page.getByTestId('insights-chart-progress').locator('canvas'),
+    ).toBeVisible();
+    await expect(page.getByTestId('insights-chart-flow')).toHaveCount(0);
   });
 
   test('collapsing hides the charts but keeps the live bar', async ({
@@ -198,15 +199,15 @@ test.describe('Game Insights — stats, board & AI', () => {
     const moves = Number.parseInt(movesText ?? '0', 10);
     expect(moves).toBeGreaterThan(160);
 
-    // Progress chart draws to a <canvas>.
-    await expect(
-      page.getByTestId('insights-chart-progress').locator('canvas'),
-    ).toBeVisible();
-
-    // And so does the streamgraph.
-    await page.getByTestId('insights-tab-flow').click();
+    // The streamgraph (default tab) draws to a <canvas>.
     await expect(
       page.getByTestId('insights-chart-flow').locator('canvas'),
+    ).toBeVisible();
+
+    // And so does the progress chart.
+    await page.getByTestId('insights-tab-progress').click();
+    await expect(
+      page.getByTestId('insights-chart-progress').locator('canvas'),
     ).toBeVisible();
   });
 });

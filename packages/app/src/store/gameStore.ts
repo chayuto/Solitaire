@@ -720,10 +720,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...card,
         faceUp: false,
       }));
+      // Record the recycle as an action in move history so RECENT MOVES (and
+      // the activity log) read `draw / recycle stock / draw` instead of two
+      // consecutive draws with the recycle invisible between them. Recycle has
+      // no single card, so it carries a marker card like the autoplay events.
+      // Only logged when there is a waste pile to recycle (a no-op recycle on
+      // a fully empty stock+waste records nothing).
+      const newMoveHistory =
+        state.discardPile.length > 0
+          ? [
+              ...state.moveHistory,
+              {
+                type: 'recycle_stock',
+                timestamp: Date.now(),
+                card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'recycle-marker' },
+              } as Move,
+            ]
+          : state.moveHistory;
       set({
         drawPile: newDrawPile,
         discardPile: [],
         recycleCount: (state.recycleCount ?? 0) + 1,
+        moveHistory: newMoveHistory,
       });
     } else {
       // Draw a card from draw pile to discard pile
@@ -1216,7 +1234,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
           break;
         }
-        
+
+        case 'recycle_stock': {
+          // Explicit recycle: reset the stock from the waste, matching live
+          // play. Older histories (no recycle_stock entry) still recycle via
+          // the draw_card branch above; new histories recycle here, then the
+          // following draw_card sees a full stock and just draws.
+          if (newState.discardPile && newState.discardPile.length > 0) {
+            newState.drawPile = [...newState.discardPile].reverse().map(card => ({
+              ...card,
+              faceUp: false,
+            }));
+            newState.discardPile = [];
+            newState.recycleCount = (newState.recycleCount ?? 0) + 1;
+          }
+          break;
+        }
+
         case 'tableau_to_tableau': {
           if (move.from?.columnIndex !== undefined && move.to?.columnIndex !== undefined && newState.tableau) {
             const sourceColumn = [...newState.tableau[move.from.columnIndex]];

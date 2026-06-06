@@ -17,6 +17,12 @@ const card = (suit: Suit, rank: Rank, faceUp = true): Card => ({
 
 const drawMove = (c: Card): Move => ({ type: 'draw_card', timestamp: 0, card: c });
 
+const recycleMove = (): Move => ({
+  type: 'recycle_stock',
+  timestamp: 0,
+  card: card('hearts', 'A'),
+});
+
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
     drawPile: [],
@@ -106,6 +112,17 @@ describe('buildContext', () => {
       turnsSinceCardRevealed: 2,
     });
     expect(ctx.recentMoves).toEqual(['draw 4C', 'draw 7S']);
+  });
+
+  it('records a recycle between the surrounding draws in RECENT MOVES', () => {
+    // Without the recycle entry this would read as two identical draws with the
+    // recycle invisible between them; the marker makes the history honest.
+    const sevenD = card('diamonds', '7');
+    const state = makeState({
+      moveHistory: [drawMove(sevenD), recycleMove(), drawMove(sevenD)],
+    });
+    const ctx = buildContext(state, LEGAL_MOVES, applyPreset(DEFAULT_AI_CONFIG, 'standard'));
+    expect(ctx.recentMoves).toEqual(['draw 7D', 'recycle stock', 'draw 7D']);
   });
 
   it('reports only seen stock cards (player-fair) when seeHiddenCards is off', () => {

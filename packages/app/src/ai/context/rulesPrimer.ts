@@ -27,11 +27,12 @@ NOTATION: rank+suit (A 2-9 T J Q K; H D C S). ?? = face-down. In each column the
 
 INTERPRETING THE DRAW TIMELINE (when present in the game state):
 The DRAW TIMELINE block renders the stock and waste piles as one linear sequence
-of card identifiers. The current waste top is wrapped in {curly braces}. Tokens
-LEFT of {NOW} are cards that will be drawn next in this stock cycle: the
-immediate next draw is the token directly left of {NOW}, the draw after that is
-the token two positions left, and so on. Tokens RIGHT of {NOW} are cards drawn
-earlier in this cycle, still sitting in the waste pile beneath the current top.
+of card identifiers. The current waste top is wrapped in {curly braces}; it marks
+the current position in the cycle. Tokens to its LEFT are cards that will be drawn
+next in this stock cycle: the immediate next draw is the token directly to its
+left, the draw after that is the token two positions to its left, and so on.
+Tokens to its RIGHT are cards drawn earlier in this cycle, still sitting in the
+waste pile beneath the current top.
 The token ??? marks a card whose identity has not yet been observed. ??? can
 only appear during the first stock cycle. After the first recycle every position
 is a known identity, because every stock card has passed through the waste at
