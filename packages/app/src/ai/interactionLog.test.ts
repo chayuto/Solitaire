@@ -12,6 +12,7 @@ import {
   type AIInteraction,
 } from './interactionLog';
 import { AI_INTERACTION_LOG_LIMIT } from './constants';
+import type { InitialBoardSetup } from '../types';
 
 const base: AIInteraction = {
   id: 'id-1',
@@ -173,7 +174,7 @@ describe('interactionLog', () => {
 
   it('exportAIInteractions embeds the initial deal so the deck is recoverable for losses', () => {
     recordAIInteraction(base);
-    const initialBoardSetup = {
+    const initialBoardSetup: InitialBoardSetup = {
       drawPile: [{ suit: 'clubs', rank: '9', faceUp: false, id: 'clubs-9' }],
       discardPile: [],
       foundations: { hearts: [], diamonds: [], clubs: [], spades: [] },
