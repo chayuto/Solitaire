@@ -60,6 +60,12 @@ export interface AIInteraction {
   inferenceParams?: {
     /** Sampling temperature passed to the provider (0 = greedy). */
     temperature?: number;
+    /**
+     * Thinking-token budget sent in `generationConfig.thinkingConfig`, when
+     * one applies (gemini-* models). Omitted for models that get no explicit
+     * budget (e.g. the Gemma thinking models).
+     */
+    thinkingBudget?: number;
   };
   /**
    * Identifier for the per-turn-prompt layout that produced this row. Mirrors
