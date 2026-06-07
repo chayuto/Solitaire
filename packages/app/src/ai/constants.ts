@@ -136,5 +136,18 @@ export const AI_RETRY_DELAY_CAP = 120_000;
 /** Sampling temperature for move suggestions — low, for consistent advice. */
 export const AI_TEMPERATURE = 0.3;
 
+/**
+ * Max thinking-token budget for the `gemini-3.1-flash-lite` model.
+ *
+ * Flash-lite ships with thinking essentially off by default, which made its
+ * move quality poor. We push it to the model's documented ceiling so it
+ * reasons as hard as possible before answering — trading latency for quality.
+ *
+ * Only applies to `gemini-*` models: the Gemma thinking models reason
+ * internally regardless and do not accept a `thinkingConfig` budget the same
+ * way, so we never send one to them (see {@link buildThinkingConfig}).
+ */
+export const GEMINI_FLASH_THINKING_BUDGET = 24_576;
+
 /** Base URL for the Google Generative Language REST API. */
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';

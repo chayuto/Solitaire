@@ -22,6 +22,7 @@ import {
   AI_REQUEST_TIMEOUT_MS,
   AI_TEMPERATURE,
   GEMINI_API_BASE,
+  GEMINI_FLASH_THINKING_BUDGET,
 } from '../constants';
 import {
   PROMPT_LAYOUT_VERSION,
@@ -36,6 +37,28 @@ import { parseDecision } from '../decision/schema';
 import { recordAIInteraction } from '../interactionLog';
 import { uuidv7 } from '../uuid';
 import { AIError, type AIMoveDecision, type AIProvider, type AIRequest } from '../types';
+
+/** A `thinkingConfig` block for the Gemini `generationConfig`. */
+interface ThinkingConfig {
+  thinkingBudget: number;
+  includeThoughts: boolean;
+}
+
+/**
+ * Per-model thinking configuration, or `undefined` when none should be sent.
+ *
+ * Only the `gemini-*` models accept a `thinkingConfig` budget. Flash-lite
+ * defaults to almost no thinking, which gave poor move quality, so we push it
+ * to {@link GEMINI_FLASH_THINKING_BUDGET} (the model's ceiling) and ask for the
+ * thought parts back so the reasoning trail is harvested into the ai-log.
+ *
+ * The Gemma thinking models reason internally regardless and reject an explicit
+ * budget, so they get no `thinkingConfig` at all.
+ */
+function buildThinkingConfig(model: string): ThinkingConfig | undefined {
+  if (!model.startsWith('gemini-')) return undefined;
+  return { thinkingBudget: GEMINI_FLASH_THINKING_BUDGET, includeThoughts: true };
+}
 
 /** Shape of a single content part in a Gemini API response. */
 interface GeminiPart {
@@ -193,6 +216,11 @@ export const geminiProvider: AIProvider = {
     // call, before any network IO, so both the success and error branches can
     // stamp it without recomputing. SHA-256 on ~3 KB is sub-ms.
     const promptTemplateHash = await hashSystemInstruction(request.systemInstruction);
+    // Thinking budget is per-model: only gemini-* models accept it, and
+    // flash-lite needs it pushed to the ceiling for usable move quality.
+    // Declared outside the try so both the success and error log branches can
+    // stamp `thinkingBudget` into inferenceParams.
+    const thinkingConfig = buildThinkingConfig(request.model);
     let rawResponse: string | undefined;
     let thinkingText: string | undefined;
     let httpStatus: number | undefined;
@@ -200,7 +228,10 @@ export const geminiProvider: AIProvider = {
     try {
       const body = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: AI_TEMPERATURE },
+        generationConfig: {
+          temperature: AI_TEMPERATURE,
+          ...(thinkingConfig ? { thinkingConfig } : {}),
+        },
       };
 
       // Combine our timeout with any caller-supplied abort signal.
@@ -299,7 +330,10 @@ export const geminiProvider: AIProvider = {
         promptTemplateHash,
         promptTemplateFinalisedAt: PROMPT_TEMPLATE_FINALISED_AT,
         promptTemplateVersion: PROMPT_TEMPLATE_VERSION,
-        inferenceParams: { temperature: AI_TEMPERATURE },
+        inferenceParams: {
+          temperature: AI_TEMPERATURE,
+          ...(thinkingConfig ? { thinkingBudget: thinkingConfig.thinkingBudget } : {}),
+        },
         promptLayoutVersion: PROMPT_LAYOUT_VERSION,
         rawResponse,
         thinkingText,
@@ -329,7 +363,10 @@ export const geminiProvider: AIProvider = {
         promptTemplateHash,
         promptTemplateFinalisedAt: PROMPT_TEMPLATE_FINALISED_AT,
         promptTemplateVersion: PROMPT_TEMPLATE_VERSION,
-        inferenceParams: { temperature: AI_TEMPERATURE },
+        inferenceParams: {
+          temperature: AI_TEMPERATURE,
+          ...(thinkingConfig ? { thinkingBudget: thinkingConfig.thinkingBudget } : {}),
+        },
         promptLayoutVersion: PROMPT_LAYOUT_VERSION,
         rawResponse,
         thinkingText,
