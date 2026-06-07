@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { AI_REQUEST_TIMEOUT_MS } from '../ai';
+import { modelLabel } from '../utils/modelLabel';
 
 /** Format a millisecond duration as `M:SS`. */
 function formatElapsed(ms: number): string {
@@ -208,7 +209,7 @@ const AIAdvisorPanel: React.FC = () => {
             )}
 
             <p className="mt-2 text-[10px] text-gray-400 font-mono">
-              {lastDecision.model} · {new Date(lastDecision.timestamp).toLocaleTimeString()}
+              {modelLabel(lastDecision.model)} · {new Date(lastDecision.timestamp).toLocaleTimeString()}
             </p>
           </div>
         )}

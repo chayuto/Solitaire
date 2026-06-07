@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { DEFAULT_AI_CONFIG, listProviders } from '../ai';
 import { clearKey, getDevFallbackKey, getKey, hasUserKey, setKey } from '../ai/keyStore';
+import { modelLabel } from '../utils/modelLabel';
 import type { AIProviderId } from '../ai';
 
 /**
@@ -95,7 +96,7 @@ const AIKeyModalContent: React.FC = () => {
             : [model, ...provider.availableModels]
           ).map((m) => (
             <option key={m} value={m}>
-              {m}
+              {modelLabel(m)}
             </option>
           ))}
         </select>
