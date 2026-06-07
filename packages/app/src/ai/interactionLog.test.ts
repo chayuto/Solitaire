@@ -171,6 +171,36 @@ describe('interactionLog', () => {
     expect(parsed.session).toBeUndefined();
   });
 
+  it('exportAIInteractions embeds the initial deal so the deck is recoverable for losses', () => {
+    recordAIInteraction(base);
+    const initialBoardSetup = {
+      drawPile: [{ suit: 'clubs', rank: '9', faceUp: false, id: 'clubs-9' }],
+      discardPile: [],
+      foundations: { hearts: [], diamonds: [], clubs: [], spades: [] },
+      tableau: [[{ suit: 'clubs', rank: 'J', faceUp: true, id: 'clubs-J' }]],
+    };
+    const parsed = JSON.parse(
+      exportAIInteractions(
+        {
+          sessionId: 'session-abcdef12',
+          seed: 12345,
+          model: 'gemma-4-31b-it',
+          outcome: 'lost',
+          finalProgress: 30,
+          moveCount: 80,
+        },
+        initialBoardSetup,
+      ),
+    );
+    expect(parsed.initialBoardSetup).toEqual(initialBoardSetup);
+  });
+
+  it('exportAIInteractions omits initialBoardSetup when the deal is unavailable', () => {
+    recordAIInteraction(base);
+    const parsed = JSON.parse(exportAIInteractions());
+    expect('initialBoardSetup' in parsed).toBe(false);
+  });
+
   it('accepts stalled_auto_terminated as a session outcome', () => {
     recordAIInteraction(base);
     const parsed = JSON.parse(

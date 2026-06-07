@@ -1883,14 +1883,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
           : aiAutoStalled
             ? 'stalled_auto_terminated'
             : 'incomplete';
-    return serializeAIInteractions({
-      sessionId: state.gameSessionId ?? '',
-      seed: state.seed,
-      model: (state.aiConfig ?? DEFAULT_AI_CONFIG).model,
-      outcome,
-      finalProgress: Math.round(state.completionProgress),
-      moveCount: state.moveHistory.length,
-    });
+    return serializeAIInteractions(
+      {
+        sessionId: state.gameSessionId ?? '',
+        seed: state.seed,
+        model: (state.aiConfig ?? DEFAULT_AI_CONFIG).model,
+        outcome,
+        finalProgress: Math.round(state.completionProgress),
+        moveCount: state.moveHistory.length,
+      },
+      // Embed the turn-0 deal so the ai-log alone can reconstruct the board —
+      // the only way we recover the deck for plain losses, which emit no
+      // win/game file.
+      state.initialBoardSetup,
+    );
   },
 
   dismissWinModal: () => {
