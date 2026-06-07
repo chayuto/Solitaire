@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { DEFAULT_AI_CONFIG } from '../ai';
 import { getEffectiveKey } from '../ai/keyStore';
 import { downloadJson, gameIdTag } from '../utils/download';
+import { modelLabel } from '../utils/modelLabel';
 import type { AIConfig, AIContextPreset } from '../ai';
 
 /** A boolean context toggle exposed in the Custom preset. */
@@ -138,7 +139,7 @@ const AISettingsSection: React.FC = () => {
               )}
             </p>
             <p className="text-[10px] text-gray-500 mb-1">
-              Model: <code className="text-[10px]">{aiConfig.model}</code>
+              Model: <code className="text-[10px]">{modelLabel(aiConfig.model)}</code>
             </p>
             <button
               data-testid="ai-key-settings-btn"
