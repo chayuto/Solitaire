@@ -23,7 +23,6 @@ import { scenarios, scenarioNames, isScenarioName } from './testScenarios';
 import {
   createStubProvider,
   DEFAULT_AI_CONFIG,
-  exportAIInteractions as serializeAIInteractions,
   getAIInteractions as readAIInteractions,
   setProviderOverride,
 } from './ai';
@@ -283,7 +282,10 @@ export function installTestBridge(): void {
     },
     askAI: () => useGameStore.getState().askAIForMove(),
     getAIInteractions: () => [...readAIInteractions()],
-    exportAIInteractions: () => serializeAIInteractions(),
+    // Route through the store method (not the raw serializer) so the bridge
+    // export carries the same session summary and initialBoardSetup the real
+    // "Export AI Log" button writes.
+    exportAIInteractions: () => useGameStore.getState().exportAIInteractions(),
     toggleAIAutoPlay: () => useGameStore.getState().toggleAIAutoPlay(),
     cancelAI: () => useGameStore.getState().cancelAIRequest(),
     setAIConfig: (patch) => useGameStore.getState().setAIConfig(patch),

@@ -48,6 +48,25 @@ export interface Move {
   aiConfidence?: number;
 }
 
+/**
+ * The complete turn-0 deal, with the true identity of every card (face-down
+ * cards included). Snapshotted at deal time and carried with the game so the
+ * exact starting board can be reconstructed and replayed. Also embedded in the
+ * win/game and ai-log exports as the canonical record of the deck a game was
+ * played on.
+ */
+export interface InitialBoardSetup {
+  drawPile: Card[];
+  discardPile: Card[];
+  foundations: {
+    hearts: Card[];
+    diamonds: Card[];
+    clubs: Card[];
+    spades: Card[];
+  };
+  tableau: Card[][];
+}
+
 export interface GameState {
   drawPile: Card[];
   discardPile: Card[];
@@ -76,17 +95,7 @@ export interface GameState {
   gameStartedAt?: number; // Timestamp the session's deal was created
   gameWon: boolean; // True when all cards are in foundations
   winModalDismissed?: boolean; // True when the user closed the win modal without starting a new game
-  initialBoardSetup?: {
-    drawPile: Card[];
-    discardPile: Card[];
-    foundations: {
-      hearts: Card[];
-      diamonds: Card[];
-      clubs: Card[];
-      spades: Card[];
-    };
-    tableau: Card[][];
-  };
+  initialBoardSetup?: InitialBoardSetup;
   perceivedDifficulty?: number; // Calculated difficulty score based on initial board setup (0-100, undefined if no initial setup)
   completionProgress: number; // Game completion percentage (0-100)
   replayMode: boolean; // True when in replay mode

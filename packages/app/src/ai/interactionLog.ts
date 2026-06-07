@@ -11,6 +11,7 @@
  */
 
 import { APP_BUILD_TIME, APP_COMMIT } from '../buildInfo';
+import type { InitialBoardSetup } from '../types';
 import { AI_INTERACTION_LOG_LIMIT } from './constants';
 import type { AIConfig, AIErrorKind, AIMoveDecision } from './types';
 
@@ -268,14 +269,26 @@ export function clearAIInteractions(): void {
  * @param session - Outcome summary of the game active at export time, when
  *   available. Describes the current session only; individual interactions
  *   carry their own `sessionId` for multi-game buffers.
+ * @param initialBoardSetup - The complete turn-0 deal (true identities of all
+ *   52 cards, `drawPile` in draw order). Embedded so the ai-log is a
+ *   self-contained, replayable record — and, critically, so the deck is
+ *   recoverable for plain losses, which emit no win/game file. Omitted only
+ *   when the deal is unavailable (e.g. an imported game with no setup
+ *   snapshot); the field is then absent and treated as nullable downstream.
  */
-export function exportAIInteractions(session?: AISessionSummary): string {
+export function exportAIInteractions(
+  session?: AISessionSummary,
+  initialBoardSetup?: InitialBoardSetup,
+): string {
   return JSON.stringify(
     {
       exportedAt: new Date().toISOString(),
       appCommit: APP_COMMIT,
       appBuildTime: APP_BUILD_TIME,
       session,
+      // The same object emitted in the win/game files, reused verbatim so there
+      // is one canonical deal schema and no new computation.
+      initialBoardSetup,
       count: buffer.length,
       interactions: buffer,
     },
