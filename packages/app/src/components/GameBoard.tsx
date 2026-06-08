@@ -17,7 +17,7 @@ import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 import { useUnloadGuard } from '../hooks/useUnloadGuard';
 import { DEFAULT_AI_CONFIG } from '../ai';
 import { getEffectiveKey } from '../ai/keyStore';
-import { modelLabel } from '../utils/modelLabel';
+import { modelEmoji } from '../utils/modelLabel';
 
 const GameBoard: React.FC = () => {
   // Check for reduced motion preference
@@ -38,9 +38,9 @@ const GameBoard: React.FC = () => {
   // Tab-title status flag, so many unattended tabs can be triaged at a glance:
   //  🏆 game won · ⚠️ AI stopped and needs attention · 🤖 AI on.
   // "AI on" = an API key is available for this tab (env fallback or a saved
-  // key). When on, we also show the configured model — with its colour emoji
-  // (see modelLabel) — so several tabs each running a different model can be
-  // told apart from the tab strip alone, even while idle.
+  // key). When on, we append just the model's colour emoji (no name — tab
+  // space is tight; see modelEmoji) so several tabs each running a different
+  // model can be told apart from the tab strip alone, even while idle.
   const gameWon = useGameStore((s) => s.gameWon);
   const aiError = useGameStore((s) => s.aiError);
   const aiThinking = useGameStore((s) => s.aiThinking);
@@ -54,7 +54,7 @@ const GameBoard: React.FC = () => {
   const aiStopped = Boolean(aiError) && !aiThinking && !aiAutoPlay;
   // The model tag carries its own trailing space so the prefix omits it cleanly
   // when no model is known.
-  const modelTag = aiOn && aiConfig.model ? `${modelLabel(aiConfig.model)} ` : '';
+  const modelTag = aiOn && aiConfig.model ? `${modelEmoji(aiConfig.model)} ` : '';
   const titlePrefix = gameWon
     ? '🏆 '
     : aiStopped
