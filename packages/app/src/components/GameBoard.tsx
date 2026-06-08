@@ -15,6 +15,9 @@ import SessionManagerModal from './SessionManagerModal';
 import ReplayControls from './ReplayControls';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 import { useUnloadGuard } from '../hooks/useUnloadGuard';
+import { DEFAULT_AI_CONFIG } from '../ai';
+import { getEffectiveKey } from '../ai/keyStore';
+import { modelLabel } from '../utils/modelLabel';
 
 const GameBoard: React.FC = () => {
   // Check for reduced motion preference
@@ -33,13 +36,32 @@ const GameBoard: React.FC = () => {
     : null;
 
   // Tab-title status flag, so many unattended tabs can be triaged at a glance:
-  //  🏆 game won · ⚠️ AI stopped and needs attention · 🤖 AI auto-playing.
+  //  🏆 game won · ⚠️ AI stopped and needs attention · 🤖 AI on.
+  // "AI on" = an API key is available for this tab (env fallback or a saved
+  // key). When on, we also show the configured model — with its colour emoji
+  // (see modelLabel) — so several tabs each running a different model can be
+  // told apart from the tab strip alone, even while idle.
   const gameWon = useGameStore((s) => s.gameWon);
   const aiError = useGameStore((s) => s.aiError);
   const aiThinking = useGameStore((s) => s.aiThinking);
   const aiAutoPlay = useGameStore((s) => s.aiAutoPlay);
+  const aiConfig = useGameStore((s) => s.aiConfig) ?? DEFAULT_AI_CONFIG;
+  // Re-read the effective key whenever the key modal opens/closes so a freshly
+  // saved or cleared key is reflected in the tab title without a reload.
+  const aiKeyModalOpen = useGameStore((s) => s.aiKeyModalOpen);
+  void aiKeyModalOpen;
+  const aiOn = Boolean(getEffectiveKey(aiConfig.provider));
   const aiStopped = Boolean(aiError) && !aiThinking && !aiAutoPlay;
-  const titlePrefix = gameWon ? '🏆 ' : aiStopped ? '⚠️ ' : aiAutoPlay ? '🤖 ' : '';
+  // The model tag carries its own trailing space so the prefix omits it cleanly
+  // when no model is known.
+  const modelTag = aiOn && aiConfig.model ? `${modelLabel(aiConfig.model)} ` : '';
+  const titlePrefix = gameWon
+    ? '🏆 '
+    : aiStopped
+      ? `⚠️ ${modelTag}`
+      : aiOn
+        ? `🤖 ${modelTag}`
+        : '';
 
   useEffect(() => {
     const base = gameLabel ? `Solitaire ${gameLabel}` : 'Solitaire';
