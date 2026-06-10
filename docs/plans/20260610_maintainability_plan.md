@@ -133,6 +133,21 @@ makes it nearly free (see §4, Phase 3).
 
 Phases are ordered; items within a phase are independent PRs unless noted.
 
+> **Detailed technical implementation plans, one per stage, live in
+> [`docs/plans/stages/`](./stages/):**
+> [0a](./stages/stage-0a-ci-dx-fixes.md) ·
+> [0b](./stages/stage-0b-agent-architecture-docs.md) ·
+> [1a](./stages/stage-1a-event-log-extraction.md) ·
+> [1b](./stages/stage-1b-engine-backed-moves.md) ·
+> [1c](./stages/stage-1c-type-unification.md) ·
+> [2a](./stages/stage-2a-advisor-controller.md) ·
+> [2b](./stages/stage-2b-store-slices.md) ·
+> [3](./stages/stage-3-undo-redo.md) ·
+> [4](./stages/stage-4-ci-hardening.md) ·
+> [5](./stages/stage-5-boundary-enforcement.md)
+>
+> Execution model (2026-06-10): single PR, one commit per stage, in the order above.
+
 ### Phase 0 — Truth & guardrails (no behavior change)
 
 - [ ] **0.1** Root `CLAUDE.md` as the canonical agent doc (pnpm commands, build-order
