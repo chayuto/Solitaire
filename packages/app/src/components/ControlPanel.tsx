@@ -26,6 +26,18 @@ const ControlPanel: React.FC = () => {
   const startReplay = useGameStore((state) => state.startReplay);
   const askAIForMove = useGameStore((state) => state.askAIForMove);
   const toggleAIAutoPlay = useGameStore((state) => state.toggleAIAutoPlay);
+  const undo = useGameStore((state) => state.undo);
+  const redo = useGameStore((state) => state.redo);
+  const canUndo = useGameStore(
+    (s) =>
+      s.undoStack.length > 0 &&
+      !s.replayMode && !s.aiThinking && !s.aiAutoPlay && !s.autoPlayEnabled,
+  );
+  const canRedo = useGameStore(
+    (s) =>
+      s.redoStack.length > 0 &&
+      !s.replayMode && !s.aiThinking && !s.aiAutoPlay && !s.autoPlayEnabled,
+  );
   const setSessionManagerOpen = useGameStore((state) => state.setSessionManagerOpen);
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
@@ -196,6 +208,27 @@ const ControlPanel: React.FC = () => {
       </div>
       
       <div className="space-y-2">
+        <div className="flex gap-2">
+          <button
+            data-testid="undo-button"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo the last move (Ctrl/Cmd+Z)"
+            className="flex-1 bg-slate-600 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-2 px-2 rounded transition-colors text-sm"
+          >
+            ↩️ Undo
+          </button>
+          <button
+            data-testid="redo-button"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Redo the undone move (Ctrl/Cmd+Shift+Z)"
+            className="flex-1 bg-slate-600 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-2 px-2 rounded transition-colors text-sm"
+          >
+            ↪️ Redo
+          </button>
+        </div>
+
         <button
           data-testid="new-game-btn"
           onClick={handleNewGame}

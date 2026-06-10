@@ -24,7 +24,9 @@ export type GameEventType =
   | 'autoplay_start'
   | 'autoplay_stop'
   | 'autoplay_deadend'
-  | 'autoplay_loop_detected';
+  | 'autoplay_loop_detected'
+  | 'undo'
+  | 'redo';
 
 /** A telemetry event, anchored to its position in the move timeline. */
 export interface GameEvent {

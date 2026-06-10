@@ -10,12 +10,38 @@ import type { AIConfig } from '../ai';
 import type { SessionMeta } from './sessionPersistence';
 
 /**
+ * A bounded undo/redo snapshot: the replayable board + record state. Session
+ * extras (AI flags, config, modals, replay state) are deliberately excluded —
+ * undo rewinds the game, not the app — and so is the eventLog, which is
+ * append-only telemetry (an undo is itself an event, never erased by redo).
+ * Stacks are session-local (not persisted): a reload starts empty.
+ */
+export interface GameSnapshot {
+  drawPile: GameState['drawPile'];
+  discardPile: GameState['discardPile'];
+  foundations: GameState['foundations'];
+  tableau: GameState['tableau'];
+  moveHistory: GameState['moveHistory'];
+  recycleCount: number;
+  completionProgress: number;
+  gameWon: boolean;
+}
+
+/**
  * GameStore interface extending GameState with action methods
  * Manages all game logic and state mutations for Solitaire
  */
 export interface GameStore extends GameState {
+  /** Snapshots taken before each applied move (capped; newest last). */
+  undoStack: GameSnapshot[];
+  /** Snapshots available to re-apply after an undo (cleared by a new move). */
+  redoStack: GameSnapshot[];
   initializeGame: (difficulty?: Difficulty, seed?: number) => void;
   setDifficulty: (difficulty: Difficulty) => void;
+  /** Rewind the last move (disabled during replay / AI / auto-play). */
+  undo: () => void;
+  /** Re-apply the most recently undone move. */
+  redo: () => void;
   selectCard: (source: 'tableau' | 'discard', columnIndex?: number, cardIndex?: number) => void;
   deselectCard: () => void;
   moveCardToTableau: (targetColumn: number) => void;
