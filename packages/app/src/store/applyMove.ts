@@ -172,7 +172,9 @@ export function applyCommandToState(
 
   const partial: Partial<GameState> = {
     // Engine piles reuse untouched column references, so unchanged piles keep
-    // their identity (no spurious re-renders).
+    // their identity (no spurious re-renders). The casts below are the one
+    // sanctioned readonly→mutable boundary: engine results are fresh arrays
+    // the store now owns (app state keeps mutable array types for Zustand).
     drawPile: next.drawPile as Card[],
     discardPile: next.discardPile as Card[],
     foundations: next.foundations as GameState['foundations'],

@@ -30,7 +30,9 @@ export interface Move {
   readonly card: Card;
   /** Source location of the move */
   readonly from?: {
-    readonly source: 'tableau' | 'discard' | 'stock';
+    /** `'draw'` is the stock/draw pile — the value every shipped artifact
+     *  (persisted saves, exports, replay) has always recorded. */
+    readonly source: 'tableau' | 'discard' | 'draw';
     readonly columnIndex?: number;
     readonly cardIndex?: number;
   };
