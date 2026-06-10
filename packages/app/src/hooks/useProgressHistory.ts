@@ -19,7 +19,7 @@
 
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { computeProgressComponents } from '../ai/progressMetric';
+import { computeProgressComponents } from '../ai';
 import type { GameState } from '../types';
 
 /** One per-move snapshot of the board. The five zone counts sum to 52. */

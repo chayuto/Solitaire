@@ -16,7 +16,7 @@ import ReplayControls from './ReplayControls';
 import { shouldReduceMotion as checkReducedMotion } from '../utils/motion';
 import { useUnloadGuard } from '../hooks/useUnloadGuard';
 import { DEFAULT_AI_CONFIG } from '../ai';
-import { getEffectiveKey } from '../ai/keyStore';
+import { getEffectiveKey } from '../ai';
 import { modelEmoji } from '../utils/modelLabel';
 
 const GameBoard: React.FC = () => {
