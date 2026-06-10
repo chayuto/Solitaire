@@ -12,6 +12,7 @@ Live: https://chayuto.github.io/Solitaire/
 
 - Classic Klondike Solitaire with click-to-move and drag-and-drop
 - Five difficulty levels and deterministic seeded deals
+- Undo and redo (Ctrl+Z / Cmd+Z, Shift to redo)
 - Move history, replay, save and load, and game state export
 - Heuristic auto-play and end-game auto-complete
 - AI Move Advisor: ask an LLM for the next best move, or let it auto-play the
@@ -23,9 +24,12 @@ Live: https://chayuto.github.io/Solitaire/
 
 | Package | Description |
 | --- | --- |
-| `packages/core` | `@chayuto/solitaire-core`: framework-agnostic game engine, rules, and scoring. No runtime dependencies. |
-| `packages/mcts` | `@chayuto/solitaire-mcts`: Monte Carlo Tree Search solver. Depends on core. |
-| `packages/app` | React application that consumes both libraries. |
+| `packages/core` | `@chayuto/solitaire-core`: framework-agnostic game engine, rules, and scoring. No runtime dependencies. The single source of move rules: every board change in the app goes through this engine. |
+| `packages/mcts` | `@chayuto/solitaire-mcts`: Monte Carlo Tree Search scaffold. Parked for now: the app does not use it. Its tests still run in CI. |
+| `packages/app` | React application. Uses `core` only. |
+
+Architecture notes live in `docs/architecture.md`, decisions in `docs/adr/`,
+and the agent guide in `CLAUDE.md`.
 
 ## Requirements
 
@@ -36,20 +40,25 @@ Live: https://chayuto.github.io/Solitaire/
 
 ```bash
 pnpm install
-pnpm run build:libs   # build core and mcts (required before the first app run)
-pnpm run dev          # start the app on http://localhost:5173
+pnpm run dev   # builds the core library, then starts the app on http://localhost:5173
 ```
+
+If you edit `packages/core` while the app is running, rebuild it with
+`pnpm run build:libs`, or keep `pnpm run dev:watch` running next to the dev
+server so it rebuilds on change.
 
 ## Scripts
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm run dev` | Start the app dev server |
+| `pnpm run dev` | Build the core library, then start the app dev server |
+| `pnpm run dev:watch` | Rebuild the core library on change (run next to `dev`) |
 | `pnpm run build` | Production build of the app |
-| `pnpm run build:libs` | Build the core and mcts libraries |
-| `pnpm run lint` | Run ESLint |
+| `pnpm run build:libs` | Build the core library |
+| `pnpm run lint` | Run ESLint on the app and the libraries |
 | `pnpm run test:run` | Run app unit tests once (Vitest) |
 | `pnpm run test:libs` | Run library unit tests |
+| `pnpm run test:coverage` | Run unit tests with coverage thresholds |
 | `pnpm run test:e2e` | Run end-to-end tests (Playwright) |
 | `pnpm run typecheck` | Type-check every package |
 
