@@ -81,6 +81,34 @@ test.describe('AI Move Advisor', () => {
     expect((await summary(page)).moveCount).toBe(before);
   });
 
+  test('flags an AI resignation in the tab title', async ({ page }) => {
+    // seed=7 opens with >1 legal move, so the stub is actually consulted.
+    await page.goto('/?seed=7');
+    await waitForGame(page);
+
+    // `move_index: -1` is the resignation sentinel — the harness applies no
+    // move, records `moveType: 'resign'`, and the tab title flips to 🏳️ so a
+    // resigned tab can be triaged from the tab strip.
+    await page.evaluate(() => {
+      window.__solitaire!.setAIProviderStub(() => ({
+        moveIndex: -1,
+        reasoning: 'E2E stub: resigning.',
+        confidence: 0.9,
+      }));
+    });
+
+    const before = (await summary(page)).moveCount;
+    await page.getByTestId('ask-ai-btn').click();
+
+    await page.waitForFunction(() => window.__solitaire!.getAIState().decisionCount === 1);
+
+    const ai = await page.evaluate(() => window.__solitaire!.getAIState());
+    expect(ai.lastDecision?.describe).toBe('AI resigned');
+    // The board is untouched and the title carries the resignation flag.
+    expect((await summary(page)).moveCount).toBe(before);
+    await expect(page).toHaveTitle(/^🏳️/);
+  });
+
   test('opens and closes the API key modal', async ({ page }) => {
     await page.goto('/?seed=1');
     await waitForGame(page);

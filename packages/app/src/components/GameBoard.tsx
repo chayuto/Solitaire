@@ -36,7 +36,8 @@ const GameBoard: React.FC = () => {
     : null;
 
   // Tab-title status flag, so many unattended tabs can be triaged at a glance:
-  //  🏆 game won · ⚠️ AI stopped and needs attention · 🤖 AI on.
+  //  🏆 game won · ⚠️ AI stopped and needs attention · 🏳️ AI resigned ·
+  //  🤖 AI on.
   // "AI on" = an API key is available for this tab (env fallback or a saved
   // key). When on, we append just the model's colour emoji (no name — tab
   // space is tight; see modelEmoji) so several tabs each running a different
@@ -52,6 +53,16 @@ const GameBoard: React.FC = () => {
   void aiKeyModalOpen;
   const aiOn = Boolean(getEffectiveKey(aiConfig.provider));
   const aiStopped = Boolean(aiError) && !aiThinking && !aiAutoPlay;
+  // Resignation is read off the decision log rather than a transient flag so
+  // the 🏳️ survives a reload (the log is persisted). A newer decision —
+  // including an in-flight request — supersedes it.
+  const aiResignedLast = useGameStore((s) => {
+    const log = s.aiDecisionLog;
+    return log && log.length > 0
+      ? log[log.length - 1].moveType === 'resign'
+      : false;
+  });
+  const aiResigned = aiResignedLast && !aiThinking;
   // The model tag carries its own trailing space so the prefix omits it cleanly
   // when no model is known.
   const modelTag = aiOn && aiConfig.model ? `${modelEmoji(aiConfig.model)} ` : '';
@@ -59,9 +70,11 @@ const GameBoard: React.FC = () => {
     ? '🏆 '
     : aiStopped
       ? `⚠️ ${modelTag}`
-      : aiOn
-        ? `🤖 ${modelTag}`
-        : '';
+      : aiResigned
+        ? `🏳️ ${modelTag}`
+        : aiOn
+          ? `🤖 ${modelTag}`
+          : '';
 
   useEffect(() => {
     const base = gameLabel ? `Solitaire ${gameLabel}` : 'Solitaire';
