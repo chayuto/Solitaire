@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { DEFAULT_AI_CONFIG, listProviders } from '../ai';
-import { clearKey, getDevFallbackKey, getKey, hasUserKey, setKey } from '../ai/keyStore';
+import { clearKey, getDevFallbackKey, getKey, hasUserKey, setKey } from '../ai';
 import { modelLabel } from '../utils/modelLabel';
 import type { AIProviderId } from '../ai';
 

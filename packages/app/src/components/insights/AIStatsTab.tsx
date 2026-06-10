@@ -13,8 +13,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
-import { getAIInteractions } from '../../ai/interactionLog';
-import type { AIInteraction } from '../../ai/interactionLog';
+import { getAIInteractions } from '../../ai';
+import type { AIInteraction } from '../../ai';
 import { Sparkline } from './Sparkline';
 
 /** Compact large counts: 18234 → "18.2k". */

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { DEFAULT_AI_CONFIG } from '../ai';
-import { getEffectiveKey } from '../ai/keyStore';
+import { getEffectiveKey } from '../ai';
 import { downloadJson, gameIdTag } from '../utils/download';
 import { modelLabel } from '../utils/modelLabel';
 import type { AIConfig, AIContextPreset } from '../ai';
