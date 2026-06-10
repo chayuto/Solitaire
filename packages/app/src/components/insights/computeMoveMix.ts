@@ -26,7 +26,7 @@ export interface MoveMixRow {
 }
 
 export interface MoveMixResult {
-  /** Total categorised card moves (sum of the rows; excludes autoplay events). */
+  /** Total categorised card moves (sum of the rows). */
   total: number;
   /** Buckets, in display order. */
   rows: MoveMixRow[];

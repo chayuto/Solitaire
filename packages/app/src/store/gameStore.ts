@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { GameState, Card, Suit, Move, Difficulty } from '../types';
+import type { GameState, GameEvent, GameEventType, Card, Suit, Move, Difficulty } from '../types';
+import { splitLegacyMoveHistory } from './migrations';
 import {
   arrangeDeckByDifficulty,
   canMoveToTableau as canMoveToTableauCore,
@@ -70,6 +71,13 @@ import {
 
 /** Debounce window (ms) for autosaving the active game after a change. */
 const SESSION_AUTOSAVE_DELAY = 500;
+
+/** Build a telemetry {@link GameEvent} anchored at the current move index. */
+const gameEvent = (state: GameState, type: GameEventType): GameEvent => ({
+  type,
+  timestamp: Date.now(),
+  atMoveIndex: state.moveHistory.length,
+});
 
 /** Shared core engine instance — used for legal-move generation by the AI advisor. */
 const engine = new GameEngine();
@@ -258,6 +266,7 @@ const initializeGameState = (
     tableau,
     selectedCard: undefined,
     moveHistory: [],
+    eventLog: [],
     showValidMoves: true,
     godMode: false,
     autoPlayEnabled: false,
@@ -321,13 +330,17 @@ function isRestorable(p: PersistedGameState | null): p is PersistedGameState {
  * is reset; only the game itself is restored.
  */
 function hydratePersisted(p: PersistedGameState): GameState {
+  // Saves written before the eventLog split carry autoplay telemetry embedded
+  // in moveHistory — partition it out (no-op for current-format saves).
+  const { moveHistory, eventLog } = splitLegacyMoveHistory(p.moveHistory, p.eventLog ?? []);
   return {
     drawPile: p.drawPile,
     discardPile: p.discardPile,
     foundations: p.foundations,
     tableau: p.tableau,
     selectedCard: undefined,
-    moveHistory: p.moveHistory,
+    moveHistory,
+    eventLog,
     showValidMoves: p.showValidMoves,
     godMode: p.godMode,
     autoPlayEnabled: false,
@@ -776,6 +789,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       foundations: state.foundations,
       tableau: state.tableau,
       moveHistory: state.moveHistory,
+      eventLog: state.eventLog,
       showValidMoves: state.showValidMoves,
       godMode: state.godMode,
       autoPlayEnabled: state.autoPlayEnabled,
@@ -839,7 +853,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
       const completionProgress = getCompletionProgress(uiToCore(importedStateForCalc));
       const perceivedDifficulty = importedState.perceivedDifficulty ?? getPerceivedDifficulty(uiToCore(importedStateForCalc));
-      
+
+      // Exports written before the eventLog split embed autoplay telemetry in
+      // moveHistory — partition it out (no-op for current-format exports).
+      const { moveHistory, eventLog } = splitLegacyMoveHistory(
+        importedState.moveHistory,
+        importedState.eventLog ?? [],
+      );
+
       // Set the imported state
       // Note: gameWon is set to false to allow replay functionality for won games
       set({
@@ -848,7 +869,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         foundations: importedState.foundations,
         tableau: importedState.tableau,
         selectedCard: undefined,
-        moveHistory: importedState.moveHistory,
+        moveHistory,
+        eventLog,
         showValidMoves: importedState.showValidMoves,
         godMode: importedState.godMode,
         autoPlayEnabled: importedState.autoPlayEnabled,
@@ -901,15 +923,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return;
       }
       // Log auto-play start event
-      const move: Move = {
-        type: 'autoplay_start',
-        timestamp: Date.now(),
-        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
-      };
-      set({ 
+      set({
         autoPlayEnabled: newAutoPlayEnabled,
         autoPlayStateHistory: [],
-        moveHistory: [...state.moveHistory, move],
+        eventLog: [...(state.eventLog ?? []), gameEvent(state, 'autoplay_start')],
       });
       
       // Start the first move after a short delay
@@ -922,15 +939,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     } else {
       // Log auto-play stop event
-      const move: Move = {
-        type: 'autoplay_stop',
-        timestamp: Date.now(),
-        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
-      };
-      set({ 
+      set({
         autoPlayEnabled: newAutoPlayEnabled,
         autoPlayStateHistory: [],
-        moveHistory: [...state.moveHistory, move],
+        eventLog: [...(state.eventLog ?? []), gameEvent(state, 'autoplay_stop')],
       });
     }
   },
@@ -952,16 +964,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Check if we've seen this state before (loop detection)
     if (stateHistory.includes(currentStateHash)) {
       // Loop detected
-      const move: Move = {
-        type: 'autoplay_loop_detected',
-        timestamp: Date.now(),
-        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
-      };
-      set({ 
-        autoPlayEnabled: false, 
+      set({
+        autoPlayEnabled: false,
         autoPlayInProgress: false,
         autoPlayStateHistory: [],
-        moveHistory: [...state.moveHistory, move],
+        eventLog: [...(state.eventLog ?? []), gameEvent(state, 'autoplay_loop_detected')],
       });
       return;
     }
@@ -996,16 +1003,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // If all possible moves would lead to loops, detect it as a loop condition
     if (possibleMoves.length > 0 && nonLoopingMoves.length === 0) {
-      const move: Move = {
-        type: 'autoplay_loop_detected',
-        timestamp: Date.now(),
-        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
-      };
-      set({ 
-        autoPlayEnabled: false, 
+      set({
+        autoPlayEnabled: false,
         autoPlayInProgress: false,
         autoPlayStateHistory: [],
-        moveHistory: [...state.moveHistory, move],
+        eventLog: [...(state.eventLog ?? []), gameEvent(state, 'autoplay_loop_detected')],
       });
       return;
     }
@@ -1067,16 +1069,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Check for deadend - no valid moves available
     const currentState = get();
     if (!hasAnyValidMoves(currentState)) {
-      const move: Move = {
-        type: 'autoplay_deadend',
-        timestamp: Date.now(),
-        card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'autoplay-marker' },
-      };
-      set({ 
-        autoPlayEnabled: false, 
+      set({
+        autoPlayEnabled: false,
         autoPlayInProgress: false,
         autoPlayStateHistory: [],
-        moveHistory: [...currentState.moveHistory, move],
+        eventLog: [...(currentState.eventLog ?? []), gameEvent(currentState, 'autoplay_deadend')],
       });
       return;
     }
@@ -1953,7 +1950,8 @@ if (typeof window !== 'undefined') {
       `${state.gameSessionId}|${state.moveHistory.length}|${state.gameWon}` +
       `|${Math.round(state.completionProgress)}|${state.godMode}` +
       `|${state.showValidMoves}|${state.replaySpeed}` +
-      `|${state.winModalDismissed}|${state.aiDecisionLog?.length ?? 0}`;
+      `|${state.winModalDismissed}|${state.aiDecisionLog?.length ?? 0}` +
+      `|${state.eventLog?.length ?? 0}`;
     if (signature === lastSignature) return;
     lastSignature = signature;
 

@@ -32,7 +32,9 @@ describe('computeMoveMix', () => {
     expect(r.rows.map((x) => x.count)).toEqual([0, 0, 0, 0, 0]);
   });
 
-  it('buckets move types and sums the total (autoplay events excluded)', () => {
+  it('buckets move types and sums the total', () => {
+    // moveHistory contains only real moves — autoplay telemetry lives in the
+    // store's eventLog and never reaches this tally.
     const r = computeMoveMix([
       mv('draw_card'),
       mv('draw_card'),
@@ -41,8 +43,6 @@ describe('computeMoveMix', () => {
       mv('discard_to_foundation'),
       mv('tableau_to_tableau', { from: 0, to: 1 }),
       mv('discard_to_tableau'),
-      mv('autoplay_start'),
-      mv('autoplay_stop'),
     ]);
     const byId = Object.fromEntries(r.rows.map((x) => [x.id, x.count]));
     expect(byId).toEqual({
@@ -52,7 +52,7 @@ describe('computeMoveMix', () => {
       tableau: 1,
       waste: 1,
     });
-    expect(r.total).toBe(7); // the two autoplay_* events are not counted
+    expect(r.total).toBe(7);
   });
 
   it('counts a card returning to the column it just left as back-and-forth', () => {

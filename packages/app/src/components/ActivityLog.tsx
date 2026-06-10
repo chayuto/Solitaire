@@ -1,25 +1,57 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
-import type { Move, Card } from '../types';
+import type { Move, Card, GameEvent } from '../types';
+
+/** A timeline row: a real move, or a telemetry event interleaved by position. */
+type TimelineItem =
+  | { kind: 'move'; move: Move }
+  | { kind: 'event'; event: GameEvent };
+
+/**
+ * Merge telemetry events into the move list at their recorded positions
+ * (`atMoveIndex`), preserving the visual timeline the log showed when events
+ * were stored inline in moveHistory.
+ */
+const mergeTimeline = (moves: readonly Move[], events: readonly GameEvent[]): TimelineItem[] => {
+  const out: TimelineItem[] = [];
+  let e = 0;
+  // An event with atMoveIndex k fired after move k-1 and before move k.
+  // The store appends events in timeline order, so a single pass merges.
+  for (let i = 0; i < moves.length; i++) {
+    while (e < events.length && events[e].atMoveIndex <= i) {
+      out.push({ kind: 'event', event: events[e++] });
+    }
+    out.push({ kind: 'move', move: moves[i] });
+  }
+  while (e < events.length) {
+    out.push({ kind: 'event', event: events[e++] });
+  }
+  return out;
+};
 
 const ActivityLog: React.FC = () => {
   const moveHistory = useGameStore((state) => state.moveHistory);
+  const eventLog = useGameStore((state) => state.eventLog);
   const [isMinimized, setIsMinimized] = useState(false);
   // The scrollable entries container. Newest entries render at the top, so we
   // scroll back to the top whenever a move lands to keep the latest visible.
   const entriesRef = useRef<HTMLDivElement>(null);
+  const timelineLength = moveHistory.length + (eventLog?.length ?? 0);
   useEffect(() => {
     if (entriesRef.current) {
       entriesRef.current.scrollTop = 0;
     }
-  }, [moveHistory.length]);
+  }, [timelineLength]);
   // "Clear View" hides the log until the next move arrives. Remembering the
-  // history length at clear time keeps visibleLogs a pure derivation of
+  // timeline length at clear time keeps visibleLogs a pure derivation of
   // moveHistory, rather than mirroring it into state via a setState-in-effect.
   const [clearedAtLength, setClearedAtLength] = useState(-1);
 
-  const visibleLogs: Move[] =
-    moveHistory.length === clearedAtLength ? [] : moveHistory;
+  const timeline = useMemo(
+    () => mergeTimeline(moveHistory, eventLog ?? []),
+    [moveHistory, eventLog],
+  );
+  const visibleLogs: TimelineItem[] = timeline.length === clearedAtLength ? [] : timeline;
 
   const formatCard = (card: Card): string => {
     const suitSymbols: Record<string, string> = {
@@ -48,13 +80,20 @@ const ActivityLog: React.FC = () => {
   // stack — see formatMove's 'tableau_to_tableau' branch below.
   type DisplayEntry =
     | { kind: 'single'; move: Move }
-    | { kind: 'sequence'; lead: Move; tail: Move; count: number };
+    | { kind: 'sequence'; lead: Move; tail: Move; count: number }
+    | { kind: 'event'; event: GameEvent };
 
-  const coalesceMoves = (moves: Move[]): DisplayEntry[] => {
+  const coalesceMoves = (items: TimelineItem[]): DisplayEntry[] => {
     const out: DisplayEntry[] = [];
     let i = 0;
-    while (i < moves.length) {
-      const m = moves[i];
+    while (i < items.length) {
+      const item = items[i];
+      if (item.kind === 'event') {
+        out.push({ kind: 'event', event: item.event });
+        i++;
+        continue;
+      }
+      const m = item.move;
       const fromCol = m.from?.columnIndex;
       const toCol = m.to?.columnIndex;
       const fromIdx = m.from?.cardIndex;
@@ -70,16 +109,19 @@ const ActivityLog: React.FC = () => {
         // only on the lead) — stop early if one does, so we never swallow a
         // distinct AI decision.
         let j = i + 1;
-        while (j < moves.length) {
-          const n = moves[j];
-          const prev = moves[j - 1];
+        while (j < items.length) {
+          const next = items[j];
+          const prev = items[j - 1];
+          if (next.kind !== 'move' || prev.kind !== 'move') break;
+          const n = next.move;
+          const p = prev.move;
           if (
             n.type !== 'tableau_to_tableau' ||
             n.from?.columnIndex !== fromCol ||
             n.to?.columnIndex !== toCol ||
             n.from?.cardIndex === undefined ||
-            prev.from?.cardIndex === undefined ||
-            n.from.cardIndex !== prev.from.cardIndex + 1 ||
+            p.from?.cardIndex === undefined ||
+            n.from.cardIndex !== p.from.cardIndex + 1 ||
             n.aiReasoning !== undefined ||
             n.aiConfidence !== undefined
           ) {
@@ -88,7 +130,8 @@ const ActivityLog: React.FC = () => {
           j++;
         }
         if (j > i + 1) {
-          out.push({ kind: 'sequence', lead: m, tail: moves[j - 1], count: j - i });
+          const tail = items[j - 1] as { kind: 'move'; move: Move };
+          out.push({ kind: 'sequence', lead: m, tail: tail.move, count: j - i });
           i = j;
           continue;
         }
@@ -125,24 +168,27 @@ const ActivityLog: React.FC = () => {
       case 'flip_card':
         return `${time} - Flipped ${cardStr} face up in column ${(move.from?.columnIndex ?? 0) + 1}`;
 
-      case 'autoplay_start':
-        return `${time} - ▶️ Auto-play started`;
-
-      case 'autoplay_stop':
-        return `${time} - ⏸️ Auto-play stopped`;
-
-      case 'autoplay_deadend':
-        return `${time} - 🚫 Auto-play stopped - No valid moves available (deadend)`;
-
-      case 'autoplay_loop_detected':
-        return `${time} - 🔄 Auto-play stopped - Loop detected`;
-
       default:
         return `${time} - Unknown move`;
     }
   };
 
+  const formatEvent = (event: GameEvent): string => {
+    const time = formatTime(event.timestamp);
+    switch (event.type) {
+      case 'autoplay_start':
+        return `${time} - ▶️ Auto-play started`;
+      case 'autoplay_stop':
+        return `${time} - ⏸️ Auto-play stopped`;
+      case 'autoplay_deadend':
+        return `${time} - 🚫 Auto-play stopped - No valid moves available (deadend)`;
+      case 'autoplay_loop_detected':
+        return `${time} - 🔄 Auto-play stopped - Loop detected`;
+    }
+  };
+
   const formatEntry = (entry: DisplayEntry): string => {
+    if (entry.kind === 'event') return formatEvent(entry.event);
     if (entry.kind === 'single') return formatMove(entry.move);
     const { lead, tail, count } = entry;
     const time = formatTime(lead.timestamp);
@@ -164,7 +210,7 @@ const ActivityLog: React.FC = () => {
   };
 
   const handleClearView = () => {
-    setClearedAtLength(moveHistory.length);
+    setClearedAtLength(timeline.length);
   };
 
   const handleToggleMinimize = () => {
@@ -219,13 +265,21 @@ const ActivityLog: React.FC = () => {
                   // AI flags live on the lead entry of a sequence; tail entries
                   // are intentionally skipped by coalesceMoves when they carry
                   // their own reasoning, so reading from `lead` here is safe.
-                  const lead = entry.kind === 'single' ? entry.move : entry.lead;
-                  const isAutoPlayEvent = lead.type.startsWith('autoplay_');
-                  const isDeadendOrLoop = lead.type === 'autoplay_deadend' || lead.type === 'autoplay_loop_detected';
-                  const isAIMove = lead.aiMove === true || typeof lead.aiReasoning === 'string';
+                  const isAutoPlayEvent = entry.kind === 'event';
+                  const isDeadendOrLoop =
+                    entry.kind === 'event' &&
+                    (entry.event.type === 'autoplay_deadend' ||
+                      entry.event.type === 'autoplay_loop_detected');
+                  const lead =
+                    entry.kind === 'event' ? undefined
+                    : entry.kind === 'single' ? entry.move
+                    : entry.lead;
+                  const isAIMove = lead !== undefined &&
+                    (lead.aiMove === true || typeof lead.aiReasoning === 'string');
+                  const keyStamp = entry.kind === 'event' ? entry.event.timestamp : lead!.timestamp;
                   return (
                     <div
-                      key={`${lead.timestamp}-${index}`}
+                      key={`${keyStamp}-${index}`}
                       data-testid="activity-log-entry"
                       className={`text-xs p-2 rounded shadow-sm border transition-colors ${
                         isDeadendOrLoop
@@ -241,7 +295,7 @@ const ActivityLog: React.FC = () => {
                         {isAIMove && <span className="mr-1" aria-label="AI move">🤖</span>}
                         {formatEntry(entry)}
                       </div>
-                      {isAIMove && (
+                      {isAIMove && lead && (
                         <div
                           data-testid="activity-log-ai-reasoning"
                           className="mt-1 pl-4 text-[11px] italic text-indigo-700 whitespace-pre-wrap break-words"

@@ -35,6 +35,8 @@ export interface PersistedGameState {
   foundations: GameState['foundations'];
   tableau: GameState['tableau'];
   moveHistory: GameState['moveHistory'];
+  /** Absent on saves written before the eventLog split (2026-06). */
+  eventLog?: GameState['eventLog'];
   showValidMoves: GameState['showValidMoves'];
   godMode: GameState['godMode'];
   difficulty: GameState['difficulty'];
@@ -92,6 +94,7 @@ function pickPersisted(state: GameState): PersistedGameState {
     foundations: state.foundations,
     tableau: state.tableau,
     moveHistory: state.moveHistory,
+    eventLog: state.eventLog ?? [],
     showValidMoves: state.showValidMoves,
     godMode: state.godMode,
     difficulty: state.difficulty,

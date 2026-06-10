@@ -20,11 +20,27 @@ export type MoveType =
   | 'tableau_to_foundation'
   | 'discard_to_tableau'
   | 'discard_to_foundation'
-  | 'flip_card'
+  | 'flip_card';
+
+/**
+ * Game lifecycle telemetry that is *not* a card move. Kept out of
+ * {@link Move} history so `moveHistory` stays a pure record of play (replay,
+ * metrics and the AI prompt consume it unfiltered); the Activity Log
+ * interleaves these back in by {@link GameEvent.atMoveIndex}.
+ */
+export type GameEventType =
   | 'autoplay_start'
   | 'autoplay_stop'
   | 'autoplay_deadend'
   | 'autoplay_loop_detected';
+
+/** A telemetry event, anchored to its position in the move timeline. */
+export interface GameEvent {
+  type: GameEventType;
+  timestamp: number;
+  /** `moveHistory.length` at the moment the event fired. */
+  atMoveIndex: number;
+}
 
 export interface Move {
   type: MoveType;
@@ -84,6 +100,12 @@ export interface GameState {
     card: Card;
   };
   moveHistory: Move[];
+  /**
+   * Telemetry events (auto-play lifecycle), parallel to {@link moveHistory}.
+   * Optional like the supplemental UI fields below: the store always
+   * populates it, but lightweight GameState fixtures need not.
+   */
+  eventLog?: GameEvent[];
   showValidMoves: boolean;
   godMode: boolean;
   autoPlayEnabled: boolean;
