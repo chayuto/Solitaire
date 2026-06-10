@@ -247,29 +247,33 @@ describe('GameStore - Auto-Play Loop and Deadend Detection', () => {
   it('should log autoplay_start event when auto-play is enabled', () => {
     const store = useGameStore.getState();
     const initialHistoryLength = store.moveHistory.length;
-    
+    const initialEventCount = store.eventLog?.length ?? 0;
+
     store.toggleAutoPlay();
-    
+
     const state = useGameStore.getState();
     expect(state.autoPlayEnabled).toBe(true);
-    expect(state.moveHistory.length).toBe(initialHistoryLength + 1);
-    expect(state.moveHistory[state.moveHistory.length - 1].type).toBe('autoplay_start');
+    // Telemetry goes to eventLog, never moveHistory
+    expect(state.moveHistory.length).toBe(initialHistoryLength);
+    expect(state.eventLog?.length).toBe(initialEventCount + 1);
+    expect(state.eventLog?.[state.eventLog.length - 1].type).toBe('autoplay_start');
+    expect(state.eventLog?.[state.eventLog.length - 1].atMoveIndex).toBe(initialHistoryLength);
   });
 
   it('should log autoplay_stop event when auto-play is disabled', () => {
     const store = useGameStore.getState();
-    
+
     // Enable auto-play first
     store.toggleAutoPlay();
-    const afterStartLength = useGameStore.getState().moveHistory.length;
-    
+    const afterStartEvents = useGameStore.getState().eventLog?.length ?? 0;
+
     // Disable auto-play
     store.toggleAutoPlay();
-    
+
     const state = useGameStore.getState();
     expect(state.autoPlayEnabled).toBe(false);
-    expect(state.moveHistory.length).toBe(afterStartLength + 1);
-    expect(state.moveHistory[state.moveHistory.length - 1].type).toBe('autoplay_stop');
+    expect(state.eventLog?.length).toBe(afterStartEvents + 1);
+    expect(state.eventLog?.[state.eventLog.length - 1].type).toBe('autoplay_stop');
   });
 
   it('should initialize autoPlayStateHistory as empty array', () => {
@@ -332,9 +336,9 @@ describe('GameStore - Auto-Play Loop and Deadend Detection', () => {
     // Wait a bit for async operations
     const state = useGameStore.getState();
     
-    // Should have logged a deadend event
-    const deadendMove = state.moveHistory.find(m => m.type === 'autoplay_deadend');
-    expect(deadendMove).toBeDefined();
+    // Should have logged a deadend event (telemetry lives in eventLog)
+    const deadendEvent = state.eventLog?.find(e => e.type === 'autoplay_deadend');
+    expect(deadendEvent).toBeDefined();
     expect(state.autoPlayEnabled).toBe(false);
   });
 
@@ -564,9 +568,9 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     
     const state = useGameStore.getState();
     
-    // Should detect loop and stop
-    const loopMove = state.moveHistory.find(m => m.type === 'autoplay_loop_detected');
-    expect(loopMove).toBeDefined();
+    // Should detect loop and stop (telemetry lives in eventLog)
+    const loopEvent = state.eventLog?.find(e => e.type === 'autoplay_loop_detected');
+    expect(loopEvent).toBeDefined();
     expect(state.autoPlayEnabled).toBe(false);
   });
 
@@ -643,8 +647,8 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     const state = useGameStore.getState();
     
     // Should NOT have triggered loop detection
-    const loopMove = state.moveHistory.find(m => m.type === 'autoplay_loop_detected');
-    expect(loopMove).toBeUndefined();
+    const loopEvent = state.eventLog?.find(e => e.type === 'autoplay_loop_detected');
+    expect(loopEvent).toBeUndefined();
     
     // Should have selected a move or drawn a card (autoPlayInProgress should be true after initiating action)
     // Since all tableau moves are useless (don't reveal cards), it should draw instead
@@ -743,8 +747,8 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     const state = useGameStore.getState();
     
     // Should have detected loop immediately since all moves lead to loops
-    const loopMove = state.moveHistory.find(m => m.type === 'autoplay_loop_detected');
-    expect(loopMove).toBeDefined();
+    const loopEvent = state.eventLog?.find(e => e.type === 'autoplay_loop_detected');
+    expect(loopEvent).toBeDefined();
     expect(state.autoPlayEnabled).toBe(false);
   });
 
@@ -802,13 +806,8 @@ describe('GameStore - Smart Auto-Play Strategy', () => {
     
     const state = useGameStore.getState();
     
-    // Check the moves made - filter out non-game moves
-    const gameMoves = state.moveHistory.filter(m => 
-      m.type !== 'autoplay_start' && 
-      m.type !== 'autoplay_stop' &&
-      m.type !== 'autoplay_deadend' &&
-      m.type !== 'autoplay_loop_detected'
-    );
+    // moveHistory now contains only real game moves
+    const gameMoves = state.moveHistory;
     
     if (gameMoves.length > 0) {
       const lastMove = gameMoves[gameMoves.length - 1];

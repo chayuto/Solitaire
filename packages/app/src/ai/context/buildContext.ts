@@ -22,14 +22,12 @@ import type { PossibleMove } from '../../autoplay';
 
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 
-/** Move history entry types that are bookkeeping, not real player moves. */
-const NON_PLAYER_MOVE_TYPES = new Set([
-  'flip_card',
-  'autoplay_start',
-  'autoplay_stop',
-  'autoplay_deadend',
-  'autoplay_loop_detected',
-]);
+/**
+ * Move history entry types that are bookkeeping, not real player moves.
+ * (Auto-play telemetry no longer appears in moveHistory — it lives in the
+ * store's eventLog — so flips are the only non-player entries left.)
+ */
+const NON_PLAYER_MOVE_TYPES = new Set(['flip_card']);
 
 /** Player-move types that advance a foundation. */
 const FOUNDATION_MOVE_TYPES = new Set(['tableau_to_foundation', 'discard_to_foundation']);

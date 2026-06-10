@@ -29,10 +29,8 @@ export function uiToCore(uiState: UIGameState): CoreGameState {
       spades: uiState.foundations.spades,
     },
     tableau: uiState.tableau,
-    // Filter out UI-specific move types that core doesn't understand
-    moveHistory: uiState.moveHistory.filter(m => 
-      !['autoplay_start', 'autoplay_stop', 'autoplay_deadend', 'autoplay_loop_detected'].includes(m.type)
-    ) as readonly CoreMove[],
+    // moveHistory holds only real moves (telemetry lives in eventLog).
+    moveHistory: uiState.moveHistory as readonly CoreMove[],
     difficulty: uiState.difficulty,
     gameWon: uiState.gameWon,
     completionProgress: uiState.completionProgress,
