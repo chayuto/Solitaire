@@ -1,26 +1,18 @@
 import type { AIConfig, AIDecisionRecord } from '../ai/types';
+import type { Move as CoreMove } from '@chayuto/solitaire-core';
 
-export type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades';
-
-export type Rank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
-
-export type Difficulty = 1 | 2 | 3 | 4 | 5;
-
-export interface Card {
-  suit: Suit;
-  rank: Rank;
-  faceUp: boolean;
-  id: string;
-}
-
-export type MoveType =
-  | 'draw_card'
-  | 'recycle_stock'
-  | 'tableau_to_tableau'
-  | 'tableau_to_foundation'
-  | 'discard_to_tableau'
-  | 'discard_to_foundation'
-  | 'flip_card';
+// Card, suit/rank scalars, difficulty, move types and MoveCommand are core's —
+// the app defines no parallel copies (stage-1c unification, ADR-0005). Core's
+// Card fields are readonly; app code replaces cards via spreads, never mutates.
+export type {
+  Suit,
+  Rank,
+  Difficulty,
+  Card,
+  MoveType,
+  MoveCommand,
+} from '@chayuto/solitaire-core';
+import type { Card, Difficulty } from '@chayuto/solitaire-core';
 
 /**
  * Game lifecycle telemetry that is *not* a card move. Kept out of
@@ -42,20 +34,11 @@ export interface GameEvent {
   atMoveIndex: number;
 }
 
-export interface Move {
-  type: MoveType;
-  timestamp: number;
-  card: Card;
-  from?: {
-    source: 'tableau' | 'discard' | 'draw';
-    columnIndex?: number;
-    cardIndex?: number;
-  };
-  to?: {
-    target: 'tableau' | 'foundation';
-    columnIndex?: number;
-    suit?: Suit;
-  };
+/**
+ * A history record: core's {@link CoreMove} plus the AI annotations the app
+ * attaches to moves the AI Move Advisor made.
+ */
+export interface Move extends CoreMove {
   /** True when this entry is part of a move the AI Move Advisor made. */
   aiMove?: boolean;
   /** Reasoning text, set on the lead entry of an AI-chosen move. */
