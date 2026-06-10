@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GameEngine } from './index';
 import { createCard, createDeck } from '../utils';
-import type { Card } from '../types';
 
 describe('GameEngine', () => {
   let engine: GameEngine;

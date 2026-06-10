@@ -3,7 +3,7 @@
  * Functions for calculating game completion progress and perceived difficulty
  */
 
-import type { GameState, Card } from '../types';
+import type { GameState } from '../types';
 import { getRankValue } from '../utils/card';
 import { DECK_SIZE } from '../constants';
 

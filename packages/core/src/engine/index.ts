@@ -3,7 +3,7 @@
  * Main game logic for Klondike Solitaire
  */
 
-import type { GameState, InitializeOptions, MoveCommand } from '../types';
+import type { Card, GameState, InitializeOptions, MoveCommand } from '../types';
 import { arrangeDeckByDifficulty } from '../utils/deck';
 import { canDraw, draw, canRecycle, recycle } from '../rules/stock';
 import { canMoveToTableau, canMoveSequence, getValidTableauDestinations } from '../rules/tableau';
@@ -29,7 +29,7 @@ export class GameEngine {
     const deck = options?.customDeck ?? arrangeDeckByDifficulty(difficulty, options?.seed);
 
     // Deal cards to tableau (1, 2, 3, ..., 7 cards per column)
-    const tableau: any[][] = Array(TABLEAU_COLUMNS).fill(null).map(() => []);
+    const tableau: Card[][] = Array(TABLEAU_COLUMNS).fill(null).map(() => []);
     let deckIndex = 0;
     
     for (let col = 0; col < TABLEAU_COLUMNS; col++) {
@@ -110,7 +110,7 @@ export class GameEngine {
         return this.applyFlipCard(state, command);
         
       default:
-        throw new Error(`Unknown move type: ${(command as any).type}`);
+        throw new Error(`Unknown move type: ${(command as { type?: string }).type}`);
     }
   }
 
@@ -400,7 +400,6 @@ export class GameEngine {
         const card = pile[cardIdx];
         if (!card.faceUp) continue;
         
-        const sequence = pile.slice(cardIdx);
         const tableauDests = getValidTableauDestinations(card, state.tableau, col);
         
         for (const destCol of tableauDests) {
@@ -500,7 +499,7 @@ export class GameEngine {
       return state;
     } catch (error) {
       if (error instanceof SyntaxError) {
-        throw new Error(`Invalid JSON: ${error.message}`);
+        throw new Error(`Invalid JSON: ${error.message}`, { cause: error });
       }
       throw error;
     }
