@@ -8,11 +8,13 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm --filter app dev",
+    "dev": "pnpm run build:libs && pnpm --filter app dev",
+    "dev:watch": "pnpm --filter @chayuto/solitaire-core exec vite build --watch",
     "build": "pnpm --filter app build",
-    "build:libs": "pnpm --filter @chayuto/solitaire-core build && pnpm --filter @chayuto/solitaire-mcts build",
+    "build:libs": "pnpm --filter @chayuto/solitaire-core build",
     "build:all": "pnpm -r build",
-    "lint": "pnpm --filter app lint",
+    "lint": "pnpm --filter app lint && pnpm run lint:libs",
+    "lint:libs": "eslint packages/core/src packages/mcts/src",
     "test": "pnpm --filter app test",
     "test:run": "pnpm --filter app test:run",
     "test:e2e": "pnpm --filter app test:e2e",
@@ -21,5 +23,9 @@
     "typecheck": "pnpm -r typecheck",
     "preview": "pnpm --filter app preview"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.0",
+    "typescript-eslint": "^8.59.0"
+  }
 }

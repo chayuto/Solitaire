@@ -16,7 +16,7 @@ import {
   areOppositeColors,
   areSameColor,
 } from './card';
-import type { Suit, Rank } from '../types';
+import type { Rank } from '../types';
 
 describe('Card Utilities', () => {
   describe('Constants', () => {

@@ -41,6 +41,33 @@ jobs:
       - name: Run ESLint
         run: pnpm run lint
 
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6.0.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The app's `tsc -b` resolves @chayuto/solitaire-core through its dist/ types.
+      - name: Build libraries
+        run: pnpm run build:libs
+
+      - name: Typecheck all packages
+        run: pnpm run typecheck
+
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -63,9 +90,12 @@ jobs:
       
       - name: Build libraries
         run: pnpm run build:libs
-      
-      - name: Run tests
+
+      - name: Run app tests
         run: pnpm run test:run
+
+      - name: Run library tests
+        run: pnpm run test:libs
 
   build:
     name: Build
@@ -97,7 +127,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: dist
-          path: dist/
+          path: packages/app/dist/
           retention-days: 7
 
   e2e:

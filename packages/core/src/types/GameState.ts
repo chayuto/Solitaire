@@ -3,7 +3,7 @@
  * Pure game state without UI-specific fields
  */
 
-import type { Card, Suit } from './Card';
+import type { Card } from './Card';
 import type { Move } from './Move';
 import type { Difficulty } from './Difficulty';
 

@@ -3,7 +3,7 @@
  * Functions for validating game states and ensuring correctness
  */
 
-import type { GameState, Card, Rank } from '../types';
+import type { GameState, Card } from '../types';
 import { getRankValue } from './card';
 import { DECK_SIZE, TABLEAU_COLUMNS } from '../constants';
 
