@@ -14,7 +14,18 @@ import AISettingsSection from './AISettingsSection';
  * - Toggle features (valid moves, god mode, auto-play)
  */
 const ControlPanel: React.FC = () => {
-  const { exportGameState, importGameState, initializeGame, toggleValidMoves, toggleGodMode, toggleAutoPlay, setDifficulty, startReplay, askAIForMove, toggleAIAutoPlay } = useGameStore();
+  // Narrow selectors only — a bare useGameStore() subscribes to every state
+  // change. Actions are stable references, so per-action selectors are free.
+  const exportGameState = useGameStore((state) => state.exportGameState);
+  const importGameState = useGameStore((state) => state.importGameState);
+  const initializeGame = useGameStore((state) => state.initializeGame);
+  const toggleValidMoves = useGameStore((state) => state.toggleValidMoves);
+  const toggleGodMode = useGameStore((state) => state.toggleGodMode);
+  const toggleAutoPlay = useGameStore((state) => state.toggleAutoPlay);
+  const setDifficulty = useGameStore((state) => state.setDifficulty);
+  const startReplay = useGameStore((state) => state.startReplay);
+  const askAIForMove = useGameStore((state) => state.askAIForMove);
+  const toggleAIAutoPlay = useGameStore((state) => state.toggleAIAutoPlay);
   const setSessionManagerOpen = useGameStore((state) => state.setSessionManagerOpen);
   const showValidMoves = useGameStore((state) => state.showValidMoves);
   const godMode = useGameStore((state) => state.godMode);
