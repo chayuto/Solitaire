@@ -19,7 +19,11 @@ export function canDraw(state: GameState): boolean {
 /**
  * Draws a card from the stock to the waste pile
  * The card is flipped face up
- * 
+ *
+ * The FRONT of the drawPile array (index 0) is the top of the stock — the
+ * same convention the app has always shipped with (deals, persisted games,
+ * replay and the AI advisor's DRAW TIMELINE all assume it).
+ *
  * @param state - The current game state
  * @returns A new game state with the card moved from stock to waste
  * @throws Error if the draw pile is empty
@@ -28,13 +32,13 @@ export function draw(state: GameState): GameState {
   if (!canDraw(state)) {
     throw new Error('Cannot draw: draw pile is empty');
   }
-  
-  // Draw from the end of the draw pile (top card)
-  const drawnCard = { ...state.drawPile[state.drawPile.length - 1], faceUp: true };
-  
+
+  // Draw from the front of the draw pile (top card)
+  const drawnCard = { ...state.drawPile[0], faceUp: true };
+
   return {
     ...state,
-    drawPile: state.drawPile.slice(0, -1),
+    drawPile: state.drawPile.slice(1),
     discardPile: [...state.discardPile, drawnCard],
   };
 }
