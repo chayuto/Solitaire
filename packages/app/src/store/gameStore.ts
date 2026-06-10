@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState, GameEvent, GameEventType, Card, Suit, Move, Difficulty } from '../types';
+import type { GameState, GameEvent, GameEventType, Card, Suit, Difficulty } from '../types';
 import { splitLegacyMoveHistory } from './migrations';
 import {
   arrangeDeckByDifficulty,
@@ -21,6 +21,7 @@ import {
   canAutoComplete,
 } from './uiHelpers';
 import { uiToCore } from '../adapters/coreAdapter';
+import { applyCommandToState } from './applyMove';
 import { initialGameConfig } from './urlConfig';
 import { DEFAULT_DIFFICULTY, TABLEAU_COLUMNS, AUTOPLAY_TIMING, AUTOPLAY_LOOP_DETECTION } from '../constants';
 import { collectPossibleMoves, scoreMoves, filterLoopingMoves } from '../autoplay';
@@ -483,304 +484,91 @@ export const useGameStore = create<GameStore>((set, get) => ({
   moveCardToTableau: (targetColumn) => {
     const state = get();
     const selected = state.selectedCard;
-    
+
     if (!selected) return;
-    
+
     // Check if move is valid
     if (!get().canMoveToTableau(selected.card, targetColumn)) {
       return;
     }
-    
-    const newTableau = [...state.tableau];
-    const newMoves: Move[] = [];
-    
-    if (selected.source === 'tableau' && selected.columnIndex !== undefined && selected.cardIndex !== undefined) {
-      // Move from tableau to tableau (can move multiple cards)
-      const sourceColumn = [...state.tableau[selected.columnIndex]];
-      const cardsToMove = sourceColumn.slice(selected.cardIndex);
-      const remainingCards = sourceColumn.slice(0, selected.cardIndex);
-      
-      // Record the move for each card moved
-      cardsToMove.forEach((card, index) => {
-        newMoves.push({
-          type: 'tableau_to_tableau',
-          timestamp: Date.now() + index,
-          card,
-          from: {
-            source: 'tableau',
-            columnIndex: selected.columnIndex,
-            cardIndex: selected.cardIndex! + index,
-          },
-          to: {
-            target: 'tableau',
-            columnIndex: targetColumn,
-          },
-        });
-      });
-      
-      // Flip the last remaining card if it exists and is face down
-      if (remainingCards.length > 0 && !remainingCards[remainingCards.length - 1].faceUp) {
-        const flippedCard = {
-          ...remainingCards[remainingCards.length - 1],
-          faceUp: true,
-        };
-        remainingCards[remainingCards.length - 1] = flippedCard;
-        
-        // Record the flip
-        newMoves.push({
-          type: 'flip_card',
-          timestamp: Date.now() + cardsToMove.length,
-          card: flippedCard,
-          from: {
-            source: 'tableau',
-            columnIndex: selected.columnIndex,
-            cardIndex: remainingCards.length - 1,
-          },
-        });
-      }
-      
-      newTableau[selected.columnIndex] = remainingCards;
-      newTableau[targetColumn] = [...newTableau[targetColumn], ...cardsToMove];
-      
-      const updatedState = {
-        ...state,
-        tableau: newTableau,
-        moveHistory: [...state.moveHistory, ...newMoves],
-      };
-      
-      set({ 
-        tableau: newTableau, 
-        selectedCard: undefined,
-        moveHistory: [...state.moveHistory, ...newMoves],
-        completionProgress: getCompletionProgress(uiToCore(updatedState)),
-      });
-    } else if (selected.source === 'discard') {
-      // Move from discard to tableau
-      const newDiscardPile = state.discardPile.slice(0, -1);
-      newTableau[targetColumn] = [...newTableau[targetColumn], selected.card];
-      
-      // Record the move
-      const move: Move = {
-        type: 'discard_to_tableau',
-        timestamp: Date.now(),
-        card: selected.card,
-        from: {
-          source: 'discard',
-        },
-        to: {
-          target: 'tableau',
-          columnIndex: targetColumn,
-        },
-      };
-      
-      const updatedState = {
-        ...state,
-        discardPile: newDiscardPile,
-        tableau: newTableau,
-        moveHistory: [...state.moveHistory, move],
-      };
-      
-      set({ 
-        discardPile: newDiscardPile, 
-        tableau: newTableau, 
-        selectedCard: undefined,
-        moveHistory: [...state.moveHistory, move],
-        completionProgress: getCompletionProgress(uiToCore(updatedState)),
-      });
-    }
+
+    // Build the command and let the core engine apply it (ADR-0005); the
+    // store keeps selection UX. Records/derived state come from applyMove.
+    const command: MoveCommand =
+      selected.source === 'tableau' &&
+      selected.columnIndex !== undefined &&
+      selected.cardIndex !== undefined
+        ? {
+            type: 'tableau_to_tableau',
+            from: { column: selected.columnIndex, cardIndex: selected.cardIndex },
+            to: { column: targetColumn },
+          }
+        : { type: 'discard_to_tableau', to: { column: targetColumn } };
+
+    const applied = applyCommandToState(state, command, engine);
+    if (!applied) return;
+    set({ ...applied.partial, selectedCard: undefined });
   },
-  
+
   moveCardToFoundation: (suit) => {
     const state = get();
     const selected = state.selectedCard;
-    
+
     if (!selected) return;
-    
+
     // Check if move is valid
     if (!get().canMoveToFoundation(selected.card, suit)) {
       return;
     }
-    
-    const newMoves: Move[] = [];
-    
-    // Only single cards can move to foundation
+
+    let command: MoveCommand;
     if (selected.source === 'tableau' && selected.columnIndex !== undefined && selected.cardIndex !== undefined) {
+      // Only the top card of a column can move to a foundation.
       const sourceColumn = state.tableau[selected.columnIndex];
-      // Only allow if it's the last card in the column
       if (selected.cardIndex !== sourceColumn.length - 1) {
         return;
       }
-      
-      const newTableau = [...state.tableau];
-      const newColumn = [...sourceColumn];
-      newColumn.pop();
-      
-      // Record the move
-      newMoves.push({
+      command = {
         type: 'tableau_to_foundation',
-        timestamp: Date.now(),
-        card: selected.card,
-        from: {
-          source: 'tableau',
-          columnIndex: selected.columnIndex,
-          cardIndex: selected.cardIndex,
-        },
-        to: {
-          target: 'foundation',
-          suit,
-        },
-      });
-      
-      // Flip the last remaining card if it exists and is face down
-      if (newColumn.length > 0 && !newColumn[newColumn.length - 1].faceUp) {
-        const flippedCard = {
-          ...newColumn[newColumn.length - 1],
-          faceUp: true,
-        };
-        newColumn[newColumn.length - 1] = flippedCard;
-        
-        // Record the flip
-        newMoves.push({
-          type: 'flip_card',
-          timestamp: Date.now() + 1,
-          card: flippedCard,
-          from: {
-            source: 'tableau',
-            columnIndex: selected.columnIndex,
-            cardIndex: newColumn.length - 1,
-          },
-        });
-      }
-      
-      newTableau[selected.columnIndex] = newColumn;
-      const newFoundations = { ...state.foundations };
-      newFoundations[suit] = [...newFoundations[suit], selected.card];
-      
-      const updatedState = {
-        ...state,
-        tableau: newTableau, 
-        foundations: newFoundations, 
-        selectedCard: undefined,
-        moveHistory: [...state.moveHistory, ...newMoves],
+        from: { column: selected.columnIndex, cardIndex: selected.cardIndex },
+        to: { suit },
       };
-      
-      set({
-        ...updatedState,
-        selectedCard: undefined,
-        completionProgress: getCompletionProgress(uiToCore(updatedState)),
-      });
-      
-      // Check for win condition
-      const newState = get();
-      if (isGameWon(newState)) {
-        set({ gameWon: true, autoPlayEnabled: false, autoPlayInProgress: false });
-      } else {
-        // Check if auto-complete should be triggered
-        get().checkAndTriggerAutoComplete();
-      }
     } else if (selected.source === 'discard') {
-      const newDiscardPile = state.discardPile.slice(0, -1);
-      const newFoundations = { ...state.foundations };
-      newFoundations[suit] = [...newFoundations[suit], selected.card];
-      
-      // Record the move
-      const move: Move = {
-        type: 'discard_to_foundation',
-        timestamp: Date.now(),
-        card: selected.card,
-        from: {
-          source: 'discard',
-        },
-        to: {
-          target: 'foundation',
-          suit,
-        },
-      };
-      
-      const updatedState = {
-        ...state,
-        discardPile: newDiscardPile, 
-        foundations: newFoundations, 
-        selectedCard: undefined,
-        moveHistory: [...state.moveHistory, move],
-      };
-      
-      set({
-        ...updatedState,
-        selectedCard: undefined,
-        completionProgress: getCompletionProgress(uiToCore(updatedState)),
-      });
-      
-      // Check for win condition
-      const newState = get();
-      if (isGameWon(newState)) {
-        set({ gameWon: true, autoPlayEnabled: false, autoPlayInProgress: false });
-      } else {
-        // Check if auto-complete should be triggered
-        get().checkAndTriggerAutoComplete();
-      }
+      command = { type: 'discard_to_foundation', to: { suit } };
+    } else {
+      return;
+    }
+
+    const applied = applyCommandToState(state, command, engine);
+    if (!applied) return;
+    set({ ...applied.partial, selectedCard: undefined });
+
+    // Check for win condition
+    const newState = get();
+    if (isGameWon(newState)) {
+      set({ gameWon: true, autoPlayEnabled: false, autoPlayInProgress: false });
+    } else {
+      // Check if auto-complete should be triggered
+      get().checkAndTriggerAutoComplete();
     }
   },
-  
+
   drawCard: () => {
     const state = get();
-    
-    if (state.drawPile.length === 0) {
-      // Reset draw pile from discard pile. Bump recycleCount; the AI prompt
-      // renders `CYCLE: N` as `1 + recycleCount` so cycle 1 is the initial
-      // pass and the first recycle moves the game into cycle 2.
-      const newDrawPile = [...state.discardPile].reverse().map(card => ({
-        ...card,
-        faceUp: false,
-      }));
-      // Record the recycle as an action in move history so RECENT MOVES (and
-      // the activity log) read `draw / recycle stock / draw` instead of two
-      // consecutive draws with the recycle invisible between them. Recycle has
-      // no single card, so it carries a marker card like the autoplay events.
-      // Only logged when there is a waste pile to recycle (a no-op recycle on
-      // a fully empty stock+waste records nothing).
-      const newMoveHistory =
-        state.discardPile.length > 0
-          ? [
-              ...state.moveHistory,
-              {
-                type: 'recycle_stock',
-                timestamp: Date.now(),
-                card: { suit: 'hearts', rank: 'A', faceUp: true, id: 'recycle-marker' },
-              } as Move,
-            ]
-          : state.moveHistory;
-      set({
-        drawPile: newDrawPile,
-        discardPile: [],
-        recycleCount: (state.recycleCount ?? 0) + 1,
-        moveHistory: newMoveHistory,
-      });
-    } else {
-      // Draw a card from draw pile to discard pile
-      const card = state.drawPile[0];
-      const drawnCard = { ...card, faceUp: true };
-      const newDrawPile = state.drawPile.slice(1);
-      const newDiscardPile = [...state.discardPile, drawnCard];
-      
-      // Record the move
-      const move: Move = {
-        type: 'draw_card',
-        timestamp: Date.now(),
-        card: drawnCard,
-        from: {
-          source: 'draw',
-        },
-      };
-      
-      set({ 
-        drawPile: newDrawPile, 
-        discardPile: newDiscardPile,
-        moveHistory: [...state.moveHistory, move],
-      });
+
+    // Empty stock recycles the waste (one fused user action); an empty stock
+    // AND empty waste is a no-op — there is nothing to draw or recycle.
+    if (state.drawPile.length === 0 && state.discardPile.length === 0) {
+      return;
     }
+    const command: MoveCommand =
+      state.drawPile.length === 0 ? { type: 'recycle_stock' } : { type: 'draw_card' };
+
+    const applied = applyCommandToState(state, command, engine);
+    if (!applied) return;
+    set(applied.partial);
   },
-  
+
   exportGameState: () => {
     const state = get();
     const exportState: GameState = {
@@ -1328,38 +1116,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // -------------------------------------------------------------------------
 
   applyMoveCommand: (command: MoveCommand) => {
-    // Translates a core MoveCommand into the store's existing move actions, so
-    // an AI-chosen move is recorded, flips cards, updates progress and triggers
-    // auto-complete exactly like a human move.
+    // Apply a core MoveCommand through the same engine pathway as a human
+    // move, so an AI/auto-play move is recorded, flips cards, updates
+    // progress and triggers auto-complete exactly like manual play.
     switch (command.type) {
       case 'draw_card':
       case 'recycle_stock':
         // The store's drawCard recycles the waste when the stock is empty.
         get().drawCard();
-        break;
-      case 'tableau_to_tableau':
-        if (command.from?.column === undefined || command.to?.column === undefined) return;
-        get().selectCard('tableau', command.from.column, command.from.cardIndex);
-        get().moveCardToTableau(command.to.column);
-        break;
-      case 'tableau_to_foundation':
-        if (command.from?.column === undefined || !command.to?.suit) return;
-        get().selectCard('tableau', command.from.column, command.from.cardIndex);
-        get().moveCardToFoundation(command.to.suit);
-        break;
-      case 'discard_to_tableau':
-        if (command.to?.column === undefined) return;
-        get().selectCard('discard');
-        get().moveCardToTableau(command.to.column);
-        break;
-      case 'discard_to_foundation':
-        if (!command.to?.suit) return;
-        get().selectCard('discard');
-        get().moveCardToFoundation(command.to.suit);
-        break;
+        return;
       case 'flip_card':
         // Flips are produced automatically by other moves; nothing to do.
-        break;
+        return;
+      default: {
+        const applied = applyCommandToState(get(), command, engine);
+        if (!applied) return;
+        set({ ...applied.partial, selectedCard: undefined });
+
+        if (command.type === 'tableau_to_foundation' || command.type === 'discard_to_foundation') {
+          const newState = get();
+          if (isGameWon(newState)) {
+            set({ gameWon: true, autoPlayEnabled: false, autoPlayInProgress: false });
+          } else {
+            get().checkAndTriggerAutoComplete();
+          }
+        }
+      }
     }
   },
 
