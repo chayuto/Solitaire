@@ -184,6 +184,10 @@ const ActivityLog: React.FC = () => {
         return `${time} - 🚫 Auto-play stopped - No valid moves available (deadend)`;
       case 'autoplay_loop_detected':
         return `${time} - 🔄 Auto-play stopped - Loop detected`;
+      case 'undo':
+        return `${time} - ↩️ Move undone`;
+      case 'redo':
+        return `${time} - ↪️ Move redone`;
     }
   };
 

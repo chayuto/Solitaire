@@ -28,6 +28,8 @@ export const useGameStore = create<GameStore>((set, get) => {
 
   return {
     ...buildInitialState(),
+    undoStack: [],
+    redoStack: [],
     ...createGameSlice(set, get, advisor),
     ...createUiSlice(set, get),
     ...createAutoplaySlice(set, get),

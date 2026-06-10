@@ -19,7 +19,13 @@ export function createSessionSlice(set: StoreSet, _get: StoreGet, advisor: Advis
     if (!isRestorable(persisted)) return false;
     // Restoring a game invalidates the in-flight AI request and per-run state.
     advisor.resetRunState();
-    set({ ...hydratePersisted(persisted), sessionManagerOpen: false });
+    set({
+      ...hydratePersisted(persisted),
+      sessionManagerOpen: false,
+      // Undo history belongs to the replaced game.
+      undoStack: [],
+      redoStack: [],
+    });
     return true;
   },
 

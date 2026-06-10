@@ -28,6 +28,7 @@ import {
 } from './ai';
 import type { AIConfig, AIInteraction, StubDecisionFn } from './ai';
 import type { Card, Difficulty, GameState, Suit } from './types';
+import type { GameStore } from './store/types';
 
 /** Compact, token-efficient game snapshot for agents. */
 export interface GameSummary {
@@ -36,6 +37,9 @@ export interface GameSummary {
   /** Deal seed, or null when the deal was not seeded. */
   seed: number | null;
   moveCount: number;
+  /** Moves available to undo / redo. */
+  undoDepth: number;
+  redoDepth: number;
   drawPile: number;
   discardPile: number;
   /** Top (playable) discard card id, or null when the discard pile is empty. */
@@ -115,6 +119,10 @@ export interface SolitaireTestBridge {
   moveToFoundation: (suit: Suit) => void;
   /** Draw a card from the stock (or recycle the discard pile when empty). */
   draw: () => void;
+  /** Undo the last move (no-op during replay / AI / auto-play). */
+  undo: () => void;
+  /** Redo the most recently undone move. */
+  redo: () => void;
   /** Toggle the built-in auto-play solver. */
   toggleAutoPlay: () => void;
   /** Whether the game is currently won. */
@@ -196,7 +204,7 @@ function locateCard(state: GameState, cardId: string): ReturnType<SolitaireTestB
   return null;
 }
 
-function buildSummary(state: GameState): GameSummary {
+function buildSummary(state: GameStore): GameSummary {
   const foundations: Record<Suit, number> = {
     hearts: state.foundations.hearts.length,
     diamonds: state.foundations.diamonds.length,
@@ -215,6 +223,8 @@ function buildSummary(state: GameState): GameSummary {
     gameSessionId: state.gameSessionId ?? null,
     seed: state.seed ?? null,
     moveCount: state.moveHistory.length,
+    undoDepth: state.undoStack.length,
+    redoDepth: state.redoStack.length,
     drawPile: state.drawPile.length,
     discardPile: state.discardPile.length,
     discardTop: discardTop ? discardTop.id : null,
@@ -254,6 +264,8 @@ export function installTestBridge(): void {
     moveToTableau: (columnIndex) => useGameStore.getState().moveCardToTableau(columnIndex),
     moveToFoundation: (suit) => useGameStore.getState().moveCardToFoundation(suit),
     draw: () => useGameStore.getState().drawCard(),
+    undo: () => useGameStore.getState().undo(),
+    redo: () => useGameStore.getState().redo(),
     toggleAutoPlay: () => useGameStore.getState().toggleAutoPlay(),
     isWon: () => useGameStore.getState().gameWon,
     findCard: (cardId) => locateCard(useGameStore.getState(), cardId),

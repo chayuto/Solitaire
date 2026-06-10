@@ -4,7 +4,7 @@
  */
 import { getCompletionProgress, getPerceivedDifficulty } from '@chayuto/solitaire-core';
 import type { MoveCommand } from '@chayuto/solitaire-core';
-import type { Difficulty, GameState } from '../../types';
+import type { Difficulty, GameEvent, GameState } from '../../types';
 import { uiToCore } from '../../adapters/coreAdapter';
 import { applyCommandToState } from '../applyMove';
 import { engine } from '../engine';
@@ -14,7 +14,36 @@ import { isGameWon } from '../uiHelpers';
 import { DEFAULT_AI_CONFIG, uuidv7 } from '../../ai';
 import type { AdvisorController } from '../../ai/advisorController';
 import { APP_BUILD_TIME, APP_COMMIT } from '../../buildInfo';
-import type { GameStore, StoreGet, StoreSet } from '../types';
+import type { GameSnapshot, GameStore, StoreGet, StoreSet } from '../types';
+
+/** Bound on remembered moves; oldest snapshots drop off first. */
+const UNDO_STACK_LIMIT = 50;
+
+/** Deep snapshot of the replayable game subset (a few KB; see GameSnapshot). */
+function snapshotOf(state: GameState): GameSnapshot {
+  return structuredClone({
+    drawPile: state.drawPile,
+    discardPile: state.discardPile,
+    foundations: state.foundations,
+    tableau: state.tableau,
+    moveHistory: state.moveHistory,
+    recycleCount: state.recycleCount ?? 0,
+    completionProgress: state.completionProgress,
+    gameWon: state.gameWon,
+  });
+}
+
+/**
+ * Store-patch fragment capturing `prev` for undo: one snapshot per applied
+ * user-visible move (a multi-card run + its flip is one wrapper call, hence
+ * one undo step). Any new move clears the redo branch.
+ */
+function captureUndo(prev: GameStore): Pick<GameStore, 'undoStack' | 'redoStack'> {
+  return {
+    undoStack: [...prev.undoStack, snapshotOf(prev)].slice(-UNDO_STACK_LIMIT),
+    redoStack: [],
+  };
+}
 
 type GameSlice = Pick<
   GameStore,
@@ -26,6 +55,8 @@ type GameSlice = Pick<
   | 'exportGameState'
   | 'importGameState'
   | 'applyMoveCommand'
+  | 'undo'
+  | 'redo'
   | 'dismissWinModal'
 >;
 
@@ -38,7 +69,12 @@ export function createGameSlice(set: StoreSet, get: StoreGet, advisor: AdvisorCo
     advisor.resetRunState();
     // The AI config is a session-level preference — preserve it across games.
     const preservedConfig = get().aiConfig ?? DEFAULT_AI_CONFIG;
-    set({ ...initializeGameState(currentDifficulty, seed), aiConfig: preservedConfig });
+    set({
+      ...initializeGameState(currentDifficulty, seed),
+      aiConfig: preservedConfig,
+      undoStack: [],
+      redoStack: [],
+    });
   },
 
   setDifficulty: (difficulty: Difficulty) => set({ difficulty }),
@@ -69,7 +105,7 @@ export function createGameSlice(set: StoreSet, get: StoreGet, advisor: AdvisorCo
 
     const applied = applyCommandToState(state, command, engine);
     if (!applied) return;
-    set({ ...applied.partial, selectedCard: undefined });
+    set({ ...applied.partial, selectedCard: undefined, ...captureUndo(state) });
   },
 
   moveCardToFoundation: (suit) => {
@@ -103,7 +139,7 @@ export function createGameSlice(set: StoreSet, get: StoreGet, advisor: AdvisorCo
 
     const applied = applyCommandToState(state, command, engine);
     if (!applied) return;
-    set({ ...applied.partial, selectedCard: undefined });
+    set({ ...applied.partial, selectedCard: undefined, ...captureUndo(state) });
 
     // Check for win condition
     const newState = get();
@@ -128,7 +164,7 @@ export function createGameSlice(set: StoreSet, get: StoreGet, advisor: AdvisorCo
 
     const applied = applyCommandToState(state, command, engine);
     if (!applied) return;
-    set(applied.partial);
+    set({ ...applied.partial, ...captureUndo(state) });
   },
 
   exportGameState: () => {
@@ -243,6 +279,9 @@ export function createGameSlice(set: StoreSet, get: StoreGet, advisor: AdvisorCo
         // Restore the AI decision log if the save carries one (older saves
         // and non-AI games simply have none).
         aiDecisionLog: importedState.aiDecisionLog ?? [],
+        // Undo history belongs to the replaced game.
+        undoStack: [],
+        redoStack: [],
       });
 
       return true;
@@ -266,9 +305,10 @@ export function createGameSlice(set: StoreSet, get: StoreGet, advisor: AdvisorCo
         // Flips are produced automatically by other moves; nothing to do.
         return;
       default: {
-        const applied = applyCommandToState(get(), command, engine);
+        const state = get();
+        const applied = applyCommandToState(state, command, engine);
         if (!applied) return;
-        set({ ...applied.partial, selectedCard: undefined });
+        set({ ...applied.partial, selectedCard: undefined, ...captureUndo(state) });
 
         if (command.type === 'tableau_to_foundation' || command.type === 'discard_to_foundation') {
           const newState = get();
@@ -280,6 +320,51 @@ export function createGameSlice(set: StoreSet, get: StoreGet, advisor: AdvisorCo
         }
       }
     }
+  },
+
+  undo: () => {
+    const state = get();
+    // The stacks rewind *play*; while replay, AI, or auto-play own the board
+    // (or there is nothing to undo) the action is a no-op.
+    if (state.replayMode || state.aiThinking || state.aiAutoPlay || state.autoPlayEnabled) return;
+    if (state.undoStack.length === 0) return;
+
+    const snapshot = state.undoStack[state.undoStack.length - 1];
+    const undoEvent: GameEvent = {
+      type: 'undo',
+      timestamp: Date.now(),
+      atMoveIndex: snapshot.moveHistory.length,
+    };
+    set({
+      ...snapshot,
+      // The eventLog is append-only telemetry — never rewound by undo.
+      eventLog: [...(state.eventLog ?? []), undoEvent],
+      undoStack: state.undoStack.slice(0, -1),
+      redoStack: [...state.redoStack, snapshotOf(state)].slice(-UNDO_STACK_LIMIT),
+      selectedCard: undefined,
+      // Deliberately NO checkAndTriggerAutoComplete: undoing into a
+      // completable position must not instantly re-complete the game.
+    });
+  },
+
+  redo: () => {
+    const state = get();
+    if (state.replayMode || state.aiThinking || state.aiAutoPlay || state.autoPlayEnabled) return;
+    if (state.redoStack.length === 0) return;
+
+    const snapshot = state.redoStack[state.redoStack.length - 1];
+    const redoEvent: GameEvent = {
+      type: 'redo',
+      timestamp: Date.now(),
+      atMoveIndex: snapshot.moveHistory.length,
+    };
+    set({
+      ...snapshot,
+      eventLog: [...(state.eventLog ?? []), redoEvent],
+      redoStack: state.redoStack.slice(0, -1),
+      undoStack: [...state.undoStack, snapshotOf(state)].slice(-UNDO_STACK_LIMIT),
+      selectedCard: undefined,
+    });
   },
 
   dismissWinModal: () => {
