@@ -69,11 +69,13 @@ test.describe('window.__solitaire test bridge', () => {
         'moveToFoundation',
         'moveToTableau',
         'newGame',
+        'redo',
         'select',
         'setAIConfig',
         'setAIProviderStub',
         'toggleAIAutoPlay',
         'toggleAutoPlay',
+        'undo',
         'version',
       ].sort(),
     );
