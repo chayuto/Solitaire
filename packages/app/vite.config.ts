@@ -67,6 +67,18 @@ export default defineConfig(({ mode }) => {
       setupFiles: './src/test/setup.ts',
       css: true,
       exclude: ['e2e/**', 'node_modules/**'],
+      coverage: {
+        provider: 'v8',
+        include: ['src/**'],
+        // Thresholds sit under the measured baseline (75% lines at
+        // introduction); ratchet upward as slice-level tests accumulate.
+        thresholds: {
+          lines: 70,
+          statements: 70,
+          functions: 62,
+          branches: 52,
+        },
+      },
     },
   }
 })

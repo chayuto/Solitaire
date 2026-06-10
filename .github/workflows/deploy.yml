@@ -24,20 +24,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6.0.3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build libraries
-        run: pnpm run build:libs
+      - name: Setup workspace
+        uses: ./.github/actions/setup
 
       - name: Lint
         run: pnpm run lint
@@ -74,10 +62,9 @@ jobs:
     # Run inside the official Playwright image: chromium, the headless shell,
     # ffmpeg and every OS dependency are baked in, so there is NO
     # `playwright install` download step — the CDN stall that used to hang this
-    # job can't happen. Keep this tag in lockstep with the @playwright/test
-    # version in packages/app/package.json (currently 1.59.1); a mismatch makes
-    # Playwright fall back to downloading the browser again. Mirrors the e2e job
-    # in ci.yml.
+    # job can't happen. The image tag must match the @playwright/test version
+    # in packages/app/package.json (ADR-0004) — enforced by the lockstep guard
+    # step below. Mirrors the e2e job in ci.yml.
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     # Safety cap; with no browser download the job is fast.
@@ -91,17 +78,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6.0.3
+      - name: Check Playwright image/version lockstep
+        run: node scripts/check-playwright-lockstep.mjs
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup workspace
+        uses: ./.github/actions/setup
 
       - name: Run post-deploy smoke tests
         run: pnpm run test:e2e:deploy

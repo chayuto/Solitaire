@@ -42,3 +42,6 @@ dist-ssr
 
 # Playwright MCP screenshot output
 .playwright-mcp/
+
+# Test coverage output
+coverage/
