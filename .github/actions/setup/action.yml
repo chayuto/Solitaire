@@ -1,0 +1,25 @@
+name: Setup workspace
+description: >-
+  pnpm + Node 24 with the pnpm store cached, frozen-lockfile install, and the
+  workspace libraries built (the app resolves @chayuto/solitaire-core through
+  its dist/). Checkout must happen before this action runs.
+
+runs:
+  using: composite
+  steps:
+    - name: Install pnpm
+      uses: pnpm/action-setup@v6.0.3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Build libraries
+      shell: bash
+      run: pnpm run build:libs

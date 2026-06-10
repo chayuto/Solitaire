@@ -23,5 +23,17 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    coverage: {
+      provider: 'v8',
+      include: ['src/**'],
+      // Thresholds sit just under the measured baseline (87% lines at
+      // introduction) so they catch regressions without blocking honest work.
+      thresholds: {
+        lines: 85,
+        statements: 85,
+        functions: 85,
+        branches: 75,
+      },
+    },
   },
 })
