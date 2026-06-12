@@ -15,21 +15,41 @@ const AIKeyModalContent: React.FC = () => {
   const setAIConfig = useGameStore((s) => s.setAIConfig);
 
   const providers = listProviders();
-  const provider = providers.find((p) => p.id === aiConfig.provider) ?? providers[0];
-  const providerId = aiConfig.provider as AIProviderId;
 
+  const [providerId, setProviderId] = useState<AIProviderId>(aiConfig.provider);
   const [keyInput, setKeyInput] = useState('');
   const [model, setModel] = useState(aiConfig.model);
   const [keyAlreadySet, setKeyAlreadySet] = useState(() => hasUserKey(providerId));
   const [notice, setNotice] = useState<string | null>(null);
 
+  const provider = providers.find((p) => p.id === providerId) ?? providers[0];
+
   if (!provider) return null;
 
-  const devKeyAvailable = getDevFallbackKey().length > 0;
+  const devKeyAvailable = getDevFallbackKey(providerId).length > 0;
+
+  const handleProviderChange = (id: AIProviderId) => {
+    const next = providers.find((p) => p.id === id);
+    if (!next) return;
+    setProviderId(id);
+    // Model lists are provider-specific; switching keeps the stored model only
+    // when it is valid for the new provider.
+    setModel(id === aiConfig.provider ? aiConfig.model : next.defaultModel);
+    setKeyInput('');
+    setKeyAlreadySet(hasUserKey(id));
+    setNotice(null);
+  };
 
   const handleSave = () => {
+    const patch: { provider?: AIProviderId; model?: string } = {};
+    if (providerId !== aiConfig.provider) {
+      patch.provider = providerId;
+    }
     if (model.trim().length > 0 && model.trim() !== aiConfig.model) {
-      setAIConfig({ model: model.trim() });
+      patch.model = model.trim();
+    }
+    if (Object.keys(patch).length > 0) {
+      setAIConfig(patch);
     }
     const trimmed = keyInput.trim();
     if (trimmed.length > 0) {
@@ -73,10 +93,25 @@ const AIKeyModalContent: React.FC = () => {
         </div>
 
         {/* Provider */}
-        <label className="block text-sm font-semibold text-gray-700 mb-1">Provider</label>
-        <div className="mb-4 text-sm text-gray-800 bg-gray-100 rounded px-3 py-2">
-          {provider.displayName}
-        </div>
+        <label
+          htmlFor="ai-provider-input"
+          className="block text-sm font-semibold text-gray-700 mb-1"
+        >
+          Provider
+        </label>
+        <select
+          id="ai-provider-input"
+          data-testid="ai-provider-input"
+          value={providerId}
+          onChange={(e) => handleProviderChange(e.target.value as AIProviderId)}
+          className="w-full border border-gray-300 rounded px-3 py-2 mb-4 text-sm bg-white"
+        >
+          {providers.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.displayName}
+            </option>
+          ))}
+        </select>
 
         {/* Model — a dropdown of the provider's known models. If the stored
             config names one outside that list (e.g. a legacy value), include
@@ -100,11 +135,18 @@ const AIKeyModalContent: React.FC = () => {
             </option>
           ))}
         </select>
-        <p className="text-xs text-gray-500 mb-4">
-          Default <code>gemma-4-31b-it</code> is a thinking model — a suggestion can take
-          up to ~3 minutes. Pick a faster model (e.g.{' '}
-          <code>gemini-3.1-flash-lite</code>) for quicker, lower-quality advice.
-        </p>
+        {provider.id === 'gemini' ? (
+          <p className="text-xs text-gray-500 mb-4">
+            Default <code>gemma-4-31b-it</code> is a thinking model — a suggestion can take
+            up to ~3 minutes. Pick a faster model (e.g.{' '}
+            <code>gemini-3.1-flash-lite</code>) for quicker, lower-quality advice.
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500 mb-4">
+            <code>MiniMax-M3</code> is a thinking model — a suggestion can take a minute or
+            two on a complex board.
+          </p>
+        )}
 
         {/* API key */}
         <label htmlFor="ai-key-input" className="block text-sm font-semibold text-gray-700 mb-1">

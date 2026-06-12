@@ -13,10 +13,12 @@
 
 import { AIError, type AIProvider, type AIProviderId } from '../types';
 import { geminiProvider } from './GeminiProvider';
+import { tokenRouterProvider } from './TokenRouterProvider';
 
 /** All registered providers, keyed by id. */
 const REGISTRY: Record<AIProviderId, AIProvider> = {
   gemini: geminiProvider,
+  tokenrouter: tokenRouterProvider,
 };
 
 /** Active test override; when set, {@link getProvider} returns it for any id. */
@@ -53,5 +55,6 @@ export function getProviderOverride(): AIProvider | null {
 }
 
 export { geminiProvider } from './GeminiProvider';
+export { tokenRouterProvider } from './TokenRouterProvider';
 export { createStubProvider } from './stubProvider';
 export type { StubDecisionFn } from './stubProvider';

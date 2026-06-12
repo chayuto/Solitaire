@@ -27,13 +27,20 @@ function getStorage(): Storage | null {
 }
 
 /**
- * Dev-only fallback key, injected from the repo-root `.env` at build time.
- * Empty string in production builds. Lets `pnpm dev` use a `.env` key without
- * pasting it into the UI. See `vite.config.ts`.
+ * Dev-only fallback key for a provider, injected from the repo-root `.env` at
+ * build time. Empty string in production builds. Lets `pnpm dev` use a `.env`
+ * key without pasting it into the UI. See `vite.config.ts`.
  */
-export function getDevFallbackKey(): string {
+export function getDevFallbackKey(provider: AIProviderId): string {
   try {
-    return typeof __DEV_GEMINI_KEY__ === 'string' ? __DEV_GEMINI_KEY__ : '';
+    switch (provider) {
+      case 'gemini':
+        return typeof __DEV_GEMINI_KEY__ === 'string' ? __DEV_GEMINI_KEY__ : '';
+      case 'tokenrouter':
+        return typeof __DEV_TOKENROUTER_KEY__ === 'string' ? __DEV_TOKENROUTER_KEY__ : '';
+      default:
+        return '';
+    }
   } catch {
     return '';
   }
@@ -54,7 +61,7 @@ export function getKey(provider: AIProviderId): string | null {
 export function getEffectiveKey(provider: AIProviderId): string | null {
   const stored = getKey(provider);
   if (stored) return stored;
-  const fallback = getDevFallbackKey();
+  const fallback = getDevFallbackKey(provider);
   return fallback.length > 0 ? fallback : null;
 }
 

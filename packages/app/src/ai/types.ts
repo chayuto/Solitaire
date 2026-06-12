@@ -17,7 +17,7 @@ import type { Suit } from '../types';
 // ---------------------------------------------------------------------------
 
 /** Identifier for an LLM provider. Extend this union to add new providers. */
-export type AIProviderId = 'gemini';
+export type AIProviderId = 'gemini' | 'tokenrouter';
 
 /**
  * Context verbosity preset. Controls how much information is sent to the LLM.
