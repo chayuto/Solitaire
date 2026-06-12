@@ -151,3 +151,6 @@ export const GEMINI_FLASH_THINKING_BUDGET = 24_576;
 
 /** Base URL for the Google Generative Language REST API. */
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
+/** Base URL for the TokenRouter OpenAI-compatible gateway. */
+export const TOKENROUTER_API_BASE = 'https://api.tokenrouter.com/v1';

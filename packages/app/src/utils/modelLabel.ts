@@ -11,6 +11,7 @@ const MODEL_EMOJI: Record<string, string> = {
   'gemma-4-31b-it': '🔵',
   'gemma-4-26b-a4b-it': '🟢',
   'gemini-3.1-flash-lite': '🟡',
+  'MiniMax-M3': '🟣',
 };
 
 /** The colour emoji for a model ID, or ⚪ if unrecognised. */

@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
   // development — a production build always receives an empty string, so the
   // key is never embedded in shipped code and prod users must paste their own.
   const devGeminiKey = mode === 'development' ? (rootEnv.GEMINI_API_KEY ?? '') : ''
+  const devTokenRouterKey = mode === 'development' ? (rootEnv.TOKENROUTER_API_KEY ?? '') : ''
 
   return {
     plugins: [react()],
@@ -34,6 +35,7 @@ export default defineConfig(({ mode }) => {
       __BUILD_TIME__: JSON.stringify(getBuildInfo().buildTime),
       __COMMIT_HASH__: JSON.stringify(getBuildInfo().commitHash),
       __DEV_GEMINI_KEY__: JSON.stringify(devGeminiKey),
+      __DEV_TOKENROUTER_KEY__: JSON.stringify(devTokenRouterKey),
     },
     build: {
       // The `echarts` chunk below is a deliberately large vendor bundle that is
