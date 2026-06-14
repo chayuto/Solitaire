@@ -266,7 +266,7 @@ const ControlPanel: React.FC = () => {
         <button
           data-testid="export-btn"
           onClick={handleExport}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+          className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
         >
           Export Game
         </button>
@@ -275,7 +275,7 @@ const ControlPanel: React.FC = () => {
           <button
             data-testid="replay-btn"
             onClick={startReplay}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
           >
             🎬 Start Replay
           </button>
@@ -289,8 +289,8 @@ const ControlPanel: React.FC = () => {
           disabled={replayMode || autoPlayEnabled || gameWon || aiThinking || aiAutoPlay}
           className={`w-full font-semibold py-2 px-4 rounded transition-colors text-sm ${
             aiThinking && !aiAutoPlay
-              ? 'bg-indigo-400 text-white cursor-wait'
-              : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              ? 'bg-cyan-400 text-white cursor-wait'
+              : 'bg-cyan-600 hover:bg-cyan-700 text-white'
           } ${
             replayMode || autoPlayEnabled || gameWon || aiAutoPlay
               ? 'opacity-50 cursor-not-allowed'
