@@ -62,8 +62,9 @@ before the app sees it.
 
 `ci.yml`: Lint / Typecheck / Test (app + libs) / Build / E2E. `deploy.yml`: GitHub
 Pages + post-deploy smoke test. E2E and smoke run inside the official Playwright
-container — **the image tag must match the `@playwright/test` version in
-`packages/app/package.json`** (ADR-0004). Both workflows ignore `docs/**` and `**/*.md`.
+container — **the image tag is derived automatically from the `@playwright/test`
+version** by each workflow's `playwright-version` job; never hardcode it
+(ADR-0004, amended 2026-07). Both workflows ignore `docs/**` and `**/*.md`.
 
 ## AI prompt rules
 
