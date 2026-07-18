@@ -37,8 +37,9 @@ pnpm run test:run && pnpm run test:libs && pnpm run build` — all must pass
   registry, never a concrete provider.
 - Prompt edits: data + notation only, and bump `PROMPT_LAYOUT_VERSION` in the same
   change (ADR-0002, ADR-0003).
-- `@playwright/test` version and the CI Playwright container image tag move in
-  lockstep (ADR-0004).
+- The CI Playwright container image tag is derived automatically from the
+  `@playwright/test` version by the `playwright-version` job — never hardcode
+  it back (ADR-0004, amended 2026-07).
 - Deterministic testing: seed via `/?seed=N&difficulty=1..5`; drive the UI through
   the `window.__solitaire` test bridge; browsers always headless.
 - Durable docs go in `docs/` (committed); `docs/internal/` is gitignored scratch.
